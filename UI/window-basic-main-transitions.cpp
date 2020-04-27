@@ -1032,6 +1032,139 @@ QMenu *OBSBasic::CreatePerSceneTransitionMenu()
 	return menu;
 }
 
+void OBSBasic::on_actionShowTransitionProperties_triggered()
+{
+	OBSSceneItem item = GetCurrentSceneItem();
+	OBSSource source = obs_sceneitem_get_show_transition(item);
+
+	if (source)
+		CreatePropertiesWindow(source);
+}
+
+void OBSBasic::on_actionHideTransitionProperties_triggered()
+{
+	OBSSceneItem item = GetCurrentSceneItem();
+	OBSSource source = obs_sceneitem_get_hide_transition(item);
+
+	if (source)
+		CreatePropertiesWindow(source);
+}
+
+QMenu *OBSBasic::CreateVisibilityTransitionMenu(bool visible)
+{
+	OBSSceneItem si = GetCurrentSceneItem();
+
+	QMenu *menu =
+		new QMenu(QTStr(visible ? "ShowTransition" : "HideTransition"));
+	QAction *action;
+
+	const char *curId = obs_source_get_id(
+		visible ? obs_sceneitem_get_show_transition(si)
+			: obs_sceneitem_get_hide_transition(si));
+	int curDuration =
+		(int)(visible ? obs_sceneitem_get_show_transition_duration(si)
+			      : obs_sceneitem_get_hide_transition_duration(si));
+
+	QSpinBox *duration = new QSpinBox(menu);
+	duration->setMinimum(50);
+	duration->setSuffix("ms");
+	duration->setMaximum(20000);
+	duration->setSingleStep(50);
+	duration->setValue(curDuration);
+
+	auto setTransition = [this](QAction *action, bool visible) {
+		OBSBasic *main =
+			reinterpret_cast<OBSBasic *>(App()->GetMainWindow());
+
+		QString id = action->property("transition_id").toString();
+		OBSSceneItem sceneItem = main->GetCurrentSceneItem();
+
+		if (id.isNull() || id.isEmpty()) {
+			if (visible)
+				obs_sceneitem_set_show_transition(sceneItem,
+								  nullptr);
+			else
+				obs_sceneitem_set_hide_transition(sceneItem,
+								  nullptr);
+		} else {
+			OBSSource tr =
+				visible ? obs_sceneitem_get_show_transition(
+						  sceneItem)
+					: obs_sceneitem_get_hide_transition(
+						  sceneItem);
+
+			if (strcmp(QT_TO_UTF8(id), obs_source_get_id(tr)) !=
+			    0) {
+				tr = obs_source_create_private(QT_TO_UTF8(id),
+							       NULL, NULL);
+				if (visible)
+					obs_sceneitem_set_show_transition(
+						sceneItem, tr);
+				else
+					obs_sceneitem_set_hide_transition(
+						sceneItem, tr);
+			}
+			CreatePropertiesWindow(tr);
+		}
+	};
+	if (visible) {
+		auto setDuration = [this](int duration) {
+			OBSBasic *main = reinterpret_cast<OBSBasic *>(
+				App()->GetMainWindow());
+
+			OBSSceneItem item = main->GetCurrentSceneItem();
+			obs_sceneitem_set_show_transition_duration(item,
+								   duration);
+		};
+		connect(duration,
+			(void (QSpinBox::*)(int)) & QSpinBox::valueChanged,
+			setDuration);
+	} else {
+		auto setDuration = [this](int duration) {
+			OBSBasic *main = reinterpret_cast<OBSBasic *>(
+				App()->GetMainWindow());
+
+			OBSSceneItem item = main->GetCurrentSceneItem();
+			obs_sceneitem_set_hide_transition_duration(item,
+								   duration);
+		};
+		connect(duration,
+			(void (QSpinBox::*)(int)) & QSpinBox::valueChanged,
+			setDuration);
+	}
+
+	action = menu->addAction(QT_UTF8(Str("None")));
+	action->setProperty("transition_id", QT_UTF8(""));
+	action->setCheckable(true);
+	action->setChecked(!curId);
+	connect(action, &QAction::triggered,
+		std::bind(setTransition, action, visible));
+	size_t idx = 0;
+	const char *id;
+	while (obs_enum_transition_types(idx++, &id)) {
+		const char *name = obs_source_get_display_name(id);
+		const bool match = id && curId && strcmp(id, curId) == 0;
+		action = menu->addAction(QT_UTF8(name));
+		action->setProperty("transition_id", QT_UTF8(id));
+		action->setCheckable(true);
+		action->setChecked(match);
+		connect(action, &QAction::triggered,
+			std::bind(setTransition, action, visible));
+	}
+
+	QWidgetAction *durationAction = new QWidgetAction(menu);
+	durationAction->setDefaultWidget(duration);
+
+	menu->addSeparator();
+	menu->addAction(durationAction);
+	menu->addSeparator();
+	menu->addAction(
+		QTStr("Properties"), this,
+		visible ? SLOT(on_actionShowTransitionProperties_triggered())
+			: SLOT(on_actionHideTransitionProperties_triggered()));
+	return menu;
+}
+
 QMenu *OBSBasic::CreateTransitionMenu(QWidget *parent, QuickTransition *qt)
 {
 	QMenu *menu = new QMenu(parent);
