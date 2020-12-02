@@ -2276,7 +2276,7 @@ static uint32_t get_base_width(const obs_source_t *source)
 		return get_base_width(source->filter_target);
 	}
 
-	return source->async_active ? get_async_width(source) : 0;
+	return get_async_width(source);
 }
 
 static uint32_t get_base_height(const obs_source_t *source)
@@ -2294,7 +2294,7 @@ static uint32_t get_base_height(const obs_source_t *source)
 		return get_base_height(source->filter_target);
 	}
 
-	return source->async_active ? get_async_height(source) : 0;
+	return get_async_height(source);
 }
 
 static uint32_t get_recurse_width(obs_source_t *source)
