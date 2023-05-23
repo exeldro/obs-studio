@@ -28,7 +28,8 @@ target_sources(
           src/simulcast-plugin.h
           src/simulcast-service.cpp
           src/simulcast-settings-window.cpp
-          src/simulcast-settings-window.h)
+          src/simulcast-settings-window.h
+          src/system-info.h)
 
 target_link_libraries(
   simulcast
@@ -41,6 +42,17 @@ target_link_libraries(
           CURL::libcurl)
 
 # target_compile_definitions(simulcast PRIVATE USE_MBEDTLS CRYPTO)
+
+if(OS_WINDOWS)
+  target_sources(simulcast PRIVATE # cmake-format: sortable
+                                   src/system-info-windows.cpp)
+elseif(OS_MACOS)
+  target_sources(simulcast PRIVATE # cmake-format: sortable
+                                   src/system-info-macos.cpp)
+elseif(OS_LINUX)
+  target_sources(simulcast PRIVATE # cmake-format: sortable
+                                   src/system-info-posix.cpp)
+endif()
 
 configure_file(src/plugin-macros.h.in plugin-macros.generated.h)
 target_sources(simulcast PRIVATE plugin-macros.generated.h)

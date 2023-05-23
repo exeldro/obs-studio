@@ -1,5 +1,7 @@
 #include "goliveapi-postdata.hpp"
 
+#include "system-info.h"
+
 OBSDataAutoRelease constructGoLivePost(/* config_t *config, uint32_t fpsNum,
 				       uint32_t fpsDen*/)
 {
@@ -11,9 +13,8 @@ OBSDataAutoRelease constructGoLivePost(/* config_t *config, uint32_t fpsNum,
 
 	obs_data_set_bool(capabilitiesData, "plugin", true);
 
+	obs_data_set_array(capabilitiesData, "gpu", system_gpu_data());
 #if 0
-	OBSDataArray adapters = obs_device_adapter_data();
-	obs_data_set_array(capabilitiesData, "gpu", adapters);
 
 	OBSData systemData =
 		os_get_system_info(); // XXX autorelease vs set_obj vs apply?
