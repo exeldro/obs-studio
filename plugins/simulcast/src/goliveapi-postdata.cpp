@@ -14,12 +14,11 @@ OBSDataAutoRelease constructGoLivePost(/* config_t *config, uint32_t fpsNum,
 	obs_data_set_bool(capabilitiesData, "plugin", true);
 
 	obs_data_set_array(capabilitiesData, "gpu", system_gpu_data());
-#if 0
 
-	OBSData systemData =
-		os_get_system_info(); // XXX autorelease vs set_obj vs apply?
+	auto systemData = system_info();
 	obs_data_apply(capabilitiesData, systemData);
 
+#if 0
 	OBSData clientData = obs_data_create();
 	obs_data_set_obj(capabilitiesData, "client", clientData);
 	obs_data_set_string(clientData, "name", "obs-studio");
