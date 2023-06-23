@@ -22,6 +22,7 @@
 #include <QCheckBox>
 #include <QGroupBox>
 #include <QAction>
+#include <QUuid>
 
 #include <obs.h>
 #include <obs-frontend-api.h>
@@ -35,22 +36,63 @@
 
 #include "goliveapi-network.hpp"
 #include "goliveapi-postdata.hpp"
+#include "berryessa-submitter.hpp"
 
 #define ConfigSection "simulcast"
 
 #define GO_LIVE_API_URL "https://ingest.twitch.tv/api/v3/GetClientConfiguration"
 
+OBSDataAutoRelease MakeEvent_ivs_obs_stream_start(obs_data_t *postData,
+						  obs_data_t *goLiveConfig)
+{
+	OBSDataAutoRelease event = obs_data_create();
+
+	// include the entire capabilities API request/response
+	obs_data_set_string(event, "capabilities_api_request",
+			    obs_data_get_json(postData));
+
+	obs_data_set_string(event, "capabilities_api_response",
+			    obs_data_get_json(goLiveConfig));
+
+	// extract specific items of interest from the capabilities API response
+	OBSDataAutoRelease goLiveMeta = obs_data_get_obj(goLiveConfig, "meta");
+	if (goLiveMeta) {
+		const char *s = obs_data_get_string(goLiveMeta, "config_id");
+		if (s && *s) {
+			obs_data_set_string(event, "config_id", s);
+		}
+	}
+
+	OBSDataArrayAutoRelease goLiveEncoderConfigurations =
+		obs_data_get_array(goLiveConfig, "encoder_configurations");
+	if (goLiveEncoderConfigurations) {
+		obs_data_set_int(
+			event, "encoder_count",
+			obs_data_array_count(goLiveEncoderConfigurations));
+	}
+
+	return event;
+}
+
 static void SetupSignalsAndSlots(SimulcastDockWidget *self,
 				 QPushButton *streamingButton,
-				 SimulcastOutput &output)
+				 SimulcastOutput &output,
+				 BerryessaSubmitter &berryessa)
 {
 	QObject::connect(
 		streamingButton, &QPushButton::clicked,
-		[self, streamingButton]() {
+		[self, streamingButton, berryessa = &berryessa]() {
 			if (self->Output().IsStreaming()) {
 				streamingButton->setText(
 					obs_module_text("Btn.StoppingStream"));
 				self->Output().StopStreaming();
+
+				OBSDataAutoRelease event = obs_data_create();
+				obs_data_set_string(event, "client_error", "");
+				obs_data_set_string(event, "server_error", "");
+				berryessa->submit("ivs_obs_stream_stop", event);
+
+				berryessa->unsetAlways("config_id");
 			} else {
 				streamingButton->setText(
 					obs_module_text("Btn.StartingStream"));
@@ -59,13 +101,26 @@ static void SetupSignalsAndSlots(SimulcastDockWidget *self,
 				auto postData = constructGoLivePost();
 				auto goLiveConfig = DownloadGoLiveConfig(
 					self, GO_LIVE_API_URL, postData);
-				if (self->Output().StartStreaming(
-					    self->StreamKey(), goLiveConfig))
+				if (!self->Output().StartStreaming(
+					    self->StreamKey(), goLiveConfig)) {
+					streamingButton->setText(
+						obs_module_text(
+							"Btn.StartStreaming"));
+					streamingButton->setDisabled(false);
 					return;
+				}
 
-				streamingButton->setText(
-					obs_module_text("Btn.StartStreaming"));
-				streamingButton->setDisabled(false);
+				auto event = MakeEvent_ivs_obs_stream_start(
+					postData, goLiveConfig);
+				const char *configId =
+					obs_data_get_string(event, "config_id");
+				if (configId) {
+					// put the config_id on all events until the stream ends
+					berryessa->setAlwaysString("config_id",
+								   configId);
+				}
+				berryessa->submit("ivs_obs_stream_start",
+						  event);
 			}
 		});
 
@@ -88,7 +143,18 @@ static void SetupSignalsAndSlots(SimulcastDockWidget *self,
 }
 
 SimulcastDockWidget::SimulcastDockWidget(QWidget * /*parent*/)
+	: berryessa_(this, "https://data-staging.stats.live-video.net/")
 {
+	//berryessa_ = new BerryessaSubmitter(this, "http://127.0.0.1:8787/");
+
+	// XXX: should be created once per device and persisted on disk
+	berryessa_.setAlwaysString("device_id",
+				   "bf655dd3-8346-4c1c-a7c8-bb7d9ca6091a");
+
+	berryessa_.setAlwaysString(
+		"obs_session_id",
+		QUuid::createUuid().toString(QUuid::WithoutBraces));
+
 	QGridLayout *dockLayout = new QGridLayout(this);
 	dockLayout->setAlignment(Qt::AlignmentFlag::AlignTop);
 
@@ -101,7 +167,7 @@ SimulcastDockWidget::SimulcastDockWidget(QWidget * /*parent*/)
 	buttonContainer->setLayout(buttonLayout);
 	dockLayout->addWidget(buttonContainer);
 
-	SetupSignalsAndSlots(this, streamingButton, output_);
+	SetupSignalsAndSlots(this, streamingButton, output_, berryessa_);
 
 	// load config
 	LoadConfig();

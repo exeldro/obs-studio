@@ -18,6 +18,8 @@ target_sources(
           src/simulcast-plugin.cpp
           src/simulcast-output.cpp
           src/copy-from-obs/remote-text.cpp
+          src/berryessa-submitter.hpp
+          src/berryessa-submitter.cpp
           src/goliveapi-network.cpp
           src/goliveapi-postdata.cpp)
 

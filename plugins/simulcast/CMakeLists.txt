@@ -11,6 +11,8 @@ add_library(simulcast MODULE)
 target_sources(
   simulcast
   PRIVATE # cmake-format: sortable
+          src/berryessa-submitter.cpp
+          src/berryessa-submitter.hpp
           src/common.h
           src/copy-from-obs/remote-text.cpp
           src/copy-from-obs/remote-text.hpp

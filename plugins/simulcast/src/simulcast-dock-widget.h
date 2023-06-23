@@ -1,6 +1,7 @@
 #pragma once
 
 #include "simulcast-output.h"
+#include "berryessa-submitter.hpp"
 
 #include <QByteArray>
 #include <QString>
@@ -32,6 +33,7 @@ signals:
 
 private:
 	SimulcastOutput output_;
+	BerryessaSubmitter berryessa_;
 
 	// Add config vars here
 	QString stream_key_;
