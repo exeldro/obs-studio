@@ -4,14 +4,22 @@ legacy_check()
 
 # find_package(MbedTLS REQUIRED) find_package(ZLIB REQUIRED)
 
+find_package(CURL REQUIRED)
+
 add_library(simulcast MODULE)
 
 target_sources(
   simulcast
   PRIVATE # cmake-format: sortable
           src/common.h
+          src/copy-from-obs/remote-text.cpp
+          src/copy-from-obs/remote-text.hpp
           src/global-service.cpp
           src/global-service.h
+          src/goliveapi-network.cpp
+          src/goliveapi-network.hpp
+          src/goliveapi-postdata.cpp
+          src/goliveapi-postdata.hpp
           src/simulcast-dock-widget.cpp
           src/simulcast-dock-widget.h
           src/simulcast-output.cpp
@@ -22,7 +30,15 @@ target_sources(
           src/simulcast-settings-window.cpp
           src/simulcast-settings-window.h)
 
-target_link_libraries(simulcast PRIVATE OBS::libobs OBS::frontend-api Qt::Core Qt::Widgets Qt::Svg Qt::Network)
+target_link_libraries(
+  simulcast
+  PRIVATE OBS::libobs
+          OBS::frontend-api
+          Qt::Core
+          Qt::Widgets
+          Qt::Svg
+          Qt::Network
+          CURL::libcurl)
 
 # target_compile_definitions(simulcast PRIVATE USE_MBEDTLS CRYPTO)
 

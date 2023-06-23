@@ -5,6 +5,7 @@
 #include <util/util.hpp>
 #include <obs-frontend-api.h>
 #include <obs-module.h>
+#include <obs.hpp>
 
 #include <algorithm>
 #include <cinttypes>
@@ -279,17 +280,19 @@ static OBSDataAutoRelease load_simulcast_config()
 	return data;
 }
 
-bool SimulcastOutput::StartStreaming(const QString &stream_key)
+bool SimulcastOutput::StartStreaming(const QString &stream_key,
+				     obs_data_t *go_live_config)
 {
-	auto config = load_simulcast_config();
-	if (!config)
+	auto config = go_live_config ? nullptr : load_simulcast_config();
+	go_live_config = go_live_config ? go_live_config : &*config;
+	if (!go_live_config)
 		return false;
 
-	output_ = SetupOBSOutput(config);
+	output_ = SetupOBSOutput(go_live_config);
 	if (!output_)
 		return false;
 
-	simulcast_service_ = create_service(config, stream_key);
+	simulcast_service_ = create_service(go_live_config, stream_key);
 	if (!simulcast_service_)
 		return false;
 
