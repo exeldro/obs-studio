@@ -21,6 +21,8 @@ target_sources(
           src/berryessa-submitter.hpp
           src/berryessa-submitter.cpp
           src/goliveapi-network.cpp
+          src/presentmon-csv-capture.cpp
+          src/presentmon-csv-parser.cpp
           src/goliveapi-postdata.cpp)
 
 configure_file(src/plugin-macros.h.in plugin-macros.generated.h)

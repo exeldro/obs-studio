@@ -37,6 +37,7 @@
 #include "goliveapi-network.hpp"
 #include "goliveapi-postdata.hpp"
 #include "berryessa-submitter.hpp"
+#include "presentmon-csv-capture.hpp"
 
 #define ConfigSection "simulcast"
 
@@ -121,6 +122,8 @@ static void SetupSignalsAndSlots(SimulcastDockWidget *self,
 				}
 				berryessa->submit("ivs_obs_stream_start",
 						  event);
+
+				new PresentMonCapture(self);
 			}
 		});
 

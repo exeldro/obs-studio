@@ -22,6 +22,10 @@ target_sources(
           src/goliveapi-network.hpp
           src/goliveapi-postdata.cpp
           src/goliveapi-postdata.hpp
+          src/presentmon-csv-capture.cpp
+          src/presentmon-csv-capture.hpp
+          src/presentmon-csv-parser.cpp
+          src/presentmon-csv-parser.hpp
           src/simulcast-dock-widget.cpp
           src/simulcast-dock-widget.h
           src/simulcast-output.cpp
