@@ -1,13 +1,74 @@
 #include "presentmon-csv-capture.hpp"
 
-#include <obs.hpp> // logging
-
 #include <QProcess>
+#include <QMutex>
 
 #include <cinttypes>
 
 #define PRESENTMON_PATH \
 	"c:\\obsdev\\PresentMon\\build\\Release\\PresentMon-dev-x64.exe"
+
+#define DISCARD_SAMPLES_BEYOND \
+	144 * 60 * 2 // 144fps, one minute, times two for safety
+
+void PresentMonCapture_accumulator::frame(const ParsedCsvRow &row)
+{
+	// XXX big hack
+	if (0 != strcmp(row.Application, "chrome.exe"))
+		return;
+
+	// don't do this every time, it'll be slow
+	// this is just a safety check so we don't allocate memory forever
+	if (rows_.size() > 3 * DISCARD_SAMPLES_BEYOND)
+		trimRows();
+
+	rows_.push_back(row);
+	mutex.unlock();
+}
+
+void PresentMonCapture_accumulator::summarizeAndReset(obs_data_t *dest)
+{
+	double fps = -1;
+
+	mutex.lock();
+	if (rows_.size() >= 2) {
+		trimRows();
+		const size_t n = rows_.size();
+
+		double totalBetweenPresents = 0.0;
+		for (const auto &p : rows_)
+			totalBetweenPresents += p.msBetweenPresents;
+		totalBetweenPresents /= 1000.0;
+
+		blog(LOG_INFO,
+		     "frame timing, accumulated msBetweenPresents: %f",
+		     totalBetweenPresents);
+		blog(LOG_INFO, "frame timing, time from first to last: %f",
+		     rows_[n - 1].TimeInSeconds - rows_[0].TimeInSeconds);
+
+		fps = (rows_[n - 1].TimeInSeconds - rows_[0].TimeInSeconds) /
+		      (n - 1);
+
+		// delete all but the most recently received data point
+		// XXX is this just a very convoluated rows_.erase(rows_.begin(), rows_.end()-1) ?
+		*rows_.begin() = *rows_.rbegin();
+		rows_.erase(rows_.begin() + 1, rows_.end());
+	}
+	mutex.unlock();
+
+	if (fps >= 0.0)
+		obs_data_set_double(dest, "fps", fps);
+}
+
+// You need to hold the mutex before calling this
+void PresentMonCapture_accumulator::trimRows()
+{
+	if (rows_.size() > DISCARD_SAMPLES_BEYOND) {
+		rows_.erase(rows_.begin(),
+			    rows_.begin() +
+				    (rows_.size() - DISCARD_SAMPLES_BEYOND));
+	}
+}
 
 PresentMonCapture::PresentMonCapture(QObject *parent) : QObject(parent)
 {
@@ -15,6 +76,7 @@ PresentMonCapture::PresentMonCapture(QObject *parent) : QObject(parent)
 
 	process_.reset(new QProcess(this));
 	state_.reset(new PresentMonCapture_state);
+	accumulator_.reset(new PresentMonCapture_accumulator);
 
 	// Log a bunch of QProcess signals
 	QObject::connect(process_.get(), &QProcess::started, []() {
@@ -73,6 +135,11 @@ PresentMonCapture::PresentMonCapture(QObject *parent) : QObject(parent)
 	process_->start(PRESENTMON_PATH, args, QIODeviceBase::ReadWrite);
 }
 
+void PresentMonCapture::summarizeAndReset(obs_data_t *dest)
+{
+	accumulator_->summarizeAndReset(dest);
+}
+
 void PresentMonCapture::readProcessOutput_()
 {
 	char buf[1024];
@@ -117,6 +184,8 @@ void PresentMonCapture::readProcessOutput_()
 
 				if (!state_->alreadyErrored_ &&
 				    state_->lineNumber_ < 10) {
+					accumulator_->frame(state_->row_);
+#if 0
 					blog(LOG_INFO,
 					     QString("real line received: csv line %1 Application=%3, ProcessID=%4, TimeInSeconds=%5, msBetweenPresents=%6")
 						     .arg(state_->lineNumber_)
