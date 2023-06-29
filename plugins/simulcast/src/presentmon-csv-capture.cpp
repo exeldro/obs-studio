@@ -35,16 +35,19 @@ void PresentMonCapture_accumulator::frame(const ParsedCsvRow &row)
 void PresentMonCapture_accumulator::summarizeAndReset(obs_data_t *dest)
 {
 	double fps = -1;
+	char game[PRESENTMON_APPNAME_LEN] = {0};
 
 	mutex.lock();
+#if 1
 	blog(LOG_INFO,
 	     "PresentMonCapture_accumulator::summarizeAndReset has %zu samples",
 	     rows_.size());
+#endif
 	if (rows_.size() >= 2 &&
 	    rows_.rbegin()->TimeInSeconds > rows_[0].TimeInSeconds) {
 		trimRows();
 		const size_t n = rows_.size();
-
+#if 1
 		double allButFirstBetweenPresents = -rows_[0].msBetweenPresents;
 		for (const auto &p : rows_)
 			allButFirstBetweenPresents += p.msBetweenPresents;
@@ -55,7 +58,7 @@ void PresentMonCapture_accumulator::summarizeAndReset(obs_data_t *dest)
 		     allButFirstBetweenPresents);
 		blog(LOG_INFO, "frame timing, time from first to last: %f",
 		     rows_[n - 1].TimeInSeconds - rows_[0].TimeInSeconds);
-
+#endif
 		fps = (n - 1) /
 		      (rows_[n - 1].TimeInSeconds - rows_[0].TimeInSeconds);
 
@@ -63,11 +66,14 @@ void PresentMonCapture_accumulator::summarizeAndReset(obs_data_t *dest)
 		// XXX is this just a very convoluated rows_.erase(rows_.begin(), rows_.end()-1) ?
 		*rows_.begin() = *rows_.rbegin();
 		rows_.erase(rows_.begin() + 1, rows_.end());
+		strncpy(game, rows_[0].Application, PRESENTMON_APPNAME_LEN - 1);
 	}
 	mutex.unlock();
 
 	if (fps >= 0.0)
 		obs_data_set_double(dest, "fps", fps);
+	if (*game)
+		obs_data_set_string(dest, "game", game);
 }
 
 // You need to hold the mutex before calling this
@@ -154,12 +160,14 @@ void PresentMonCapture::readProcessOutput_()
 {
 	char buf[1024];
 	char bufCsvCopy[1024];
+#if 0
 	if (state_->alreadyErrored_) {
 		qint64 n = process_->readLine(buf, sizeof(buf));
 		blog(LOG_INFO, "POST-ERROR line %d: %s", state_->lineNumber_,
 		     buf);
 		state_->lineNumber_++;
 	}
+#endif
 
 	while (!state_->alreadyErrored_ && process_->canReadLine()) {
 		qint64 n = process_->readLine(buf, sizeof(buf));

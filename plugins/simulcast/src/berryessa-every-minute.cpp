@@ -33,10 +33,6 @@ void BerryessaEveryMinute::fire()
 
 	OBSDataAutoRelease event = obs_data_create();
 
-	QString t = startTime_.toString(Qt::ISODate);
-	obs_data_set_string(event, "start_broadcast_time",
-			    t.toUtf8().constData());
-
 	presentmon_.summarizeAndReset(event);
 
 	berryessa_->submit("ivs_obs_stream_minute", event);

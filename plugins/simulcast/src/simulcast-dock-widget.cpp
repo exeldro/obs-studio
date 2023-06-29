@@ -123,6 +123,12 @@ static void SetupSignalsAndSlots(
 					berryessa->setAlwaysString("config_id",
 								   configId);
 				}
+				QString t = QDateTime::currentDateTimeUtc()
+						    .toString(Qt::ISODate);
+				berryessa->setAlwaysString(
+					"start_broadcast_time",
+					t.toUtf8().constData());
+
 				berryessa->submit("ivs_obs_stream_start",
 						  event);
 
