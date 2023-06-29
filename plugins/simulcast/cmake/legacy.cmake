@@ -22,6 +22,7 @@ target_sources(
           src/berryessa-submitter.cpp
           src/goliveapi-network.cpp
           src/presentmon-csv-capture.cpp
+          src/berryessa-every-minute.cpp
           src/presentmon-csv-parser.cpp
           src/goliveapi-postdata.cpp)
 

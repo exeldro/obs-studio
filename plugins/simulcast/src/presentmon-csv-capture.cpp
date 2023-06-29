@@ -5,6 +5,10 @@
 
 #include <cinttypes>
 
+#define GAME1 "MassEffectLauncher.exe"
+#define GAME2 "MassEffect3.exe"
+#define GAME3 "Cyberpunk2077.exe"
+
 #define PRESENTMON_PATH \
 	"c:\\obsdev\\PresentMon\\build\\Release\\PresentMon-dev-x64.exe"
 
@@ -14,7 +18,9 @@
 void PresentMonCapture_accumulator::frame(const ParsedCsvRow &row)
 {
 	// XXX big hack
-	if (0 != strcmp(row.Application, "chrome.exe"))
+	if (0 != strcmp(row.Application, GAME1) &&
+	    0 != strcmp(row.Application, GAME2) &&
+	    0 != strcmp(row.Application, GAME3))
 		return;
 
 	// don't do this every time, it'll be slow
@@ -31,23 +37,27 @@ void PresentMonCapture_accumulator::summarizeAndReset(obs_data_t *dest)
 	double fps = -1;
 
 	mutex.lock();
-	if (rows_.size() >= 2) {
+	blog(LOG_INFO,
+	     "PresentMonCapture_accumulator::summarizeAndReset has %zu samples",
+	     rows_.size());
+	if (rows_.size() >= 2 &&
+	    rows_.rbegin()->TimeInSeconds > rows_[0].TimeInSeconds) {
 		trimRows();
 		const size_t n = rows_.size();
 
-		double totalBetweenPresents = 0.0;
+		double allButFirstBetweenPresents = -rows_[0].msBetweenPresents;
 		for (const auto &p : rows_)
-			totalBetweenPresents += p.msBetweenPresents;
-		totalBetweenPresents /= 1000.0;
+			allButFirstBetweenPresents += p.msBetweenPresents;
+		allButFirstBetweenPresents /= 1000.0;
 
 		blog(LOG_INFO,
-		     "frame timing, accumulated msBetweenPresents: %f",
-		     totalBetweenPresents);
+		     "frame timing, all but first msBetweenPresents: %f",
+		     allButFirstBetweenPresents);
 		blog(LOG_INFO, "frame timing, time from first to last: %f",
 		     rows_[n - 1].TimeInSeconds - rows_[0].TimeInSeconds);
 
-		fps = (rows_[n - 1].TimeInSeconds - rows_[0].TimeInSeconds) /
-		      (n - 1);
+		fps = (n - 1) /
+		      (rows_[n - 1].TimeInSeconds - rows_[0].TimeInSeconds);
 
 		// delete all but the most recently received data point
 		// XXX is this just a very convoluated rows_.erase(rows_.begin(), rows_.end()-1) ?
@@ -181,9 +191,7 @@ void PresentMonCapture::readProcessOutput_()
 				state_->alreadyErrored_ =
 					!state_->parser_.dataRow(state_->v_,
 								 &state_->row_);
-
-				if (!state_->alreadyErrored_ &&
-				    state_->lineNumber_ < 10) {
+				if (!state_->alreadyErrored_) {
 					accumulator_->frame(state_->row_);
 #if 0
 					blog(LOG_INFO,

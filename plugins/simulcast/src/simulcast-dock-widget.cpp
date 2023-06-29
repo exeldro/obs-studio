@@ -75,14 +75,15 @@ OBSDataAutoRelease MakeEvent_ivs_obs_stream_start(obs_data_t *postData,
 	return event;
 }
 
-static void SetupSignalsAndSlots(SimulcastDockWidget *self,
-				 QPushButton *streamingButton,
-				 SimulcastOutput &output,
-				 BerryessaSubmitter &berryessa)
+static void SetupSignalsAndSlots(
+	SimulcastDockWidget *self, QPushButton *streamingButton,
+	SimulcastOutput &output, BerryessaSubmitter &berryessa,
+	std::unique_ptr<BerryessaEveryMinute> &berryessaEveryMinute)
 {
 	QObject::connect(
 		streamingButton, &QPushButton::clicked,
-		[self, streamingButton, berryessa = &berryessa]() {
+		[self, streamingButton, berryessa = &berryessa,
+		 berryessaEveryMinute = &berryessaEveryMinute]() {
 			if (self->Output().IsStreaming()) {
 				streamingButton->setText(
 					obs_module_text("Btn.StoppingStream"));
@@ -92,6 +93,8 @@ static void SetupSignalsAndSlots(SimulcastDockWidget *self,
 				obs_data_set_string(event, "client_error", "");
 				obs_data_set_string(event, "server_error", "");
 				berryessa->submit("ivs_obs_stream_stop", event);
+
+				berryessaEveryMinute->reset(nullptr);
 
 				berryessa->unsetAlways("config_id");
 			} else {
@@ -123,7 +126,9 @@ static void SetupSignalsAndSlots(SimulcastDockWidget *self,
 				berryessa->submit("ivs_obs_stream_start",
 						  event);
 
-				new PresentMonCapture(self);
+				berryessaEveryMinute->reset(
+					new BerryessaEveryMinute(self,
+								 berryessa));
 			}
 		});
 
@@ -170,7 +175,8 @@ SimulcastDockWidget::SimulcastDockWidget(QWidget * /*parent*/)
 	buttonContainer->setLayout(buttonLayout);
 	dockLayout->addWidget(buttonContainer);
 
-	SetupSignalsAndSlots(this, streamingButton, output_, berryessa_);
+	SetupSignalsAndSlots(this, streamingButton, output_, berryessa_,
+			     berryessaEveryMinute_);
 
 	// load config
 	LoadConfig();

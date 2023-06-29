@@ -11,6 +11,8 @@ add_library(simulcast MODULE)
 target_sources(
   simulcast
   PRIVATE # cmake-format: sortable
+          src/berryessa-every-minute.cpp
+          src/berryessa-every-minute.hpp
           src/berryessa-submitter.cpp
           src/berryessa-submitter.hpp
           src/common.h
