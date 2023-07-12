@@ -1,5 +1,9 @@
 #pragma once
 
+#include <obs.hpp>
+
+#include <vector>
+
 class SimulcastOutput {
 public:
 	void StartStreaming();
@@ -8,4 +12,9 @@ public:
 
 private:
 	bool streaming_ = false;
+
+	OBSServiceAutoRelease service_;
+	OBSOutputAutoRelease output_;
+	std::vector<OBSEncoderAutoRelease> video_encoders_;
+	OBSEncoderAutoRelease audio_encoder_;
 };
