@@ -1,32 +1,17 @@
 #include "simulcast-output.h"
 
 #include <util/dstr.hpp>
+#include <obs-frontend-api.h>
 
 #include "plugin-macros.generated.h"
 
 void SimulcastOutput::StartStreaming()
 {
 	{
-		OBSDataAutoRelease service_settings = obs_data_create();
-		obs_data_set_string(service_settings, "server",
-				    "rtmp://localhost");
-
-		obs_data_set_string(service_settings, "key", "secret");
-		obs_data_set_bool(service_settings, "use_auth", false);
-
-		service_ = obs_service_create("rtmp_custom",
-					      "simulcast service",
-					      service_settings, nullptr);
-		if (!service_) {
-			blog(LOG_ERROR, "failed to create custom rtmp service");
-			return;
-		}
-	}
-
-	{
 		output_ = obs_output_create("rtmp_output_simulcast",
 					    "rtmp simulcast", nullptr, nullptr);
-		obs_output_set_service(output_, service_);
+		obs_output_set_service(output_,
+				       obs_frontend_get_streaming_service());
 		if (!output_) {
 			blog(LOG_ERROR,
 			     "failed to create simulcast rtmp output");
@@ -71,7 +56,6 @@ void SimulcastOutput::StopStreaming()
 	if (output_)
 		obs_output_stop(output_);
 
-	service_ = nullptr;
 	output_ = nullptr;
 	video_encoders_.clear();
 	audio_encoder_ = nullptr;
