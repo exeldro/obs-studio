@@ -124,7 +124,7 @@ static inline double encoder_video_codec(obs_encoder_t *encoder)
 	return 0.0;
 }
 
-#define FLV_INFO_SIZE_OFFSET 42
+#define FLV_INFO_SIZE_OFFSET 58
 
 void write_file_info(FILE *file, int64_t duration_ms, int64_t size)
 {
