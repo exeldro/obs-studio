@@ -10,7 +10,7 @@ on:
     tags: ['*']
   pull_request:
     paths-ignore: ['**.md']
-    branches: [master]
+    branches: [master, plugin]
   merge_group:
     branches: [master]
 
