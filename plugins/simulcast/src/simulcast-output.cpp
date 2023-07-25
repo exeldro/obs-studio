@@ -22,11 +22,13 @@ static OBSOutputAutoRelease create_output()
 }
 
 static OBSEncoderAutoRelease create_video_encoder(DStr &name_buffer,
-						  size_t encoder_index)
+						  size_t encoder_index,
+						  obs_data_t *encoder_config)
 {
+	auto encoder_type = obs_data_get_string(encoder_config, "type");
 	dstr_printf(name_buffer, "simulcast video encoder %zu", encoder_index);
 	OBSEncoderAutoRelease video_encoder = obs_video_encoder_create(
-		"jim_nvenc", name_buffer, nullptr, nullptr);
+		encoder_type, name_buffer, encoder_config, nullptr);
 	if (!video_encoder) {
 		blog(LOG_ERROR, "failed to create video encoder '%s'",
 		     name_buffer->array);
@@ -111,8 +113,10 @@ OBSOutputAutoRelease SimulcastOutput::SetupOBSOutput(obs_data_t *go_live_config)
 		obs_data_get_array(go_live_config, "encoder_configurations");
 	DStr video_encoder_name_buffer;
 	for (size_t i = 0; i < obs_data_array_count(encoder_configs); i++) {
-		auto encoder =
-			create_video_encoder(video_encoder_name_buffer, i);
+		OBSDataAutoRelease encoder_config =
+			obs_data_array_item(encoder_configs, i);
+		auto encoder = create_video_encoder(video_encoder_name_buffer,
+						    i, encoder_config);
 		obs_output_set_video_encoder2(output, encoder, i);
 		video_encoders_.emplace_back(std::move(encoder));
 	}
