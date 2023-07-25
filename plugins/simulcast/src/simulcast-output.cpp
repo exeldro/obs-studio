@@ -24,7 +24,7 @@ static OBSOutputAutoRelease create_output()
 static OBSEncoderAutoRelease create_video_encoder(DStr &name_buffer,
 						  size_t encoder_index)
 {
-	dstr_printf(name_buffer, "simulcast video encoder %z", encoder_index);
+	dstr_printf(name_buffer, "simulcast video encoder %zu", encoder_index);
 	OBSEncoderAutoRelease video_encoder = obs_video_encoder_create(
 		"jim_nvenc", name_buffer, nullptr, nullptr);
 	if (!video_encoder) {
