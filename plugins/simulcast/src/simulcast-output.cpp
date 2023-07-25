@@ -32,6 +32,7 @@ void SimulcastOutput::StartStreaming()
 				     name_buffer->array);
 				return;
 			}
+			obs_encoder_set_video(video_encoder, obs_get_video());
 			video_encoders_.push_back(video_encoder);
 			obs_output_set_video_encoder2(output_, video_encoder,
 						      i);
@@ -45,6 +46,7 @@ void SimulcastOutput::StartStreaming()
 			blog(LOG_ERROR, "failed to create audio encoder");
 			return;
 		}
+		obs_encoder_set_audio(audio_encoder_, obs_get_audio());
 		obs_output_set_audio_encoder(output_, audio_encoder_, 0);
 	}
 
