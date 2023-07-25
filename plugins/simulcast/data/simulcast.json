@@ -25,7 +25,7 @@
 			"preset": "ll",
 			"lookahead": false,
 			"bf": 2,
-			"keyInt_sec": 2,
+			"keyint_sec": 2,
 			"framerate": {
 				"numerator": 30,
 				"denominator": 1
@@ -42,7 +42,7 @@
 			"preset": "ll",
 			"lookahead": false,
 			"bf": 2,
-			"keyInt_sec": 2,
+			"keyint_sec": 2,
 			"framerate": {
 				"numerator": 30,
 				"denominator": 1
@@ -59,7 +59,7 @@
 			"preset": "ll",
 			"lookahead": false,
 			"bf": 2,
-			"keyInt_sec": 2,
+			"keyint_sec": 2,
 			"framerate": {
 				"numerator": 30,
 				"denominator": 1
