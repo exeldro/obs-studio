@@ -11,6 +11,7 @@ public:
 	bool IsStreaming();
 
 private:
+	OBSOutputAutoRelease SetupOBSOutput(obs_data_t *go_live_config);
 	bool streaming_ = false;
 
 	OBSOutputAutoRelease output_;

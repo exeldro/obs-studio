@@ -1,7 +1,10 @@
 #include "simulcast-output.h"
 
 #include <util/dstr.hpp>
+#include <util/platform.h>
+#include <util/util.hpp>
 #include <obs-frontend-api.h>
+#include <obs-module.h>
 
 #include "plugin-macros.generated.h"
 
@@ -45,23 +48,39 @@ static OBSEncoderAutoRelease create_audio_encoder()
 	return audio_encoder;
 }
 
-void SimulcastOutput::StartStreaming()
+static OBSDataAutoRelease load_simulcast_config()
 {
-	output_ = create_output();
-
-	{
-		DStr name_buffer;
-		for (size_t i = 0; i < 1; i++) {
-			auto video_encoder =
-				create_video_encoder(name_buffer, i);
-			obs_output_set_video_encoder2(output_, video_encoder,
-						      i);
-			video_encoders_.push_back(std::move(video_encoder));
-		}
+	BPtr simulcast_path = obs_module_file("simulcast.json");
+	if (!simulcast_path) {
+		blog(LOG_ERROR, "Failed to get simulcast.json path");
+		return nullptr;
 	}
 
-	audio_encoder_ = create_audio_encoder();
-	obs_output_set_audio_encoder(output_, audio_encoder_, 0);
+	OBSDataAutoRelease data =
+		obs_data_create_from_json_file(simulcast_path);
+	if (!data)
+		blog(LOG_ERROR, "Failed to read simulcast.json");
+
+	return data;
+}
+
+void SimulcastOutput::StartStreaming()
+{
+	auto config = load_simulcast_config();
+	if (!config)
+		return;
+
+	output_ = SetupOBSOutput(config);
+
+	if (!output_)
+		return;
+
+	if (!obs_output_start(output_)) {
+		blog(LOG_WARNING, "Failed to start stream");
+		return;
+	}
+
+	blog(LOG_INFO, "starting stream");
 
 	streaming_ = true;
 }
@@ -81,4 +100,25 @@ void SimulcastOutput::StopStreaming()
 bool SimulcastOutput::IsStreaming()
 {
 	return streaming_;
+}
+
+OBSOutputAutoRelease SimulcastOutput::SetupOBSOutput(obs_data_t *go_live_config)
+{
+
+	auto output = create_output();
+
+	OBSDataArrayAutoRelease encoder_configs =
+		obs_data_get_array(go_live_config, "encoder_configurations");
+	DStr video_encoder_name_buffer;
+	for (size_t i = 0; i < obs_data_array_count(encoder_configs); i++) {
+		auto encoder =
+			create_video_encoder(video_encoder_name_buffer, i);
+		obs_output_set_video_encoder2(output, encoder, i);
+		video_encoders_.emplace_back(std::move(encoder));
+	}
+
+	audio_encoder_ = create_audio_encoder();
+	obs_output_set_audio_encoder(output, audio_encoder_, 0);
+
+	return output;
 }
