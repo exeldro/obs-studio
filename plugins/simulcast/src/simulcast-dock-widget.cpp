@@ -30,6 +30,48 @@
 
 #define ConfigSection "simulcast"
 
+static void SetupSignalsAndSlots(SimulcastDockWidget *self,
+				 QPushButton *streamingButton,
+				 SimulcastOutput &output)
+{
+	QObject::connect(
+		streamingButton, &QPushButton::clicked,
+		[self, streamingButton]() {
+			if (self->Output().IsStreaming()) {
+				streamingButton->setText(
+					obs_module_text("Btn.StoppingStream"));
+				self->Output().StopStreaming();
+			} else {
+				streamingButton->setText(
+					obs_module_text("Btn.StartingStream"));
+				streamingButton->setDisabled(true);
+				if (self->Output().StartStreaming())
+					return;
+
+				streamingButton->setText(
+					obs_module_text("Btn.StartStreaming"));
+				streamingButton->setDisabled(false);
+			}
+		});
+
+	QObject::connect(
+		&output, &SimulcastOutput::StreamStarted, self,
+		[self, streamingButton]() {
+			streamingButton->setText(
+				obs_module_text("Btn.StopStreaming"));
+			streamingButton->setDisabled(false);
+		},
+		Qt::QueuedConnection);
+
+	QObject::connect(
+		&output, &SimulcastOutput::StreamStopped, self,
+		[self, streamingButton]() {
+			streamingButton->setText(
+				obs_module_text("Btn.StartStreaming"));
+		},
+		Qt::QueuedConnection);
+}
+
 SimulcastDockWidget::SimulcastDockWidget(QWidget * /*parent*/)
 {
 	QGridLayout *dockLayout = new QGridLayout(this);
@@ -44,42 +86,7 @@ SimulcastDockWidget::SimulcastDockWidget(QWidget * /*parent*/)
 	buttonContainer->setLayout(buttonLayout);
 	dockLayout->addWidget(buttonContainer);
 
-	QObject::connect(
-		streamingButton, &QPushButton::clicked,
-		[this, streamingButton]() {
-			if (this->Output().IsStreaming()) {
-				streamingButton->setText(
-					obs_module_text("Btn.StoppingStream"));
-				this->Output().StopStreaming();
-			} else {
-				streamingButton->setText(
-					obs_module_text("Btn.StartingStream"));
-				streamingButton->setDisabled(true);
-				if (this->Output().StartStreaming())
-					return;
-
-				streamingButton->setText(
-					obs_module_text("Btn.StartStreaming"));
-				streamingButton->setDisabled(false);
-			}
-		});
-
-	QObject::connect(
-		&output_, &SimulcastOutput::StreamStarted, this,
-		[this, streamingButton]() {
-			streamingButton->setText(
-				obs_module_text("Btn.StopStreaming"));
-			streamingButton->setDisabled(false);
-		},
-		Qt::QueuedConnection);
-
-	QObject::connect(
-		&output_, &SimulcastOutput::StreamStopped, this,
-		[this, streamingButton]() {
-			streamingButton->setText(
-				obs_module_text("Btn.StartStreaming"));
-		},
-		Qt::QueuedConnection);
+	SetupSignalsAndSlots(this, streamingButton, output_);
 
 	// load config
 	LoadConfig();
