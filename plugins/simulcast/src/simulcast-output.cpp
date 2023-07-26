@@ -10,18 +10,47 @@
 #include <cmath>
 #include <numeric>
 
+#include <QString>
+
 #include "plugin-macros.generated.h"
+
+static OBSServiceAutoRelease create_service(obs_data_t *go_live_config,
+					    const QString &stream_key)
+{
+	const char *url = nullptr;
+	OBSDataArrayAutoRelease ingest_endpoints =
+		obs_data_get_array(go_live_config, "ingest_endpoints");
+	for (size_t i = 0; i < obs_data_array_count(ingest_endpoints); i++) {
+		auto item = obs_data_array_item(ingest_endpoints, i);
+		if (qstrnicmp("RTMP", obs_data_get_string(item, "protocol"), 5))
+			continue;
+
+		url = obs_data_get_string(item, "url_template");
+		blog(LOG_INFO, "Using URL template: '%s'", url);
+		break;
+	}
+
+	OBSDataAutoRelease settings = obs_data_create();
+	obs_data_set_string(settings, "server", url);
+	obs_data_set_string(settings, "key", stream_key.toUtf8().constData());
+
+	auto service = obs_service_create(
+		"simulcast_service", "simulcast service", settings, nullptr);
+
+	if (!service)
+		blog(LOG_WARNING, "Failed to create simulcast service");
+
+	return service;
+}
 
 static OBSOutputAutoRelease create_output()
 {
 	OBSOutputAutoRelease output = obs_output_create(
 		"rtmp_output_simulcast", "rtmp simulcast", nullptr, nullptr);
-	if (!output) {
-		blog(LOG_ERROR, "failed to create simulcast rtmp output");
-		return nullptr;
-	}
 
-	obs_output_set_service(output, obs_frontend_get_streaming_service());
+	if (!output)
+		blog(LOG_ERROR, "failed to create simulcast rtmp output");
+
 	return output;
 }
 
@@ -206,16 +235,21 @@ static OBSDataAutoRelease load_simulcast_config()
 	return data;
 }
 
-bool SimulcastOutput::StartStreaming()
+bool SimulcastOutput::StartStreaming(const QString &stream_key)
 {
 	auto config = load_simulcast_config();
 	if (!config)
 		return false;
 
 	output_ = SetupOBSOutput(config);
-
 	if (!output_)
 		return false;
+
+	simulcast_service_ = create_service(config, stream_key);
+	if (!simulcast_service_)
+		return false;
+
+	obs_output_set_service(output_, simulcast_service_);
 
 	SetupSignalHandlers(output_);
 
