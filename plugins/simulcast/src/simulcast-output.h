@@ -15,7 +15,7 @@ class SimulcastOutput : public QObject {
 	Q_OBJECT;
 
 public:
-	void StartStreaming();
+	bool StartStreaming();
 	void StopStreaming();
 	bool IsStreaming();
 

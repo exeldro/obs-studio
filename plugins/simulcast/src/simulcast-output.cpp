@@ -206,27 +206,28 @@ static OBSDataAutoRelease load_simulcast_config()
 	return data;
 }
 
-void SimulcastOutput::StartStreaming()
+bool SimulcastOutput::StartStreaming()
 {
 	auto config = load_simulcast_config();
 	if (!config)
-		return;
+		return false;
 
 	output_ = SetupOBSOutput(config);
 
 	if (!output_)
-		return;
+		return false;
 
 	SetupSignalHandlers(output_);
 
 	if (!obs_output_start(output_)) {
 		blog(LOG_WARNING, "Failed to start stream");
-		return;
+		return false;
 	}
 
 	blog(LOG_INFO, "starting stream");
 
 	streaming_ = true;
+	return true;
 }
 
 void SimulcastOutput::StopStreaming()

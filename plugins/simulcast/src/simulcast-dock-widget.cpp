@@ -55,7 +55,12 @@ SimulcastDockWidget::SimulcastDockWidget(QWidget * /*parent*/)
 				streamingButton->setText(
 					obs_module_text("Btn.StartingStream"));
 				streamingButton->setDisabled(true);
-				this->Output().StartStreaming();
+				if (this->Output().StartStreaming())
+					return;
+
+				streamingButton->setText(
+					obs_module_text("Btn.StartStreaming"));
+				streamingButton->setDisabled(false);
 			}
 		});
 
