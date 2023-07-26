@@ -30,8 +30,18 @@ static OBSServiceAutoRelease create_service(obs_data_t *go_live_config,
 		break;
 	}
 
+	DStr str;
+	dstr_cat(str, url);
+
+	{
+		auto found = dstr_find(str, "/{stream_key}");
+		if (found)
+			dstr_remove(str, found - str->array,
+				    str->len - (found - str->array));
+	}
+
 	OBSDataAutoRelease settings = obs_data_create();
-	obs_data_set_string(settings, "server", url);
+	obs_data_set_string(settings, "server", str->array);
 	obs_data_set_string(settings, "key", stream_key.toUtf8().constData());
 
 	auto service = obs_service_create(
