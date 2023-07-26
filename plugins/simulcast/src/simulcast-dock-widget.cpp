@@ -68,7 +68,4 @@ SimulcastDockWidget::SimulcastDockWidget(QWidget * /*parent*/)
 
 void SimulcastDockWidget::SaveConfig() {}
 
-void SimulcastDockWidget::LoadConfig()
-{
-	auto profile_config = obs_frontend_get_profile_config();
-}
+void SimulcastDockWidget::LoadConfig() {}
