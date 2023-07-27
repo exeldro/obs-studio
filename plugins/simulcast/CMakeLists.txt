@@ -17,7 +17,9 @@ target_sources(
           src/simulcast-output.cpp
           src/simulcast-output.h
           src/simulcast-plugin.cpp
-          src/simulcast-plugin.h)
+          src/simulcast-plugin.h
+          src/simulcast-settings-window.cpp
+          src/simulcast-settings-window.h)
 
 target_link_libraries(simulcast PRIVATE OBS::libobs OBS::frontend-api Qt::Core Qt::Widgets Qt::Svg Qt::Network)
 

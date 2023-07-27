@@ -38,6 +38,8 @@ const char *obs_module_description(void)
 	return obs_module_text("Simulcast.Plugin.Description");
 }
 
+void register_settings_window(SimulcastDockWidget *dock);
+
 bool obs_module_load(void)
 {
 	blog(LOG_INFO, "Loading module simulcast (%s)", SIMULCAST_VERSION);
@@ -55,6 +57,8 @@ bool obs_module_load(void)
 
 	auto dock = new SimulcastDockWidget(mainWindow);
 
+	register_settings_window(dock);
+
 	obs_frontend_add_dock_by_id("simulcast", "Simulcast", dock);
 
 	obs_frontend_add_event_callback(
@@ -66,9 +70,13 @@ bool obs_module_load(void)
 			if (event ==
 			    obs_frontend_event::OBS_FRONTEND_EVENT_EXIT) {
 				simulcastWidget->SaveConfig();
-			} else if (event ==
-				   obs_frontend_event::
-					   OBS_FRONTEND_EVENT_PROFILE_CHANGED) {
+			} else if (
+				event ==
+					obs_frontend_event::
+						OBS_FRONTEND_EVENT_PROFILE_CHANGED ||
+				event ==
+					obs_frontend_event::
+						OBS_FRONTEND_EVENT_FINISHED_LOADING) {
 				static_cast<SimulcastDockWidget *>(private_data)
 					->LoadConfig();
 			}
