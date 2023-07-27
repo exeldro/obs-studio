@@ -27,7 +27,13 @@ void register_settings_window(SimulcastDockWidget *dock)
 	auto settings = new SimulcastSettingsWindow(dock, window);
 	obs_frontend_pop_ui_translation();
 
-	auto cb = [settings]() { settings->show(); };
+	auto cb = [settings]() {
+		settings->show();
+		settings->setWindowState(settings->windowState() &
+					 ~Qt::WindowMinimized);
+		settings->activateWindow();
+		settings->raise();
+	};
 
 	action->connect(action, &QAction::triggered, cb);
 }
