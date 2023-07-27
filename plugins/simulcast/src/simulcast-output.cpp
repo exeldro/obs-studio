@@ -206,25 +206,28 @@ static OBSDataAutoRelease load_simulcast_config()
 	return data;
 }
 
-void SimulcastOutput::StartStreaming()
+bool SimulcastOutput::StartStreaming()
 {
 	auto config = load_simulcast_config();
 	if (!config)
-		return;
+		return false;
 
 	output_ = SetupOBSOutput(config);
 
 	if (!output_)
-		return;
+		return false;
+
+	SetupSignalHandlers(output_);
 
 	if (!obs_output_start(output_)) {
 		blog(LOG_WARNING, "Failed to start stream");
-		return;
+		return false;
 	}
 
 	blog(LOG_INFO, "starting stream");
 
 	streaming_ = true;
+	return true;
 }
 
 void SimulcastOutput::StopStreaming()
@@ -265,4 +268,27 @@ OBSOutputAutoRelease SimulcastOutput::SetupOBSOutput(obs_data_t *go_live_config)
 	obs_output_set_audio_encoder(output, audio_encoder_, 0);
 
 	return output;
+}
+
+void SimulcastOutput::SetupSignalHandlers(obs_output_t *output)
+{
+	auto handler = obs_output_get_signal_handler(output);
+
+	signal_handler_connect(handler, "start", StreamStartHandler, this);
+
+	signal_handler_connect(handler, "stop", StreamStopHandler, this);
+}
+
+void StreamStartHandler(void *arg, calldata_t * /* data */)
+{
+	auto self = static_cast<SimulcastOutput *>(arg);
+	self->streaming_ = true;
+	emit self->StreamStarted();
+}
+
+void StreamStopHandler(void *arg, calldata_t * /* data */)
+{
+	auto self = static_cast<SimulcastOutput *>(arg);
+	self->streaming_ = false;
+	emit self->StreamStopped();
 }
