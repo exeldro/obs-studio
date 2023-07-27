@@ -4,6 +4,8 @@
 
 #include <QWidget>
 
+#include <util/dstr.hpp>
+
 class SimulcastDockWidget : public QWidget {
 public:
 	SimulcastDockWidget(QWidget *parent = 0);
@@ -15,4 +17,12 @@ public:
 
 private:
 	SimulcastOutput output_;
+
+	// Add config vars here
+	// Add config vars above
+
+	OBSDataAutoRelease config_;
+	OBSDataAutoRelease profiles_;
+	DStr profile_name_;
+	OBSDataAutoRelease profile_;
 };

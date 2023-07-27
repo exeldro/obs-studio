@@ -70,9 +70,13 @@ bool obs_module_load(void)
 			if (event ==
 			    obs_frontend_event::OBS_FRONTEND_EVENT_EXIT) {
 				simulcastWidget->SaveConfig();
-			} else if (event ==
-				   obs_frontend_event::
-					   OBS_FRONTEND_EVENT_PROFILE_CHANGED) {
+			} else if (
+				event ==
+					obs_frontend_event::
+						OBS_FRONTEND_EVENT_PROFILE_CHANGED ||
+				event ==
+					obs_frontend_event::
+						OBS_FRONTEND_EVENT_FINISHED_LOADING) {
 				static_cast<SimulcastDockWidget *>(private_data)
 					->LoadConfig();
 			}

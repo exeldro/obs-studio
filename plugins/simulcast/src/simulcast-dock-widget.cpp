@@ -24,9 +24,11 @@
 #include <QAction>
 
 #include <obs.h>
+#include <obs-frontend-api.h>
 #include <obs-module.h>
 #include <util/config-file.h>
-#include <obs-frontend-api.h>
+#include <util/platform.h>
+#include <util/util.hpp>
 
 #define ConfigSection "simulcast"
 
@@ -96,6 +98,49 @@ SimulcastDockWidget::SimulcastDockWidget(QWidget * /*parent*/)
 	resize(200, 400);
 }
 
-void SimulcastDockWidget::SaveConfig() {}
+static BPtr<char> module_config_path(const char *file)
+{
+	return BPtr<char>(obs_module_config_path(file));
+}
 
-void SimulcastDockWidget::LoadConfig() {}
+static OBSDataAutoRelease load_or_create_obj(obs_data_t *data, const char *name)
+{
+	OBSDataAutoRelease obj = obs_data_get_obj(data, name);
+	if (!obj) {
+		obj = obs_data_create();
+		obs_data_set_obj(data, name, obj);
+	}
+	return obj;
+}
+
+#define JSON_CONFIG_FILE module_config_path("config.json")
+#define DATA_KEY_PROFILES "profiles"
+#define DATA_KEY_STREAM_KEY "stream_key"
+
+void SimulcastDockWidget::SaveConfig()
+{
+	os_mkdirs(module_config_path(""));
+
+	// Set modified config values here
+	// Set modified config values above
+
+	obs_data_save_json_pretty_safe(config_, JSON_CONFIG_FILE, ".tmp",
+				       ".bak");
+}
+
+void SimulcastDockWidget::LoadConfig()
+{
+	config_ = obs_data_create_from_json_file(JSON_CONFIG_FILE);
+	if (!config_)
+		config_ = obs_data_create();
+
+	profiles_ = load_or_create_obj(config_, DATA_KEY_PROFILES);
+
+	profile_name_->len = 0;
+	dstr_cat(profile_name_, obs_frontend_get_current_profile());
+
+	profile_ = load_or_create_obj(profiles_, profile_name_->array);
+
+	// Set modified config values here
+	// Set modified config values above
+}
