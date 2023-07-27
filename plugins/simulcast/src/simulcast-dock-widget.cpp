@@ -114,6 +114,7 @@ static OBSDataAutoRelease load_or_create_obj(obs_data_t *data, const char *name)
 }
 
 #define JSON_CONFIG_FILE module_config_path("config.json")
+#define DATA_KEY_SETTINGS_WINDOW_GEOMETRY "settings_window_geometry"
 #define DATA_KEY_PROFILES "profiles"
 #define DATA_KEY_STREAM_KEY "stream_key"
 
@@ -124,6 +125,8 @@ void SimulcastDockWidget::SaveConfig()
 	// Set modified config values here
 	obs_data_set_string(profile_, DATA_KEY_STREAM_KEY,
 			    stream_key_.toUtf8().constData());
+	obs_data_set_string(config_, DATA_KEY_SETTINGS_WINDOW_GEOMETRY,
+			    settings_window_geometry_.toBase64().constData());
 	// Set modified config values above
 
 	obs_data_save_json_pretty_safe(config_, JSON_CONFIG_FILE, ".tmp",
@@ -145,5 +148,7 @@ void SimulcastDockWidget::LoadConfig()
 
 	// Set modified config values here
 	stream_key_ = obs_data_get_string(profile_, DATA_KEY_STREAM_KEY);
+	settings_window_geometry_ = QByteArray::fromBase64(obs_data_get_string(
+		config_, DATA_KEY_SETTINGS_WINDOW_GEOMETRY));
 	// Set modified config values above
 }

@@ -27,7 +27,10 @@ void register_settings_window(SimulcastDockWidget *dock)
 	auto settings = new SimulcastSettingsWindow(dock, window);
 	obs_frontend_pop_ui_translation();
 
-	auto cb = [settings]() {
+	auto cb = [dock, settings]() {
+		if (!settings->isVisible())
+			settings->restoreGeometry(
+				dock->SettingsWindowGeometry());
 		settings->show();
 		settings->setWindowState(settings->windowState() &
 					 ~Qt::WindowMinimized);
@@ -105,6 +108,7 @@ void SimulcastSettingsWindow::ButtonPressed(QAbstractButton *button)
 
 	// Handle individual settings here
 	dock_->StreamKey() = stream_key_edit_->text();
+	dock_->SettingsWindowGeometry() = saveGeometry();
 	// Handle individual settings above
 
 	SetApplyEnabled(false);
