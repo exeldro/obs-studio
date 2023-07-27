@@ -27,9 +27,7 @@ void register_settings_window(SimulcastDockWidget *dock)
 	auto settings = new SimulcastSettingsWindow(dock, window);
 	obs_frontend_pop_ui_translation();
 
-	auto cb = [settings]() {
-		settings->setVisible(!settings->isVisible());
-	};
+	auto cb = [settings]() { settings->show(); };
 
 	action->connect(action, &QAction::triggered, cb);
 }
@@ -89,7 +87,7 @@ void SimulcastSettingsWindow::ButtonPressed(QAbstractButton *button)
 	if (button == button_box_->button(QDialogButtonBox::Cancel)) {
 		ResetWindow();
 		ResetSettings();
-		setVisible(false);
+		hide();
 		return;
 	}
 
@@ -109,7 +107,7 @@ void SimulcastSettingsWindow::ButtonPressed(QAbstractButton *button)
 
 	if (button == button_box_->button(QDialogButtonBox::Ok)) {
 		ResetWindow();
-		setVisible(false);
+		hide();
 		return;
 	}
 }
