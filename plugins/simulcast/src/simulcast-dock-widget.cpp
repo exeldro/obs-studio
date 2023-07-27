@@ -122,6 +122,8 @@ void SimulcastDockWidget::SaveConfig()
 	os_mkdirs(module_config_path(""));
 
 	// Set modified config values here
+	obs_data_set_string(profile_, DATA_KEY_STREAM_KEY,
+			    stream_key_.toUtf8().constData());
 	// Set modified config values above
 
 	obs_data_save_json_pretty_safe(config_, JSON_CONFIG_FILE, ".tmp",
@@ -142,5 +144,6 @@ void SimulcastDockWidget::LoadConfig()
 	profile_ = load_or_create_obj(profiles_, profile_name_->array);
 
 	// Set modified config values here
+	stream_key_ = obs_data_get_string(profile_, DATA_KEY_STREAM_KEY);
 	// Set modified config values above
 }

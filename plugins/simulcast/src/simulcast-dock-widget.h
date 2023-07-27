@@ -2,6 +2,7 @@
 
 #include "simulcast-output.h"
 
+#include <QString>
 #include <QWidget>
 
 #include <util/dstr.hpp>
@@ -15,10 +16,13 @@ public:
 
 	SimulcastOutput &Output() { return output_; }
 
+	QString &StreamKey() { return stream_key_; }
+
 private:
 	SimulcastOutput output_;
 
 	// Add config vars here
+	QString stream_key_;
 	// Add config vars above
 
 	OBSDataAutoRelease config_;

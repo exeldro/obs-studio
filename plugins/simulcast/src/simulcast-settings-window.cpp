@@ -69,11 +69,10 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 	connect(stream_key_show_button_, &QPushButton::clicked,
 		[=](bool /*toggled*/) {
 			auto showing = stream_key_edit_->echoMode() ==
-				    QLineEdit::Password;
-		stream_key_edit_->setEchoMode(
-			showing
-				? QLineEdit::Normal
-				: QLineEdit::Password);
+				       QLineEdit::Password;
+			stream_key_edit_->setEchoMode(
+				showing ? QLineEdit::Normal
+					: QLineEdit::Password);
 			stream_key_show_button_->setText(obs_module_text(
 				showing ? "Settings.ShowStreamKey.Hide"
 					: "Settings.ShowStreamKey.Show"));
@@ -101,9 +100,12 @@ void SimulcastSettingsWindow::ButtonPressed(QAbstractButton *button)
 	}
 
 	// Handle individual settings here
+	dock_->StreamKey() = stream_key_edit_->text();
 	// Handle individual settings above
 
 	SetApplyEnabled(false);
+
+	dock_->SaveConfig();
 
 	if (button == button_box_->button(QDialogButtonBox::Ok)) {
 		ResetWindow();
@@ -120,7 +122,8 @@ void SimulcastSettingsWindow::SetApplyEnabled(bool enabled)
 void SimulcastSettingsWindow::ResetWindow()
 {
 	stream_key_edit_->setEchoMode(QLineEdit::Password);
-	stream_key_show_button_->setText(obs_module_text("Settings.ShowStreamKey.Show"));
+	stream_key_show_button_->setText(
+		obs_module_text("Settings.ShowStreamKey.Show"));
 
 	SetApplyEnabled(false);
 }
