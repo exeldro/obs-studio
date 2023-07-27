@@ -64,20 +64,52 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 
 	window_layout->addLayout(form_layout, 1);
 
-	stream_key_edit_->setEchoMode(QLineEdit::Password);
-
 	connect(stream_key_edit_, &QLineEdit::textEdited,
 		[=](const QString & /* text */) { SetApplyEnabled(true); });
 	connect(stream_key_show_button_, &QPushButton::clicked,
 		[=](bool /*toggled*/) {
-			stream_key_edit_->setEchoMode(
-				stream_key_edit_->echoMode() ==
-						QLineEdit::Password
-					? QLineEdit::Normal
-					: QLineEdit::Password);
+			auto showing = stream_key_edit_->echoMode() ==
+				    QLineEdit::Password;
+		stream_key_edit_->setEchoMode(
+			showing
+				? QLineEdit::Normal
+				: QLineEdit::Password);
+			stream_key_show_button_->setText(obs_module_text(
+				showing ? "Settings.ShowStreamKey.Hide"
+					: "Settings.ShowStreamKey.Show"));
 		});
 	connect(button_box_, &QDialogButtonBox::clicked,
 		[=](QAbstractButton *button) { this->ButtonPressed(button); });
+
+	ResetWindow();
+	ResetSettings();
+}
+
+void SimulcastSettingsWindow::ButtonPressed(QAbstractButton *button)
+{
+	if (button == button_box_->button(QDialogButtonBox::Cancel)) {
+		ResetWindow();
+		ResetSettings();
+		setVisible(false);
+		return;
+	}
+
+	if (button == button_box_->button(QDialogButtonBox::Reset)) {
+		ResetSettings();
+		SetApplyEnabled(false);
+		return;
+	}
+
+	// Handle individual settings here
+	// Handle individual settings above
+
+	SetApplyEnabled(false);
+
+	if (button == button_box_->button(QDialogButtonBox::Ok)) {
+		ResetWindow();
+		setVisible(false);
+		return;
+	}
 }
 
 void SimulcastSettingsWindow::SetApplyEnabled(bool enabled)
@@ -85,4 +117,17 @@ void SimulcastSettingsWindow::SetApplyEnabled(bool enabled)
 	button_box_->button(QDialogButtonBox::Apply)->setEnabled(enabled);
 }
 
-void SimulcastSettingsWindow::ButtonPressed(QAbstractButton *button) {}
+void SimulcastSettingsWindow::ResetWindow()
+{
+	stream_key_edit_->setEchoMode(QLineEdit::Password);
+	stream_key_show_button_->setText(obs_module_text("Settings.ShowStreamKey.Show"));
+
+	SetApplyEnabled(false);
+}
+
+void SimulcastSettingsWindow::ResetSettings()
+{
+	stream_key_edit_->setText(dock_->StreamKey());
+
+	SetApplyEnabled(false);
+}

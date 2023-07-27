@@ -19,6 +19,9 @@ private:
 	void ButtonPressed(QAbstractButton *button);
 	void SetApplyEnabled(bool enabled);
 
+	void ResetWindow();
+	void ResetSettings();
+
 	SimulcastDockWidget *dock_;
 
 	QLineEdit *stream_key_edit_;
