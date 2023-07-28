@@ -9,11 +9,15 @@
 #include <util/dstr.hpp>
 
 class SimulcastDockWidget : public QWidget {
+	Q_OBJECT;
+
 public:
 	SimulcastDockWidget(QWidget *parent = 0);
 
 	void SaveConfig();
 	void LoadConfig();
+	void ProfileRenamed();
+	void PruneDeletedProfiles();
 
 	SimulcastOutput &Output() { return output_; }
 
@@ -22,6 +26,9 @@ public:
 	{
 		return settings_window_geometry_;
 	}
+
+signals:
+	void ProfileChanged();
 
 private:
 	SimulcastOutput output_;

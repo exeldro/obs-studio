@@ -87,6 +87,9 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 	connect(button_box_, &QDialogButtonBox::clicked,
 		[=](QAbstractButton *button) { this->ButtonPressed(button); });
 
+	connect(dock_, &SimulcastDockWidget::ProfileChanged,
+		[=] { ResetSettings(); });
+
 	ResetWindow();
 	ResetSettings();
 }

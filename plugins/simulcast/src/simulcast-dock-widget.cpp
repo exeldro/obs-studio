@@ -30,6 +30,9 @@
 #include <util/platform.h>
 #include <util/util.hpp>
 
+#include <algorithm>
+#include <vector>
+
 #define ConfigSection "simulcast"
 
 static void SetupSignalsAndSlots(SimulcastDockWidget *self,
@@ -119,6 +122,12 @@ static OBSDataAutoRelease load_or_create_obj(obs_data_t *data, const char *name)
 #define DATA_KEY_PROFILES "profiles"
 #define DATA_KEY_STREAM_KEY "stream_key"
 
+static void write_config(obs_data_t *config)
+{
+	obs_data_save_json_pretty_safe(config, JSON_CONFIG_FILE, ".tmp",
+				       ".bak");
+}
+
 void SimulcastDockWidget::SaveConfig()
 {
 	os_mkdirs(module_config_path(""));
@@ -130,8 +139,7 @@ void SimulcastDockWidget::SaveConfig()
 			    settings_window_geometry_.toBase64().constData());
 	// Set modified config values above
 
-	obs_data_save_json_pretty_safe(config_, JSON_CONFIG_FILE, ".tmp",
-				       ".bak");
+	write_config(config_);
 }
 
 void SimulcastDockWidget::LoadConfig()
@@ -152,4 +160,45 @@ void SimulcastDockWidget::LoadConfig()
 	settings_window_geometry_ = QByteArray::fromBase64(obs_data_get_string(
 		config_, DATA_KEY_SETTINGS_WINDOW_GEOMETRY));
 	// Set modified config values above
+
+	emit ProfileChanged();
+}
+
+void SimulcastDockWidget::ProfileRenamed()
+{
+	DStr new_profile_name;
+	dstr_cat(new_profile_name, obs_frontend_get_current_profile());
+
+	obs_data_erase(profiles_, profile_name_->array);
+	obs_data_set_obj(profiles_, new_profile_name->array, profile_);
+
+	profile_name_ = std::move(new_profile_name);
+
+	write_config(config_);
+}
+
+void SimulcastDockWidget::PruneDeletedProfiles()
+{
+	std::vector<const char *> profile_names;
+	for (auto profile_item = obs_data_first(profiles_); profile_item;
+	     obs_data_item_next(&profile_item)) {
+		profile_names.push_back(obs_data_item_get_name(profile_item));
+	}
+
+	BPtr<char *> profiles = obs_frontend_get_profiles();
+	for (size_t i = 0; profiles[i]; i++) {
+		auto it = std::find_if(
+			profile_names.begin(), profile_names.end(),
+			[&](const char *name) {
+				return qstrcmp(name, profiles[i]) == 0;
+			});
+		if (it != profile_names.end())
+			profile_names.erase(it);
+	}
+
+	for (auto &profile : profile_names) {
+		obs_data_erase(profiles_, profile);
+	}
+
+	write_config(config_);
 }
