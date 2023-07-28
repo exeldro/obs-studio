@@ -29,6 +29,9 @@ OBSDataAutoRelease constructGoLivePost()
 		obs_data_set_int(clientData, "height", ovi.output_height);
 		obs_data_set_int(clientData, "fps_numerator", ovi.fps_num);
 		obs_data_set_int(clientData, "fps_denominator", ovi.fps_den);
+
+		obs_data_set_int(clientData, "canvas_width", ovi.base_width);
+		obs_data_set_int(clientData, "canvas_height", ovi.base_height);
 	}
 
 #if 0
