@@ -16,6 +16,7 @@ public:
 
 	void SaveConfig();
 	void LoadConfig();
+	void ProfileRenamed();
 
 	SimulcastOutput &Output() { return output_; }
 

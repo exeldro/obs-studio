@@ -82,6 +82,10 @@ bool obs_module_load(void)
 						OBS_FRONTEND_EVENT_FINISHED_LOADING) {
 				static_cast<SimulcastDockWidget *>(private_data)
 					->LoadConfig();
+			} else if (event ==
+				   obs_frontend_event::
+					   OBS_FRONTEND_EVENT_PROFILE_RENAMED) {
+				simulcastWidget->ProfileRenamed();
 			}
 		},
 		dock);

@@ -119,6 +119,12 @@ static OBSDataAutoRelease load_or_create_obj(obs_data_t *data, const char *name)
 #define DATA_KEY_PROFILES "profiles"
 #define DATA_KEY_STREAM_KEY "stream_key"
 
+static void write_config(obs_data_t *config)
+{
+	obs_data_save_json_pretty_safe(config, JSON_CONFIG_FILE, ".tmp",
+				       ".bak");
+}
+
 void SimulcastDockWidget::SaveConfig()
 {
 	os_mkdirs(module_config_path(""));
@@ -130,8 +136,7 @@ void SimulcastDockWidget::SaveConfig()
 			    settings_window_geometry_.toBase64().constData());
 	// Set modified config values above
 
-	obs_data_save_json_pretty_safe(config_, JSON_CONFIG_FILE, ".tmp",
-				       ".bak");
+	write_config(config_);
 }
 
 void SimulcastDockWidget::LoadConfig()
@@ -154,4 +159,17 @@ void SimulcastDockWidget::LoadConfig()
 	// Set modified config values above
 
 	emit ProfileChanged();
+}
+
+void SimulcastDockWidget::ProfileRenamed()
+{
+	DStr new_profile_name;
+	dstr_cat(new_profile_name, obs_frontend_get_current_profile());
+
+	obs_data_erase(profiles_, profile_name_->array);
+	obs_data_set_obj(profiles_, new_profile_name->array, profile_);
+
+	profile_name_ = std::move(new_profile_name);
+
+	write_config(config_);
 }
