@@ -86,6 +86,10 @@ bool obs_module_load(void)
 				   obs_frontend_event::
 					   OBS_FRONTEND_EVENT_PROFILE_RENAMED) {
 				simulcastWidget->ProfileRenamed();
+			} else if (event ==
+				   obs_frontend_event::
+					   OBS_FRONTEND_EVENT_PROFILE_LIST_CHANGED) {
+				simulcastWidget->PruneDeletedProfiles();
 			}
 		},
 		dock);

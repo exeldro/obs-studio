@@ -17,6 +17,7 @@ public:
 	void SaveConfig();
 	void LoadConfig();
 	void ProfileRenamed();
+	void PruneDeletedProfiles();
 
 	SimulcastOutput &Output() { return output_; }
 

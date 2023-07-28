@@ -30,6 +30,9 @@
 #include <util/platform.h>
 #include <util/util.hpp>
 
+#include <algorithm>
+#include <vector>
+
 #define ConfigSection "simulcast"
 
 static void SetupSignalsAndSlots(SimulcastDockWidget *self,
@@ -170,6 +173,32 @@ void SimulcastDockWidget::ProfileRenamed()
 	obs_data_set_obj(profiles_, new_profile_name->array, profile_);
 
 	profile_name_ = std::move(new_profile_name);
+
+	write_config(config_);
+}
+
+void SimulcastDockWidget::PruneDeletedProfiles()
+{
+	std::vector<const char *> profile_names;
+	for (auto profile_item = obs_data_first(profiles_); profile_item;
+	     obs_data_item_next(&profile_item)) {
+		profile_names.push_back(obs_data_item_get_name(profile_item));
+	}
+
+	BPtr<char *> profiles = obs_frontend_get_profiles();
+	for (size_t i = 0; profiles[i]; i++) {
+		auto it = std::find_if(
+			profile_names.begin(), profile_names.end(),
+			[&](const char *name) {
+				return qstrcmp(name, profiles[i]) == 0;
+			});
+		if (it != profile_names.end())
+			profile_names.erase(it);
+	}
+
+	for (auto &profile : profile_names) {
+		obs_data_erase(profiles_, profile);
+	}
 
 	write_config(config_);
 }
