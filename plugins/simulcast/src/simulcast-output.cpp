@@ -6,9 +6,11 @@
 #include <obs-frontend-api.h>
 #include <obs-module.h>
 
+#include <algorithm>
 #include <cinttypes>
 #include <cmath>
 #include <numeric>
+#include <vector>
 
 #include <QString>
 
@@ -187,11 +189,46 @@ static void adjust_encoder_frame_rate_divisor(const obs_video_info &ovi,
 	obs_encoder_set_frame_rate_divisor(video_encoder, divisor);
 }
 
+static const std::vector<const char *> &get_available_encoders()
+{
+	// encoders are currently only registered during startup, so keeping
+	// a static vector around shouldn't be a problem
+	static std::vector<const char *> available_encoders = [] {
+		std::vector<const char *> available_encoders;
+		obs_enum_encoders(
+			[](void *param, obs_encoder_t *encoder) {
+				auto &available_encoders = *static_cast<
+					std::vector<const char *> *>(param);
+				available_encoders.push_back(
+					obs_encoder_get_name(encoder));
+				return true;
+			},
+			&available_encoders);
+		return available_encoders;
+	}();
+	return available_encoders;
+}
+
+static bool encoder_available(const char *type)
+{
+	auto &encoders = get_available_encoders();
+	return std::find_if(std::begin(encoders), std::end(encoders),
+			    [=](const char *encoder) {
+				    return strcmp(type, encoder) == 0;
+			    }) != std::end(encoders);
+}
+
 static OBSEncoderAutoRelease create_video_encoder(DStr &name_buffer,
 						  size_t encoder_index,
 						  obs_data_t *encoder_config)
 {
 	auto encoder_type = obs_data_get_string(encoder_config, "type");
+	if (!encoder_available(encoder_type)) {
+		blog(LOG_ERROR, "Encoder type '%s' not available",
+		     encoder_type);
+		return nullptr;
+	}
+
 	dstr_printf(name_buffer, "simulcast video encoder %zu", encoder_index);
 	OBSEncoderAutoRelease video_encoder = obs_video_encoder_create(
 		encoder_type, name_buffer, encoder_config, nullptr);
@@ -304,6 +341,9 @@ OBSOutputAutoRelease SimulcastOutput::SetupOBSOutput(obs_data_t *go_live_config)
 			obs_data_array_item(encoder_configs, i);
 		auto encoder = create_video_encoder(video_encoder_name_buffer,
 						    i, encoder_config);
+		if (!encoder)
+			return nullptr;
+
 		obs_output_set_video_encoder2(output, encoder, i);
 		video_encoders_.emplace_back(std::move(encoder));
 	}
