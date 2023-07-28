@@ -195,15 +195,12 @@ static const std::vector<const char *> &get_available_encoders()
 	// a static vector around shouldn't be a problem
 	static std::vector<const char *> available_encoders = [] {
 		std::vector<const char *> available_encoders;
-		obs_enum_encoders(
-			[](void *param, obs_encoder_t *encoder) {
-				auto &available_encoders = *static_cast<
-					std::vector<const char *> *>(param);
-				available_encoders.push_back(
-					obs_encoder_get_name(encoder));
-				return true;
-			},
-			&available_encoders);
+		for (size_t i = 0;; i++) {
+			const char *id = nullptr;
+			if (!obs_enum_encoder_types(i, &id))
+				break;
+			available_encoders.push_back(id);
+		}
 		return available_encoders;
 	}();
 	return available_encoders;
