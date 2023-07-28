@@ -2,8 +2,7 @@
 
 #include "system-info.h"
 
-OBSDataAutoRelease constructGoLivePost(/* config_t *config, uint32_t fpsNum,
-				       uint32_t fpsDen*/)
+OBSDataAutoRelease constructGoLivePost()
 {
 	obs_data_t *postData = obs_data_create();
 	OBSDataAutoRelease capabilitiesData = obs_data_create();
@@ -18,18 +17,21 @@ OBSDataAutoRelease constructGoLivePost(/* config_t *config, uint32_t fpsNum,
 	auto systemData = system_info();
 	obs_data_apply(capabilitiesData, systemData);
 
-#if 0
-	OBSData clientData = obs_data_create();
-	obs_data_set_obj(capabilitiesData, "client", clientData);
-	obs_data_set_string(clientData, "name", "obs-studio");
-	obs_data_set_string(clientData, "version", obs_get_version_string());
-	obs_data_set_int(clientData, "width",
-			 config_get_uint(config, "Video", "OutputCX"));
-	obs_data_set_int(clientData, "height",
-			 config_get_uint(config, "Video", "OutputCY"));
-	obs_data_set_int(clientData, "fps_numerator", fpsNum);
-	obs_data_set_int(clientData, "fps_denominator", fpsDen);
+	obs_video_info ovi;
+	if (obs_get_video_info(&ovi)) {
+		OBSDataAutoRelease clientData = obs_data_create();
+		obs_data_set_obj(capabilitiesData, "client", clientData);
 
+		obs_data_set_string(clientData, "name", "obs-studio");
+		obs_data_set_string(clientData, "version",
+				    obs_get_version_string());
+		obs_data_set_int(clientData, "width", ovi.output_width);
+		obs_data_set_int(clientData, "height", ovi.output_height);
+		obs_data_set_int(clientData, "fps_numerator", ovi.fps_num);
+		obs_data_set_int(clientData, "fps_denominator", ovi.fps_den);
+	}
+
+#if 0
 	// XXX hardcoding the present-day AdvancedOutput behavior here..
 	// XXX include rescaled output size?
 	OBSData encodingData = AdvancedOutputStreamEncoderSettings();
