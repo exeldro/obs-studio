@@ -152,4 +152,6 @@ void SimulcastDockWidget::LoadConfig()
 	settings_window_geometry_ = QByteArray::fromBase64(obs_data_get_string(
 		config_, DATA_KEY_SETTINGS_WINDOW_GEOMETRY));
 	// Set modified config values above
+
+	emit ProfileChanged();
 }

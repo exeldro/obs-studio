@@ -9,6 +9,8 @@
 #include <util/dstr.hpp>
 
 class SimulcastDockWidget : public QWidget {
+	Q_OBJECT;
+
 public:
 	SimulcastDockWidget(QWidget *parent = 0);
 
@@ -22,6 +24,9 @@ public:
 	{
 		return settings_window_geometry_;
 	}
+
+signals:
+	void ProfileChanged();
 
 private:
 	SimulcastOutput output_;
