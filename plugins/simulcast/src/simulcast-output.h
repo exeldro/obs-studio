@@ -7,6 +7,7 @@
 #include <qobject.h>
 
 class SimulcastOutput;
+class QString;
 
 void StreamStartHandler(void *arg, calldata_t *data);
 void StreamStopHandler(void *arg, calldata_t *data);
@@ -15,7 +16,7 @@ class SimulcastOutput : public QObject {
 	Q_OBJECT;
 
 public:
-	bool StartStreaming();
+	bool StartStreaming(const QString &stream_key);
 	void StopStreaming();
 	bool IsStreaming();
 
@@ -31,6 +32,7 @@ private:
 	OBSOutputAutoRelease output_;
 	std::vector<OBSEncoderAutoRelease> video_encoders_;
 	OBSEncoderAutoRelease audio_encoder_;
+	OBSServiceAutoRelease simulcast_service_;
 
 	friend void StreamStartHandler(void *arg, calldata_t *data);
 	friend void StreamStopHandler(void *arg, calldata_t *data);

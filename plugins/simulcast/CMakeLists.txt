@@ -18,6 +18,7 @@ target_sources(
           src/simulcast-output.h
           src/simulcast-plugin.cpp
           src/simulcast-plugin.h
+          src/simulcast-service.cpp
           src/simulcast-settings-window.cpp
           src/simulcast-settings-window.h)
 

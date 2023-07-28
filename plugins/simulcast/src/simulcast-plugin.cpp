@@ -38,6 +38,7 @@ const char *obs_module_description(void)
 	return obs_module_text("Simulcast.Plugin.Description");
 }
 
+void register_service();
 void register_settings_window(SimulcastDockWidget *dock);
 
 bool obs_module_load(void)
@@ -46,6 +47,8 @@ bool obs_module_load(void)
 
 	if (obs_get_version() < MAKE_SEMANTIC_VERSION(29, 1, 0))
 		return false;
+
+	register_service();
 
 	auto mainWindow = (QMainWindow *)obs_frontend_get_main_window();
 	if (mainWindow == nullptr)

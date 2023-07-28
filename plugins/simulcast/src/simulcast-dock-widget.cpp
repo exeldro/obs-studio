@@ -47,7 +47,8 @@ static void SetupSignalsAndSlots(SimulcastDockWidget *self,
 				streamingButton->setText(
 					obs_module_text("Btn.StartingStream"));
 				streamingButton->setDisabled(true);
-				if (self->Output().StartStreaming())
+				if (self->Output().StartStreaming(
+					    self->StreamKey()))
 					return;
 
 				streamingButton->setText(
