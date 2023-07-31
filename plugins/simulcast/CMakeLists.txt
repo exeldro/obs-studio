@@ -24,6 +24,8 @@ target_sources(
           src/goliveapi-network.hpp
           src/goliveapi-postdata.cpp
           src/goliveapi-postdata.hpp
+          src/ivs-events.cpp
+          src/ivs-events.h
           src/presentmon-csv-capture.cpp
           src/presentmon-csv-capture.hpp
           src/presentmon-csv-parser.cpp
