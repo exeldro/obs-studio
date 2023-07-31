@@ -15,6 +15,8 @@
 #define DISCARD_SAMPLES_BEYOND \
 	144 * 60 * 2 // 144fps, one minute, times two for safety
 
+#define PRESENTMON_SESSION_NAME "PresentMon_OBS_Twitch_Simulcast_Tech_Preview"
+
 void PresentMonCapture_accumulator::frame(const ParsedCsvRow &row)
 {
 	// XXX big hack
@@ -146,9 +148,24 @@ PresentMonCapture::PresentMonCapture(QObject *parent) : QObject(parent)
 
 	// Start the proces
 	QStringList args({"-output_stdout", "-stop_existing_session",
-			  "-session_name",
-			  "PresentMon_OBS_Twitch_Simulcast_Tech_Preview"});
+			  "-session_name", PRESENTMON_SESSION_NAME});
 	process_->start(PRESENTMON_PATH, args, QIODeviceBase::ReadWrite);
+}
+
+PresentMonCapture::~PresentMonCapture()
+{
+	if (!process_)
+		return;
+
+	// Maybe inline functionality from
+	// https://github.com/GameTechDev/PresentMon/blob/6320933cfaa373cb1702126c0449cf28b9c3431f/PresentData/TraceSession.cpp#L597-L603 instead?
+	QStringList args({"-terminate_existing", "-session_name",
+			  PRESENTMON_SESSION_NAME});
+	auto exit_process = QProcess(this);
+	exit_process.start(PRESENTMON_PATH, args);
+
+	exit_process.waitForFinished();
+	process_->waitForFinished();
 }
 
 void PresentMonCapture::summarizeAndReset(obs_data_t *dest)

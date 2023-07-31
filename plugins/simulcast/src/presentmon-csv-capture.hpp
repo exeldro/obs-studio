@@ -36,6 +36,7 @@ class PresentMonCapture : public QObject {
 	Q_OBJECT
 public:
 	PresentMonCapture(QObject *parent);
+	~PresentMonCapture();
 
 	// Calling this will:
 	//   - calculate summary statistics about data received so far,
