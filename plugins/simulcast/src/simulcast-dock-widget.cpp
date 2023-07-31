@@ -161,10 +161,6 @@ SimulcastDockWidget::SimulcastDockWidget(QWidget * /*parent*/)
 {
 	//berryessa_ = new BerryessaSubmitter(this, "http://127.0.0.1:8787/");
 
-	// XXX: should be created once per device and persisted on disk
-	berryessa_.setAlwaysString("device_id",
-				   "bf655dd3-8346-4c1c-a7c8-bb7d9ca6091a");
-
 	berryessa_.setAlwaysString(
 		"obs_session_id",
 		QUuid::createUuid().toString(QUuid::WithoutBraces));
@@ -209,6 +205,7 @@ static OBSDataAutoRelease load_or_create_obj(obs_data_t *data, const char *name)
 
 #define JSON_CONFIG_FILE module_config_path("config.json")
 #define DATA_KEY_SETTINGS_WINDOW_GEOMETRY "settings_window_geometry"
+#define DATA_KEY_DEVICE_ID "device_id"
 #define DATA_KEY_PROFILES "profiles"
 #define DATA_KEY_STREAM_KEY "stream_key"
 
@@ -250,6 +247,20 @@ void SimulcastDockWidget::LoadConfig()
 	settings_window_geometry_ = QByteArray::fromBase64(obs_data_get_string(
 		config_, DATA_KEY_SETTINGS_WINDOW_GEOMETRY));
 	// Set modified config values above
+
+	// ==================== device id ====================
+	if (!obs_data_has_user_value(config_, DATA_KEY_DEVICE_ID)) {
+		auto new_device_id =
+			QUuid::createUuid().toString(QUuid::WithoutBraces);
+
+		obs_data_set_string(config_, DATA_KEY_DEVICE_ID,
+				    new_device_id.toUtf8().constData());
+		write_config(config_);
+	}
+
+	berryessa_.setAlwaysString(
+		"device_id", obs_data_get_string(config_, DATA_KEY_DEVICE_ID));
+	// ==================== device id ====================
 
 	emit ProfileChanged();
 }
