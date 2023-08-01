@@ -17,3 +17,6 @@ OBSDataAutoRelease MakeEvent_ivs_obs_stream_start_failed(
 	qint64 msecs_elapsed_after_start_streaming_returned);
 
 OBSDataAutoRelease MakeEvent_ivs_obs_stream_stop();
+
+OBSDataAutoRelease
+MakeEvent_ivs_obs_stream_started(qint64 msecs_elapsed_after_started_signal);

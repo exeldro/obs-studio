@@ -63,3 +63,12 @@ OBSDataAutoRelease MakeEvent_ivs_obs_stream_stop()
 	obs_data_set_string(event, "server_error", "");
 	return event;
 }
+
+OBSDataAutoRelease
+MakeEvent_ivs_obs_stream_started(qint64 msecs_elapsed_after_started_signal)
+{
+	OBSDataAutoRelease event = obs_data_create();
+	obs_data_set_int(event, "msecs_elapsed_until_stream_started",
+			 msecs_elapsed_after_started_signal);
+	return event;
+}

@@ -127,10 +127,18 @@ static void SetupSignalsAndSlots(
 
 	QObject::connect(
 		&output, &SimulcastOutput::StreamStarted, self,
-		[self, streamingButton]() {
+		[self, streamingButton, berryessa = &berryessa]() {
 			streamingButton->setText(
 				obs_module_text("Btn.StopStreaming"));
 			streamingButton->setDisabled(false);
+
+			auto &start_time = self->StreamAttemptStartTime();
+			if (!start_time.has_value())
+				return;
+
+			auto event = MakeEvent_ivs_obs_stream_started(
+				start_time->MSecsElapsed());
+			berryessa->submit("ivs_obs_stream_started", event);
 		},
 		Qt::QueuedConnection);
 
