@@ -1,6 +1,7 @@
 #pragma once
 
 #include "simulcast-output.h"
+#include "immutable-date-time.h"
 #include "berryessa-submitter.hpp"
 #include "berryessa-every-minute.hpp"
 
@@ -9,6 +10,7 @@
 #include <QWidget>
 
 #include <memory>
+#include <optional>
 
 #include <util/dstr.hpp>
 
@@ -31,6 +33,9 @@ public:
 		return settings_window_geometry_;
 	}
 
+	const ImmutableDateTime &GenerateStreamAttemptStartTime();
+	const std::optional<ImmutableDateTime> &StreamAttemptStartTime() const;
+
 signals:
 	void ProfileChanged();
 
@@ -48,4 +53,6 @@ private:
 	OBSDataAutoRelease profiles_;
 	DStr profile_name_;
 	OBSDataAutoRelease profile_;
+
+	std::optional<ImmutableDateTime> stream_attempt_start_time_;
 };

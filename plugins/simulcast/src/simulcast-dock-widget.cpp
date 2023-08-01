@@ -49,6 +49,7 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 		    BerryessaSubmitter *berryessa,
 		    std::unique_ptr<BerryessaEveryMinute> *berryessaEveryMinute)
 {
+	auto start_time = self->GenerateStreamAttemptStartTime();
 	streamingButton->setText(obs_module_text("Btn.StartingStream"));
 	streamingButton->setDisabled(true);
 
@@ -67,9 +68,8 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 		// put the config_id on all events until the stream ends
 		berryessa->setAlwaysString("config_id", configId);
 	}
-	QString t = QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
-	berryessa->setAlwaysString("start_broadcast_time",
-				   t.toUtf8().constData());
+	berryessa->setAlwaysString("stream_attempt_start_time",
+				   start_time.CStr());
 
 	berryessa->submit("ivs_obs_stream_start", event);
 
@@ -268,4 +268,16 @@ void SimulcastDockWidget::PruneDeletedProfiles()
 	}
 
 	write_config(config_);
+}
+
+const ImmutableDateTime &SimulcastDockWidget::GenerateStreamAttemptStartTime()
+{
+	stream_attempt_start_time_.emplace(ImmutableDateTime::CurrentTimeUtc());
+	return *stream_attempt_start_time_;
+}
+
+const std::optional<ImmutableDateTime> &
+SimulcastDockWidget::StreamAttemptStartTime() const
+{
+	return stream_attempt_start_time_;
 }
