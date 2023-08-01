@@ -2,4 +2,7 @@
 
 #include <obs.hpp>
 
-OBSDataAutoRelease constructGoLivePost();
+struct ImmutableDateTime;
+
+OBSDataAutoRelease
+constructGoLivePost(const ImmutableDateTime &attempt_start_time);

@@ -1,13 +1,17 @@
 #include "goliveapi-postdata.hpp"
 
+#include "immutable-date-time.h"
 #include "system-info.h"
 
-OBSDataAutoRelease constructGoLivePost()
+OBSDataAutoRelease
+constructGoLivePost(const ImmutableDateTime &attempt_start_time)
 {
 	obs_data_t *postData = obs_data_create();
 	OBSDataAutoRelease capabilitiesData = obs_data_create();
 	obs_data_set_string(postData, "service", "IVS");
 	obs_data_set_string(postData, "schema_version", "2023-05-10");
+	obs_data_set_string(postData, "stream_attempt_start_time",
+			    attempt_start_time.CStr());
 	obs_data_set_obj(postData, "capabilities", capabilitiesData);
 
 	obs_data_set_bool(capabilitiesData, "plugin", true);

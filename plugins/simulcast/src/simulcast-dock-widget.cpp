@@ -59,18 +59,31 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 	streamingButton->setText(obs_module_text("Btn.StartingStream"));
 	streamingButton->setDisabled(true);
 
-	auto postData = constructGoLivePost();
+	auto postData = constructGoLivePost(start_time);
 	auto goLiveConfig = [&] {
 		ProfileScope("DownloadGoLiveConfig");
 		return DownloadGoLiveConfig(self, GO_LIVE_API_URL, postData);
 	}();
+	auto download_time_elapsed = start_time.MSecsElapsed();
+
 	if (!self->Output().StartStreaming(self->StreamKey(), goLiveConfig)) {
 		streamingButton->setText(obs_module_text("Btn.StartStreaming"));
 		streamingButton->setDisabled(false);
+
+		auto start_streaming_returned = start_time.MSecsElapsed();
+		auto event = MakeEvent_ivs_obs_stream_start_failed(
+			postData, goLiveConfig, start_time,
+			download_time_elapsed, start_streaming_returned);
+		berryessa->submit("ivs_obs_stream_start_failed", event);
 		return;
 	}
 
-	auto event = MakeEvent_ivs_obs_stream_start(postData, goLiveConfig);
+	auto start_streaming_returned = start_time.MSecsElapsed();
+
+	auto event = MakeEvent_ivs_obs_stream_start(postData, goLiveConfig,
+						    start_time,
+						    download_time_elapsed,
+						    start_streaming_returned);
 	const char *configId = obs_data_get_string(event, "config_id");
 	if (configId) {
 		// put the config_id on all events until the stream ends
