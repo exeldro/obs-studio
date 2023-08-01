@@ -45,6 +45,6 @@ private:
 	 * On failure: returns k-v items describing the error, suitable
 	 *          for submission as an ivs_obs_http_client_error event :)
 	 */
-	OBSDataAutoRelease syncSubmitAndReleaseItemsReturningError(
-		const std::vector<obs_data_t *> &items);
+	OBSDataAutoRelease
+	syncSubmitReturningError(const std::vector<obs_data_t *> &items);
 };

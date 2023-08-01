@@ -28,7 +28,7 @@ void BerryessaSubmitter::submit(QString eventName, obs_data_t *properties)
 	// XXX do the whole async worker thread thing
 	std::vector<obs_data_t *> tmp;
 	tmp.push_back(toplevel);
-	auto error = syncSubmitAndReleaseItemsReturningError(tmp);
+	auto error = syncSubmitReturningError(tmp);
 
 	// not until we have async / queueing :)
 	//if (error) {
@@ -36,7 +36,7 @@ void BerryessaSubmitter::submit(QString eventName, obs_data_t *properties)
 	//}
 }
 
-OBSDataAutoRelease BerryessaSubmitter::syncSubmitAndReleaseItemsReturningError(
+OBSDataAutoRelease BerryessaSubmitter::syncSubmitReturningError(
 	const std::vector<obs_data_t *> &items)
 {
 	// Berryessa documentation:
@@ -48,7 +48,6 @@ OBSDataAutoRelease BerryessaSubmitter::syncSubmitAndReleaseItemsReturningError(
 		blog(LOG_INFO, "Berryessa: %s", obs_data_get_json(it));
 		postJson += postJson.isEmpty() ? "[" : ",";
 		postJson += obs_data_get_json(it);
-		obs_data_release(it);
 	}
 	postJson += "]";
 
