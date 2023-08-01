@@ -44,6 +44,38 @@
 
 #define GO_LIVE_API_URL "https://ingest.twitch.tv/api/v3/GetClientConfiguration"
 
+static void
+handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
+		    BerryessaSubmitter *berryessa,
+		    std::unique_ptr<BerryessaEveryMinute> *berryessaEveryMinute)
+{
+	streamingButton->setText(obs_module_text("Btn.StartingStream"));
+	streamingButton->setDisabled(true);
+
+	auto postData = constructGoLivePost();
+	auto goLiveConfig =
+		DownloadGoLiveConfig(self, GO_LIVE_API_URL, postData);
+	if (!self->Output().StartStreaming(self->StreamKey(), goLiveConfig)) {
+		streamingButton->setText(obs_module_text("Btn.StartStreaming"));
+		streamingButton->setDisabled(false);
+		return;
+	}
+
+	auto event = MakeEvent_ivs_obs_stream_start(postData, goLiveConfig);
+	const char *configId = obs_data_get_string(event, "config_id");
+	if (configId) {
+		// put the config_id on all events until the stream ends
+		berryessa->setAlwaysString("config_id", configId);
+	}
+	QString t = QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
+	berryessa->setAlwaysString("start_broadcast_time",
+				   t.toUtf8().constData());
+
+	berryessa->submit("ivs_obs_stream_start", event);
+
+	berryessaEveryMinute->reset(new BerryessaEveryMinute(self, berryessa));
+}
+
 static void SetupSignalsAndSlots(
 	SimulcastDockWidget *self, QPushButton *streamingButton,
 	SimulcastOutput &output, BerryessaSubmitter &berryessa,
@@ -66,43 +98,9 @@ static void SetupSignalsAndSlots(
 
 				berryessa->unsetAlways("config_id");
 			} else {
-				streamingButton->setText(
-					obs_module_text("Btn.StartingStream"));
-				streamingButton->setDisabled(true);
-
-				auto postData = constructGoLivePost();
-				auto goLiveConfig = DownloadGoLiveConfig(
-					self, GO_LIVE_API_URL, postData);
-				if (!self->Output().StartStreaming(
-					    self->StreamKey(), goLiveConfig)) {
-					streamingButton->setText(
-						obs_module_text(
-							"Btn.StartStreaming"));
-					streamingButton->setDisabled(false);
-					return;
-				}
-
-				auto event = MakeEvent_ivs_obs_stream_start(
-					postData, goLiveConfig);
-				const char *configId =
-					obs_data_get_string(event, "config_id");
-				if (configId) {
-					// put the config_id on all events until the stream ends
-					berryessa->setAlwaysString("config_id",
-								   configId);
-				}
-				QString t = QDateTime::currentDateTimeUtc()
-						    .toString(Qt::ISODate);
-				berryessa->setAlwaysString(
-					"start_broadcast_time",
-					t.toUtf8().constData());
-
-				berryessa->submit("ivs_obs_stream_start",
-						  event);
-
-				berryessaEveryMinute->reset(
-					new BerryessaEveryMinute(self,
-								 berryessa));
+				handle_stream_start(self, streamingButton,
+						    berryessa,
+						    berryessaEveryMinute);
 			}
 		});
 
