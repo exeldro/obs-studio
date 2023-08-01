@@ -29,6 +29,7 @@
 #include <obs-module.h>
 #include <util/config-file.h>
 #include <util/platform.h>
+#include <util/profiler.hpp>
 #include <util/util.hpp>
 
 #include <algorithm>
@@ -50,12 +51,19 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 		    std::unique_ptr<BerryessaEveryMinute> *berryessaEveryMinute)
 {
 	auto start_time = self->GenerateStreamAttemptStartTime();
+	auto scope_name = profile_store_name(obs_get_profiler_name_store(),
+					     "IVSStreamStartPressed(%s)",
+					     start_time.CStr());
+	ProfileScope(scope_name);
+
 	streamingButton->setText(obs_module_text("Btn.StartingStream"));
 	streamingButton->setDisabled(true);
 
 	auto postData = constructGoLivePost();
-	auto goLiveConfig =
-		DownloadGoLiveConfig(self, GO_LIVE_API_URL, postData);
+	auto goLiveConfig = [&] {
+		ProfileScope("DownloadGoLiveConfig");
+		return DownloadGoLiveConfig(self, GO_LIVE_API_URL, postData);
+	}();
 	if (!self->Output().StartStreaming(self->StreamKey(), goLiveConfig)) {
 		streamingButton->setText(obs_module_text("Btn.StartStreaming"));
 		streamingButton->setDisabled(false);
