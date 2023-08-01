@@ -1,10 +1,14 @@
 #pragma once
 
 #include "simulcast-output.h"
+#include "berryessa-submitter.hpp"
+#include "berryessa-every-minute.hpp"
 
 #include <QByteArray>
 #include <QString>
 #include <QWidget>
+
+#include <memory>
 
 #include <util/dstr.hpp>
 
@@ -32,6 +36,8 @@ signals:
 
 private:
 	SimulcastOutput output_;
+	BerryessaSubmitter berryessa_;
+	std::unique_ptr<BerryessaEveryMinute> berryessaEveryMinute_;
 
 	// Add config vars here
 	QString stream_key_;

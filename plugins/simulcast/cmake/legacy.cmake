@@ -18,7 +18,12 @@ target_sources(
           src/simulcast-plugin.cpp
           src/simulcast-output.cpp
           src/copy-from-obs/remote-text.cpp
+          src/berryessa-submitter.hpp
+          src/berryessa-submitter.cpp
           src/goliveapi-network.cpp
+          src/presentmon-csv-capture.cpp
+          src/berryessa-every-minute.cpp
+          src/presentmon-csv-parser.cpp
           src/goliveapi-postdata.cpp)
 
 configure_file(src/plugin-macros.h.in plugin-macros.generated.h)

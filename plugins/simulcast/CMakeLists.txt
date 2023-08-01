@@ -11,6 +11,10 @@ add_library(simulcast MODULE)
 target_sources(
   simulcast
   PRIVATE # cmake-format: sortable
+          src/berryessa-every-minute.cpp
+          src/berryessa-every-minute.hpp
+          src/berryessa-submitter.cpp
+          src/berryessa-submitter.hpp
           src/common.h
           src/copy-from-obs/remote-text.cpp
           src/copy-from-obs/remote-text.hpp
@@ -20,6 +24,12 @@ target_sources(
           src/goliveapi-network.hpp
           src/goliveapi-postdata.cpp
           src/goliveapi-postdata.hpp
+          src/ivs-events.cpp
+          src/ivs-events.h
+          src/presentmon-csv-capture.cpp
+          src/presentmon-csv-capture.hpp
+          src/presentmon-csv-parser.cpp
+          src/presentmon-csv-parser.hpp
           src/simulcast-dock-widget.cpp
           src/simulcast-dock-widget.h
           src/simulcast-output.cpp
