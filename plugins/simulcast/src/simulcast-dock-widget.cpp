@@ -33,7 +33,12 @@
 #include <algorithm>
 #include <vector>
 
+#include "goliveapi-network.hpp"
+#include "goliveapi-postdata.hpp"
+
 #define ConfigSection "simulcast"
+
+#define GO_LIVE_API_URL "https://ingest.twitch.tv/api/v3/GetClientConfiguration"
 
 static void SetupSignalsAndSlots(SimulcastDockWidget *self,
 				 QPushButton *streamingButton,
@@ -50,8 +55,12 @@ static void SetupSignalsAndSlots(SimulcastDockWidget *self,
 				streamingButton->setText(
 					obs_module_text("Btn.StartingStream"));
 				streamingButton->setDisabled(true);
+
+				auto postData = constructGoLivePost();
+				auto goLiveConfig = DownloadGoLiveConfig(
+					self, GO_LIVE_API_URL, postData);
 				if (self->Output().StartStreaming(
-					    self->StreamKey()))
+					    self->StreamKey(), goLiveConfig))
 					return;
 
 				streamingButton->setText(
