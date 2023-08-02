@@ -29,6 +29,7 @@
 #include <obs-module.h>
 #include <util/config-file.h>
 #include <util/platform.h>
+#include <util/profiler.hpp>
 #include <util/util.hpp>
 
 #include <algorithm>
@@ -43,6 +44,58 @@
 #define ConfigSection "simulcast"
 
 #define GO_LIVE_API_URL "https://ingest.twitch.tv/api/v3/GetClientConfiguration"
+
+static void
+handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
+		    BerryessaSubmitter *berryessa,
+		    std::unique_ptr<BerryessaEveryMinute> *berryessaEveryMinute)
+{
+	auto start_time = self->GenerateStreamAttemptStartTime();
+	auto scope_name = profile_store_name(obs_get_profiler_name_store(),
+					     "IVSStreamStartPressed(%s)",
+					     start_time.CStr());
+	ProfileScope(scope_name);
+
+	streamingButton->setText(obs_module_text("Btn.StartingStream"));
+	streamingButton->setDisabled(true);
+
+	auto postData = constructGoLivePost(start_time);
+	auto goLiveConfig = [&] {
+		ProfileScope("DownloadGoLiveConfig");
+		return DownloadGoLiveConfig(self, GO_LIVE_API_URL, postData);
+	}();
+	auto download_time_elapsed = start_time.MSecsElapsed();
+
+	if (!self->Output().StartStreaming(self->StreamKey(), goLiveConfig)) {
+		streamingButton->setText(obs_module_text("Btn.StartStreaming"));
+		streamingButton->setDisabled(false);
+
+		auto start_streaming_returned = start_time.MSecsElapsed();
+		auto event = MakeEvent_ivs_obs_stream_start_failed(
+			postData, goLiveConfig, start_time,
+			download_time_elapsed, start_streaming_returned);
+		berryessa->submit("ivs_obs_stream_start_failed", event);
+		return;
+	}
+
+	auto start_streaming_returned = start_time.MSecsElapsed();
+
+	auto event = MakeEvent_ivs_obs_stream_start(postData, goLiveConfig,
+						    start_time,
+						    download_time_elapsed,
+						    start_streaming_returned);
+	const char *configId = obs_data_get_string(event, "config_id");
+	if (configId) {
+		// put the config_id on all events until the stream ends
+		berryessa->setAlwaysString("config_id", configId);
+	}
+	berryessa->setAlwaysString("stream_attempt_start_time",
+				   start_time.CStr());
+
+	berryessa->submit("ivs_obs_stream_start", event);
+
+	berryessaEveryMinute->reset(new BerryessaEveryMinute(self, berryessa));
+}
 
 static void SetupSignalsAndSlots(
 	SimulcastDockWidget *self, QPushButton *streamingButton,
@@ -66,52 +119,26 @@ static void SetupSignalsAndSlots(
 
 				berryessa->unsetAlways("config_id");
 			} else {
-				streamingButton->setText(
-					obs_module_text("Btn.StartingStream"));
-				streamingButton->setDisabled(true);
-
-				auto postData = constructGoLivePost();
-				auto goLiveConfig = DownloadGoLiveConfig(
-					self, GO_LIVE_API_URL, postData);
-				if (!self->Output().StartStreaming(
-					    self->StreamKey(), goLiveConfig)) {
-					streamingButton->setText(
-						obs_module_text(
-							"Btn.StartStreaming"));
-					streamingButton->setDisabled(false);
-					return;
-				}
-
-				auto event = MakeEvent_ivs_obs_stream_start(
-					postData, goLiveConfig);
-				const char *configId =
-					obs_data_get_string(event, "config_id");
-				if (configId) {
-					// put the config_id on all events until the stream ends
-					berryessa->setAlwaysString("config_id",
-								   configId);
-				}
-				QString t = QDateTime::currentDateTimeUtc()
-						    .toString(Qt::ISODate);
-				berryessa->setAlwaysString(
-					"start_broadcast_time",
-					t.toUtf8().constData());
-
-				berryessa->submit("ivs_obs_stream_start",
-						  event);
-
-				berryessaEveryMinute->reset(
-					new BerryessaEveryMinute(self,
-								 berryessa));
+				handle_stream_start(self, streamingButton,
+						    berryessa,
+						    berryessaEveryMinute);
 			}
 		});
 
 	QObject::connect(
 		&output, &SimulcastOutput::StreamStarted, self,
-		[self, streamingButton]() {
+		[self, streamingButton, berryessa = &berryessa]() {
 			streamingButton->setText(
 				obs_module_text("Btn.StopStreaming"));
 			streamingButton->setDisabled(false);
+
+			auto &start_time = self->StreamAttemptStartTime();
+			if (!start_time.has_value())
+				return;
+
+			auto event = MakeEvent_ivs_obs_stream_started(
+				start_time->MSecsElapsed());
+			berryessa->submit("ivs_obs_stream_started", event);
 		},
 		Qt::QueuedConnection);
 
@@ -270,4 +297,16 @@ void SimulcastDockWidget::PruneDeletedProfiles()
 	}
 
 	write_config(config_);
+}
+
+const ImmutableDateTime &SimulcastDockWidget::GenerateStreamAttemptStartTime()
+{
+	stream_attempt_start_time_.emplace(ImmutableDateTime::CurrentTimeUtc());
+	return *stream_attempt_start_time_;
+}
+
+const std::optional<ImmutableDateTime> &
+SimulcastDockWidget::StreamAttemptStartTime() const
+{
+	return stream_attempt_start_time_;
 }

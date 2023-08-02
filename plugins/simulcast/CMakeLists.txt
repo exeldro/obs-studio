@@ -24,6 +24,8 @@ target_sources(
           src/goliveapi-network.hpp
           src/goliveapi-postdata.cpp
           src/goliveapi-postdata.hpp
+          src/immutable-date-time.cpp
+          src/immutable-date-time.h
           src/ivs-events.cpp
           src/ivs-events.h
           src/presentmon-csv-capture.cpp
