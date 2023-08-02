@@ -31,7 +31,7 @@ void PresentMonCapture_accumulator::frame(const ParsedCsvRow &row)
 	// don't do this every time, it'll be slow
 	// this is just a safety check so we don't allocate memory forever
 	if (rows_.size() > 3 * DISCARD_SAMPLES_BEYOND)
-		trimRows();
+		trimRows(locked);
 
 	rows_.push_back(row);
 }
@@ -49,7 +49,7 @@ void PresentMonCapture_accumulator::summarizeAndReset(obs_data_t *dest)
 #endif
 	if (rows_.size() >= 2 &&
 	    rows_.rbegin()->TimeInSeconds > rows_[0].TimeInSeconds) {
-		trimRows();
+		trimRows(locked);
 		const size_t n = rows_.size();
 #if 1
 		double allButFirstBetweenPresents = -rows_[0].msBetweenPresents;
@@ -80,7 +80,7 @@ void PresentMonCapture_accumulator::summarizeAndReset(obs_data_t *dest)
 }
 
 // You need to hold the mutex before calling this
-void PresentMonCapture_accumulator::trimRows()
+void PresentMonCapture_accumulator::trimRows(const QMutexLocker<QMutex> &)
 {
 	if (rows_.size() > DISCARD_SAMPLES_BEYOND) {
 		rows_.erase(rows_.begin(),
