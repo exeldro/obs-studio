@@ -6,6 +6,7 @@
 #include <obs.hpp> // logging and obs_data_t
 
 #include <QMutex>
+#include <QMutexLocker>
 #include <QProcess>
 
 #include <memory>
@@ -29,7 +30,7 @@ public:
 
 private:
 	// You need to hold the mutex before calling this
-	void trimRows();
+	void trimRows(const QMutexLocker<QMutex> &ensure_lock);
 };
 
 class PresentMonCapture : public QObject {

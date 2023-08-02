@@ -2,6 +2,7 @@
 
 #include <QProcess>
 #include <QMutex>
+#include <QMutexLocker>
 
 #include <cinttypes>
 
@@ -25,13 +26,14 @@ void PresentMonCapture_accumulator::frame(const ParsedCsvRow &row)
 	    0 != strcmp(row.Application, GAME3))
 		return;
 
+	QMutexLocker locked(&mutex);
+
 	// don't do this every time, it'll be slow
 	// this is just a safety check so we don't allocate memory forever
 	if (rows_.size() > 3 * DISCARD_SAMPLES_BEYOND)
-		trimRows();
+		trimRows(locked);
 
 	rows_.push_back(row);
-	mutex.unlock();
 }
 
 void PresentMonCapture_accumulator::summarizeAndReset(obs_data_t *dest)
@@ -39,7 +41,7 @@ void PresentMonCapture_accumulator::summarizeAndReset(obs_data_t *dest)
 	double fps = -1;
 	char game[PRESENTMON_APPNAME_LEN] = {0};
 
-	mutex.lock();
+	QMutexLocker locked(&mutex);
 #if 1
 	blog(LOG_INFO,
 	     "PresentMonCapture_accumulator::summarizeAndReset has %zu samples",
@@ -47,7 +49,7 @@ void PresentMonCapture_accumulator::summarizeAndReset(obs_data_t *dest)
 #endif
 	if (rows_.size() >= 2 &&
 	    rows_.rbegin()->TimeInSeconds > rows_[0].TimeInSeconds) {
-		trimRows();
+		trimRows(locked);
 		const size_t n = rows_.size();
 #if 1
 		double allButFirstBetweenPresents = -rows_[0].msBetweenPresents;
@@ -70,7 +72,6 @@ void PresentMonCapture_accumulator::summarizeAndReset(obs_data_t *dest)
 		rows_.erase(rows_.begin() + 1, rows_.end());
 		strncpy(game, rows_[0].Application, PRESENTMON_APPNAME_LEN - 1);
 	}
-	mutex.unlock();
 
 	if (fps >= 0.0)
 		obs_data_set_double(dest, "fps", fps);
@@ -79,7 +80,7 @@ void PresentMonCapture_accumulator::summarizeAndReset(obs_data_t *dest)
 }
 
 // You need to hold the mutex before calling this
-void PresentMonCapture_accumulator::trimRows()
+void PresentMonCapture_accumulator::trimRows(const QMutexLocker<QMutex> &)
 {
 	if (rows_.size() > DISCARD_SAMPLES_BEYOND) {
 		rows_.erase(rows_.begin(),
