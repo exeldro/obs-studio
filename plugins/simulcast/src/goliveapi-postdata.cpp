@@ -6,7 +6,7 @@
 OBSDataAutoRelease
 constructGoLivePost(const ImmutableDateTime &attempt_start_time)
 {
-	obs_data_t *postData = obs_data_create();
+	OBSDataAutoRelease postData = obs_data_create();
 	OBSDataAutoRelease capabilitiesData = obs_data_create();
 	obs_data_set_string(postData, "service", "IVS");
 	obs_data_set_string(postData, "schema_version", "2023-05-10");
