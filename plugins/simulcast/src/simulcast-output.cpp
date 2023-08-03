@@ -282,6 +282,8 @@ static OBSDataAutoRelease load_simulcast_config()
 	return data;
 }
 
+static void SetupSignalHandlers(SimulcastOutput *self, obs_output_t *output);
+
 bool SimulcastOutput::StartStreaming(const QString &stream_key,
 				     obs_data_t *go_live_config)
 {
@@ -302,7 +304,7 @@ bool SimulcastOutput::StartStreaming(const QString &stream_key,
 
 	obs_output_set_service(output_, simulcast_service_);
 
-	SetupSignalHandlers(output_);
+	SetupSignalHandlers(this, output_);
 
 	if (!obs_output_start(output_)) {
 		blog(LOG_WARNING, "Failed to start stream");
@@ -358,13 +360,13 @@ OBSOutputAutoRelease SimulcastOutput::SetupOBSOutput(obs_data_t *go_live_config)
 	return output;
 }
 
-void SimulcastOutput::SetupSignalHandlers(obs_output_t *output)
+void SetupSignalHandlers(SimulcastOutput *self, obs_output_t *output)
 {
 	auto handler = obs_output_get_signal_handler(output);
 
-	signal_handler_connect(handler, "start", StreamStartHandler, this);
+	signal_handler_connect(handler, "start", StreamStartHandler, self);
 
-	signal_handler_connect(handler, "stop", StreamStopHandler, this);
+	signal_handler_connect(handler, "stop", StreamStopHandler, self);
 }
 
 void StreamStartHandler(void *arg, calldata_t * /* data */)

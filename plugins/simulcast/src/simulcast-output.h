@@ -28,7 +28,6 @@ signals:
 
 private:
 	OBSOutputAutoRelease SetupOBSOutput(obs_data_t *go_live_config);
-	void SetupSignalHandlers(obs_output_t *output);
 	std::atomic<bool> streaming_ = false;
 
 	OBSOutputAutoRelease output_;
