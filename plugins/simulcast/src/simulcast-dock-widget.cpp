@@ -232,8 +232,8 @@ void SimulcastDockWidget::LoadConfig()
 
 	profiles_ = load_or_create_obj(config_, DATA_KEY_PROFILES);
 
-	profile_name_->len = 0;
-	dstr_cat(profile_name_, obs_frontend_get_current_profile());
+	dstr_free(profile_name_);
+	dstr_init_move_array(profile_name_, obs_frontend_get_current_profile());
 
 	profile_ = load_or_create_obj(profiles_, profile_name_->array);
 

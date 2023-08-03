@@ -35,7 +35,7 @@ OBSDataArrayAutoRelease system_gpu_data()
 
 		os_wcs_to_utf8(desc.Description, 0, name, sizeof(name));
 
-		obs_data_t *data = obs_data_create();
+		OBSDataAutoRelease data = obs_data_create();
 		obs_data_set_string(data, "model", name);
 
 		/* driver version */

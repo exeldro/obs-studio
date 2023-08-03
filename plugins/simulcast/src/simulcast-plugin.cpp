@@ -41,6 +41,25 @@ const char *obs_module_description(void)
 void register_service();
 void register_settings_window(SimulcastDockWidget *dock);
 
+static void obs_event_handler(obs_frontend_event event,
+			      SimulcastDockWidget *simulcastWidget)
+{
+	if (event == obs_frontend_event::OBS_FRONTEND_EVENT_EXIT) {
+		simulcastWidget->SaveConfig();
+	} else if (event == obs_frontend_event::
+				    OBS_FRONTEND_EVENT_PROFILE_CHANGED ||
+		   event == obs_frontend_event::
+				    OBS_FRONTEND_EVENT_FINISHED_LOADING) {
+		simulcastWidget->LoadConfig();
+	} else if (event ==
+		   obs_frontend_event::OBS_FRONTEND_EVENT_PROFILE_RENAMED) {
+		simulcastWidget->ProfileRenamed();
+	} else if (event ==
+		   obs_frontend_event::OBS_FRONTEND_EVENT_PROFILE_LIST_CHANGED) {
+		simulcastWidget->PruneDeletedProfiles();
+	}
+}
+
 bool obs_module_load(void)
 {
 	blog(LOG_INFO, "Loading module simulcast (%s)", SIMULCAST_VERSION);
@@ -66,31 +85,9 @@ bool obs_module_load(void)
 
 	obs_frontend_add_event_callback(
 		[](enum obs_frontend_event event, void *private_data) {
-			auto simulcastWidget =
-				static_cast<SimulcastDockWidget *>(
-					private_data);
-
-			if (event ==
-			    obs_frontend_event::OBS_FRONTEND_EVENT_EXIT) {
-				simulcastWidget->SaveConfig();
-			} else if (
-				event ==
-					obs_frontend_event::
-						OBS_FRONTEND_EVENT_PROFILE_CHANGED ||
-				event ==
-					obs_frontend_event::
-						OBS_FRONTEND_EVENT_FINISHED_LOADING) {
-				static_cast<SimulcastDockWidget *>(private_data)
-					->LoadConfig();
-			} else if (event ==
-				   obs_frontend_event::
-					   OBS_FRONTEND_EVENT_PROFILE_RENAMED) {
-				simulcastWidget->ProfileRenamed();
-			} else if (event ==
-				   obs_frontend_event::
-					   OBS_FRONTEND_EVENT_PROFILE_LIST_CHANGED) {
-				simulcastWidget->PruneDeletedProfiles();
-			}
+			obs_event_handler(event,
+					  static_cast<SimulcastDockWidget *>(
+						  private_data));
 		},
 		dock);
 
