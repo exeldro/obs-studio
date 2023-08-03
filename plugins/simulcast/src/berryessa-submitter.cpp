@@ -15,7 +15,6 @@ void BerryessaSubmitter::submit(QString eventName, obs_data_t *properties)
 {
 	// overlay the supplied properties over a copy of the always properties
 	//   (so if there's a conflict, supplied property wins)
-	// and release the original copy
 	OBSDataAutoRelease newProperties = obs_data_create();
 	obs_data_apply(newProperties, this->alwaysProperties_);
 	obs_data_apply(newProperties, properties);
