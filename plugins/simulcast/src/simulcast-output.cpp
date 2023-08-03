@@ -282,6 +282,10 @@ static OBSDataAutoRelease load_simulcast_config()
 	return data;
 }
 
+static OBSOutputAutoRelease
+SetupOBSOutput(obs_data_t *go_live_config,
+	       std::vector<OBSEncoderAutoRelease> &video_encoders,
+	       OBSEncoderAutoRelease &audio_encoder);
 static void SetupSignalHandlers(SimulcastOutput *self, obs_output_t *output);
 
 bool SimulcastOutput::StartStreaming(const QString &stream_key,
@@ -294,7 +298,8 @@ bool SimulcastOutput::StartStreaming(const QString &stream_key,
 	if (!go_live_config)
 		return false;
 
-	output_ = SetupOBSOutput(go_live_config);
+	output_ =
+		SetupOBSOutput(go_live_config, video_encoders_, audio_encoder_);
 	if (!output_)
 		return false;
 
@@ -334,7 +339,10 @@ bool SimulcastOutput::IsStreaming() const
 	return streaming_;
 }
 
-OBSOutputAutoRelease SimulcastOutput::SetupOBSOutput(obs_data_t *go_live_config)
+static OBSOutputAutoRelease
+SetupOBSOutput(obs_data_t *go_live_config,
+	       std::vector<OBSEncoderAutoRelease> &video_encoders,
+	       OBSEncoderAutoRelease &audio_encoder)
 {
 
 	auto output = create_output();
@@ -351,11 +359,11 @@ OBSOutputAutoRelease SimulcastOutput::SetupOBSOutput(obs_data_t *go_live_config)
 			return nullptr;
 
 		obs_output_set_video_encoder2(output, encoder, i);
-		video_encoders_.emplace_back(std::move(encoder));
+		video_encoders.emplace_back(std::move(encoder));
 	}
 
-	audio_encoder_ = create_audio_encoder();
-	obs_output_set_audio_encoder(output, audio_encoder_, 0);
+	audio_encoder = create_audio_encoder();
+	obs_output_set_audio_encoder(output, audio_encoder, 0);
 
 	return output;
 }

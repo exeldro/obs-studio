@@ -27,7 +27,6 @@ signals:
 	void StreamStopped();
 
 private:
-	OBSOutputAutoRelease SetupOBSOutput(obs_data_t *go_live_config);
 	std::atomic<bool> streaming_ = false;
 
 	OBSOutputAutoRelease output_;
