@@ -59,7 +59,10 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 	streamingButton->setText(obs_module_text("Btn.StartingStream"));
 	streamingButton->setDisabled(true);
 
-	auto postData = constructGoLivePost(start_time);
+	auto postData = [&] {
+		ProfileScope("constructGoLivePostData");
+		return constructGoLivePost(start_time);
+	}();
 	auto goLiveConfig = [&] {
 		ProfileScope("DownloadGoLiveConfig");
 		return DownloadGoLiveConfig(self, GO_LIVE_API_URL, postData);

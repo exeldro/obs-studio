@@ -2,6 +2,7 @@
 
 #include <util/dstr.hpp>
 #include <util/platform.h>
+#include <util/profiler.hpp>
 #include <util/util.hpp>
 #include <obs-frontend-api.h>
 #include <obs-module.h>
@@ -284,6 +285,8 @@ static OBSDataAutoRelease load_simulcast_config()
 bool SimulcastOutput::StartStreaming(const QString &stream_key,
 				     obs_data_t *go_live_config)
 {
+	ProfileScope("StartStreaming");
+
 	auto config = go_live_config ? nullptr : load_simulcast_config();
 	go_live_config = go_live_config ? go_live_config : &*config;
 	if (!go_live_config)
