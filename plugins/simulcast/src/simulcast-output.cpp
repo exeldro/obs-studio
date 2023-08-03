@@ -327,7 +327,7 @@ void SimulcastOutput::StopStreaming()
 	streaming_ = false;
 }
 
-bool SimulcastOutput::IsStreaming()
+bool SimulcastOutput::IsStreaming() const
 {
 	return streaming_;
 }
