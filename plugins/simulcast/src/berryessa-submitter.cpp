@@ -67,10 +67,9 @@ void SubmissionWorker::AttemptSubmission()
 	postEncoded += postJson.toBase64();
 
 	// http post to berryessa
-	std::vector<std::string> headers;
-	headers.push_back("User-Agent: obs-simulcast-plugin-tech-preview");
-	headers.push_back(
-		"Content-Type: application/x-www-form-urlencoded; charset=UTF-8");
+	static const std::vector<std::string> headers = {
+		{"User-Agent: obs-simulcast-plugin-tech-preview"},
+		{"Content-Type: application/x-www-form-urlencoded; charset=UTF-8"}};
 
 	std::string httpResponse, httpError;
 	long httpResponseCode;
