@@ -9,7 +9,6 @@ class BerryessaSubmitter : public QObject {
 
 public:
 	BerryessaSubmitter(QObject *parent, QString url);
-	~BerryessaSubmitter();
 
 	/**
 	 * Submit an event to be sent to Berryessa. This takes

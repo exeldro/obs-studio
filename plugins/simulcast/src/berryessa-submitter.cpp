@@ -9,8 +9,6 @@ BerryessaSubmitter::BerryessaSubmitter(QObject *parent, QString url)
 	this->alwaysProperties_ = obs_data_create();
 }
 
-BerryessaSubmitter::~BerryessaSubmitter() {}
-
 void BerryessaSubmitter::submit(QString eventName, obs_data_t *properties)
 {
 	// overlay the supplied properties over a copy of the always properties
