@@ -3,10 +3,31 @@
 
 #include "copy-from-obs/remote-text.hpp"
 
+void SubmissionWorker::QueueEvent(OBSData event)
+{
+	pending_events_.emplace_back(std::move(event));
+
+	emit PendingEvent();
+}
+
 BerryessaSubmitter::BerryessaSubmitter(QObject *parent, QString url)
-	: QObject(parent), url_(url)
+	: QObject(parent), url_(url), submission_worker_(url)
 {
 	this->alwaysProperties_ = obs_data_create();
+
+	submission_thread_.start();
+	submission_worker_.moveToThread(&submission_thread_);
+
+	connect(&submission_worker_, &SubmissionWorker::SubmissionError, this,
+		&BerryessaSubmitter::SubmissionError, Qt::QueuedConnection);
+	connect(this, &BerryessaSubmitter::SubmitEvent, &submission_worker_,
+		&SubmissionWorker::QueueEvent);
+}
+
+BerryessaSubmitter::~BerryessaSubmitter()
+{
+	submission_thread_.quit();
+	submission_thread_.wait();
 }
 
 void BerryessaSubmitter::submit(QString eventName, obs_data_t *properties)
@@ -22,26 +43,19 @@ void BerryessaSubmitter::submit(QString eventName, obs_data_t *properties)
 	obs_data_set_string(toplevel, "event", eventName.toUtf8());
 	obs_data_set_obj(toplevel, "properties", newProperties);
 
-	// XXX do the whole async worker thread thing
-	std::vector<obs_data_t *> tmp;
-	tmp.push_back(toplevel);
-	auto error = syncSubmitReturningError(tmp);
-
-	// not until we have async / queueing :)
-	//if (error) {
-	//  submit("ivs_obs_http_client_error", error);
-	//}
+	emit SubmitEvent(OBSData{toplevel});
 }
 
-OBSDataAutoRelease BerryessaSubmitter::syncSubmitReturningError(
-	const std::vector<obs_data_t *> &items)
+void SubmissionWorker::AttemptSubmission()
 {
 	// Berryessa documentation:
 	// https://docs.google.com/document/d/1dB1fOgGQxu05ljqVVoX1jcjImzlcwcm9QKFZ2IDeuo0/edit#heading=h.yjke1ko59g7n
 
-	// Build up JSON, releasing supplied obs_data_t*'s as we go
+	if (pending_events_.empty())
+		return;
+
 	QByteArray postJson;
-	for (obs_data_t *it : items) {
+	for (obs_data_t *it : pending_events_) {
 		blog(LOG_INFO, "Berryessa: %s", obs_data_get_json(it));
 		postJson += postJson.isEmpty() ? "[" : ",";
 		postJson += obs_data_get_json(it);
@@ -71,18 +85,19 @@ OBSDataAutoRelease BerryessaSubmitter::syncSubmitReturningError(
 
 	// XXX parse response from berryessa, check response code?
 
+	pending_events_.clear(); // TODO: add discarded event names to error?
+	if (ok)
+		return;
+
 	// log and return http error information, if any
-	OBSDataAutoRelease error = nullptr;
-	if (!ok) {
-		error = obs_data_create();
-		obs_data_set_string(error, "url", url_.toUtf8());
-		obs_data_set_string(error, "error", httpError.c_str());
-		obs_data_set_int(error, "response_code", httpResponseCode);
-		blog(LOG_WARNING,
-		     "Could not submit %lld bytes to metrics backend: %s",
-		     postEncoded.size(), obs_data_get_json(error));
-	}
-	return error;
+	OBSDataAutoRelease error = obs_data_create();
+	obs_data_set_string(error, "url", url_.toUtf8());
+	obs_data_set_string(error, "error", httpError.c_str());
+	obs_data_set_int(error, "response_code", httpResponseCode);
+	blog(LOG_WARNING, "Could not submit %lld bytes to metrics backend: %s",
+	     postEncoded.size(), obs_data_get_json(error));
+
+	emit SubmissionError(OBSData{error});
 }
 
 void BerryessaSubmitter::setAlwaysString(QString propertyKey,
@@ -96,4 +111,9 @@ void BerryessaSubmitter::unsetAlways(QString propertyKey)
 {
 	obs_data_unset_user_value(this->alwaysProperties_,
 				  propertyKey.toUtf8());
+}
+
+void BerryessaSubmitter::SubmissionError(OBSData error)
+{
+	submit("ivs_obs_http_client_error", error);
 }
