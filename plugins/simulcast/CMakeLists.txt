@@ -32,6 +32,8 @@ target_sources(
           src/presentmon-csv-capture.hpp
           src/presentmon-csv-parser.cpp
           src/presentmon-csv-parser.hpp
+          src/qt-helpers.cpp
+          src/qt-helpers.h
           src/simulcast-dock-widget.cpp
           src/simulcast-dock-widget.h
           src/simulcast-output.cpp

@@ -2,9 +2,11 @@
 
 #include <obs.hpp>
 
+#include <atomic>
 #include <vector>
 
 #include <qobject.h>
+#include <QFuture>
 
 class SimulcastOutput;
 class QString;
@@ -16,19 +18,17 @@ class SimulcastOutput : public QObject {
 	Q_OBJECT;
 
 public:
-	bool StartStreaming(const QString &stream_key,
-			    obs_data_t *go_live_config);
+	QFuture<bool> StartStreaming(const QString &stream_key,
+				     obs_data_t *go_live_config);
 	void StopStreaming();
-	bool IsStreaming();
+	bool IsStreaming() const;
 
 signals:
 	void StreamStarted();
 	void StreamStopped();
 
 private:
-	OBSOutputAutoRelease SetupOBSOutput(obs_data_t *go_live_config);
-	void SetupSignalHandlers(obs_output_t *output);
-	bool streaming_ = false;
+	std::atomic<bool> streaming_ = false;
 
 	OBSOutputAutoRelease output_;
 	std::vector<OBSEncoderAutoRelease> video_encoders_;
