@@ -2,7 +2,8 @@
 
 ImmutableDateTime::ImmutableDateTime(QDateTime date_time)
 	: date_time(date_time),
-	  date_time_string(date_time.toString().toUtf8().constData())
+	  date_time_string(
+		  date_time.toString(Qt::ISODateWithMs).toUtf8().constData())
 {
 }
 
