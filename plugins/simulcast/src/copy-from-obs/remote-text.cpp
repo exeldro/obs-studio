@@ -59,7 +59,7 @@ static size_t header_write(char *ptr, size_t size, size_t nmemb,
 bool GetRemoteFile(const char *url, std::string &str, std::string &error,
 		   long *responseCode, const char *contentType,
 		   std::string request_type, const char *postData,
-		   std::vector<std::string> extraHeaders,
+		   const std::vector<std::string> &extraHeaders,
 		   std::string *signature, int timeoutSec, bool fail_on_error,
 		   int postDataSize)
 {
@@ -93,7 +93,7 @@ bool GetRemoteFile(const char *url, std::string &str, std::string &error,
 						   contentTypeString.c_str());
 		}
 
-		for (std::string &h : extraHeaders)
+		for (const std::string &h : extraHeaders)
 			header = curl_slist_append(header, h.c_str());
 
 		curl_easy_setopt(curl.get(), CURLOPT_URL, url);

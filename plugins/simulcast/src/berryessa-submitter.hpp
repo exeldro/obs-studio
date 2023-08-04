@@ -3,6 +3,33 @@
 
 #include <obs.hpp>
 #include <QObject>
+#include <QThread>
+
+class SubmissionWorker : public QObject {
+	Q_OBJECT;
+
+private:
+	QString url_;
+	std::vector<OBSData> pending_events_;
+
+public:
+	SubmissionWorker(QString url) : url_(url)
+	{
+		connect(this, &SubmissionWorker::PendingEvent, this,
+			&SubmissionWorker::AttemptSubmission,
+			Qt::QueuedConnection);
+	}
+
+public slots:
+	void QueueEvent(OBSData event);
+
+private slots:
+	void AttemptSubmission();
+
+signals:
+	void PendingEvent();
+	void SubmissionError(OBSData error);
+};
 
 class BerryessaSubmitter : public QObject {
 	Q_OBJECT
@@ -32,19 +59,16 @@ public:
 	 */
 	void unsetAlways(QString propertyKey);
 
+public slots:
+	void SubmissionError(OBSData error);
+
+signals:
+	void SubmitEvent(OBSData event);
+
 private:
 	QString url_;
 	OBSDataAutoRelease alwaysProperties_;
 
-	/**
-	 * Attempts to submit the passed items to Berryessa in a single HTTP request.
-	 * May retry once or more. (XXX: does not currently retry)
-	 * Calls obs_data_release() on passed items before returning.
-	 *
-	 * On success: returns NULL.
-	 * On failure: returns k-v items describing the error, suitable
-	 *          for submission as an ivs_obs_http_client_error event :)
-	 */
-	OBSDataAutoRelease
-	syncSubmitReturningError(const std::vector<obs_data_t *> &items);
+	SubmissionWorker submission_worker_;
+	QThread submission_thread_;
 };
