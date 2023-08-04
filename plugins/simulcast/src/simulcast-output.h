@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <qobject.h>
+#include <QFuture>
 
 class SimulcastOutput;
 class QString;
@@ -17,8 +18,8 @@ class SimulcastOutput : public QObject {
 	Q_OBJECT;
 
 public:
-	bool StartStreaming(const QString &stream_key,
-			    obs_data_t *go_live_config);
+	QFuture<bool> StartStreaming(const QString &stream_key,
+				     obs_data_t *go_live_config);
 	void StopStreaming();
 	bool IsStreaming() const;
 

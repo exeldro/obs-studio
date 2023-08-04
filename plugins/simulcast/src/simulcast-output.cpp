@@ -12,11 +12,15 @@
 #include <cinttypes>
 #include <cmath>
 #include <numeric>
+#include <optional>
 #include <vector>
 
+#include <QScopeGuard>
 #include <QString>
+#include <QThreadPool>
 
 #include "plugin-macros.generated.h"
+#include "qt-helpers.h"
 
 static OBSServiceAutoRelease create_service(obs_data_t *go_live_config,
 					    const QString &stream_key)
@@ -288,38 +292,83 @@ SetupOBSOutput(obs_data_t *go_live_config,
 	       OBSEncoderAutoRelease &audio_encoder);
 static void SetupSignalHandlers(SimulcastOutput *self, obs_output_t *output);
 
-bool SimulcastOutput::StartStreaming(const QString &stream_key,
-				     obs_data_t *go_live_config)
+struct OutputObjects {
+	OBSOutputAutoRelease output;
+	std::vector<OBSEncoderAutoRelease> video_encoders;
+	OBSEncoderAutoRelease audio_encoder;
+	OBSServiceAutoRelease simulcast_service;
+};
+
+QFuture<bool> SimulcastOutput::StartStreaming(const QString &stream_key,
+					      obs_data_t *go_live_config_)
 {
-	ProfileScope("StartStreaming");
+	OBSData go_live_config_data = go_live_config_;
 
-	auto config = go_live_config ? nullptr : load_simulcast_config();
-	go_live_config = go_live_config ? go_live_config : &*config;
-	if (!go_live_config)
-		return false;
+	return CreateFuture()
+		.then(QThreadPool::globalInstance(),
+		      [stream_key, go_live_config_data, self = this,
+		       video_encoders = std::move(video_encoders_)]() mutable
+		      -> std::optional<OutputObjects> {
+			      auto config = go_live_config_data
+						    ? nullptr
+						    : load_simulcast_config();
+			      auto go_live_config =
+				      go_live_config_data
+					      ? static_cast<obs_data_t *>(
+							go_live_config_data)
+					      : &*config;
+			      if (!go_live_config)
+				      return std::nullopt;
 
-	output_ =
-		SetupOBSOutput(go_live_config, video_encoders_, audio_encoder_);
-	if (!output_)
-		return false;
+			      OBSEncoderAutoRelease audio_encoder = nullptr;
+			      auto output = SetupOBSOutput(go_live_config,
+							   video_encoders,
+							   audio_encoder);
+			      if (!output)
+				      return std::nullopt;
 
-	simulcast_service_ = create_service(go_live_config, stream_key);
-	if (!simulcast_service_)
-		return false;
+			      auto simulcast_service = create_service(
+				      go_live_config, stream_key);
+			      if (!simulcast_service)
+				      return std::nullopt;
 
-	obs_output_set_service(output_, simulcast_service_);
+			      obs_output_set_service(output, simulcast_service);
 
-	SetupSignalHandlers(this, output_);
+			      return OutputObjects{
+				      std::move(output),
+				      std::move(video_encoders),
+				      std::move(audio_encoder),
+				      std::move(simulcast_service),
+			      };
+		      })
+		.then(this,
+		      [this](std::optional<OutputObjects> val) -> OBSOutput {
+			      if (!val.has_value())
+				      return nullptr;
 
-	if (!obs_output_start(output_)) {
-		blog(LOG_WARNING, "Failed to start stream");
-		return false;
-	}
+			      auto vals = std::move(val).value();
 
-	blog(LOG_INFO, "starting stream");
+			      SetupSignalHandlers(this, vals.output);
 
-	streaming_ = true;
-	return true;
+			      output_ = std::move(vals.output);
+			      video_encoders_ = std::move(vals.video_encoders);
+			      audio_encoder_ = std::move(vals.audio_encoder);
+			      simulcast_service_ =
+				      std::move(vals.simulcast_service);
+			      return OBSOutput{output_};
+		      })
+		.then(QThreadPool::globalInstance(), [](OBSOutput output) {
+			if (!output)
+				return false;
+
+			if (!obs_output_start(output)) {
+				blog(LOG_WARNING, "Failed to start stream");
+				return false;
+			}
+
+			blog(LOG_INFO, "starting stream");
+			return true;
+		});
 }
 
 void SimulcastOutput::StopStreaming()
