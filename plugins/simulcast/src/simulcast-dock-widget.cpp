@@ -173,6 +173,7 @@ static void SetupSignalsAndSlots(
 		[self, streamingButton]() {
 			streamingButton->setText(
 				obs_module_text("Btn.StartStreaming"));
+			streamingButton->setDisabled(false);
 		},
 		Qt::QueuedConnection);
 }
