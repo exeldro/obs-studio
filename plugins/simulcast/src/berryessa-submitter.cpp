@@ -3,6 +3,10 @@
 
 #include "copy-from-obs/remote-text.hpp"
 
+#include <QTimer>
+
+#define THROTTLE_DURATION std::chrono::seconds(5)
+
 void SubmissionWorker::QueueEvent(OBSData event)
 {
 	pending_events_.emplace_back(std::move(event));
@@ -53,6 +57,20 @@ void SubmissionWorker::AttemptSubmission()
 
 	if (pending_events_.empty())
 		return;
+
+	auto current_time = std::chrono::steady_clock::now();
+	if (last_send_time_.has_value() &&
+	    (current_time - *last_send_time_) < THROTTLE_DURATION) {
+		auto diff = current_time - *last_send_time_;
+		QTimer::singleShot(
+			std::chrono::duration_cast<std::chrono::milliseconds>(
+				diff)
+				.count(),
+			this, [this] { AttemptSubmission(); });
+		return;
+	}
+
+	last_send_time_.emplace(std::chrono::steady_clock::now());
 
 	QByteArray postJson;
 	for (obs_data_t *it : pending_events_) {

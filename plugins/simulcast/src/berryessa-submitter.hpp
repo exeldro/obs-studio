@@ -5,12 +5,16 @@
 #include <QObject>
 #include <QThread>
 
+#include <chrono>
+#include <optional>
+
 class SubmissionWorker : public QObject {
 	Q_OBJECT;
 
 private:
 	QString url_;
 	std::vector<OBSData> pending_events_;
+	std::optional<std::chrono::steady_clock::time_point> last_send_time_;
 
 public:
 	SubmissionWorker(QString url) : url_(url)
