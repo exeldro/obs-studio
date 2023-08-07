@@ -154,7 +154,7 @@ static void adjust_video_encoder_scaling(const obs_video_info &ovi,
 	    ovi.output_height == requested_height)
 		return;
 
-#if 0
+#if 1
 	auto res = scale_resolution(ovi, requested_width, requested_height);
 	obs_encoder_set_scaled_size(video_encoder, res.width, res.height);
 #else
