@@ -56,7 +56,8 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 					     start_time.CStr());
 	ProfileScope(scope_name);
 
-	streamingButton->setText(obs_module_text("Btn.StartingStream"));
+	streamingButton->setText(
+		obs_frontend_get_locale_string("Basic.Main.Connecting"));
 	streamingButton->setDisabled(true);
 
 	OBSData postData{[&] {
@@ -73,8 +74,9 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 							OBSData{goLiveConfig}](
 						    bool started) {
 					if (!started) {
-						streamingButton->setText(obs_module_text(
-							"Btn.StartStreaming"));
+						streamingButton->setText(
+							obs_frontend_get_locale_string(
+								"Basic.Main.StartStreaming"));
 						streamingButton->setDisabled(
 							false);
 
@@ -136,7 +138,8 @@ static void SetupSignalsAndSlots(
 		 berryessaEveryMinute = &berryessaEveryMinute]() {
 			if (self->Output().IsStreaming()) {
 				streamingButton->setText(
-					obs_module_text("Btn.StoppingStream"));
+					obs_frontend_get_locale_string(
+						"Basic.Main.StoppingStream"));
 				self->Output().StopStreaming();
 
 				berryessa->submit(
@@ -156,8 +159,8 @@ static void SetupSignalsAndSlots(
 	QObject::connect(
 		&output, &SimulcastOutput::StreamStarted, self,
 		[self, streamingButton, berryessa = &berryessa]() {
-			streamingButton->setText(
-				obs_module_text("Btn.StopStreaming"));
+			streamingButton->setText(obs_frontend_get_locale_string(
+				"Basic.Main.StopStreaming"));
 			streamingButton->setDisabled(false);
 
 			auto &start_time = self->StreamAttemptStartTime();
@@ -173,8 +176,8 @@ static void SetupSignalsAndSlots(
 	QObject::connect(
 		&output, &SimulcastOutput::StreamStopped, self,
 		[self, streamingButton]() {
-			streamingButton->setText(
-				obs_module_text("Btn.StartStreaming"));
+			streamingButton->setText(obs_frontend_get_locale_string(
+				"Basic.Main.StartStreaming"));
 			streamingButton->setDisabled(false);
 		},
 		Qt::QueuedConnection);
@@ -196,7 +199,8 @@ SimulcastDockWidget::SimulcastDockWidget(QWidget * /*parent*/)
 	auto buttonContainer = new QWidget(this);
 	auto buttonLayout = new QVBoxLayout();
 	auto streamingButton = new QPushButton(
-		obs_module_text("Btn.StartStreaming"), buttonContainer);
+		obs_frontend_get_locale_string("Basic.Main.StartStreaming"),
+		buttonContainer);
 	buttonLayout->addWidget(streamingButton);
 	buttonContainer->setLayout(buttonLayout);
 	dockLayout->addWidget(buttonContainer);

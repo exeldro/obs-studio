@@ -79,9 +79,9 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 			stream_key_edit_->setEchoMode(
 				showing ? QLineEdit::Normal
 					: QLineEdit::Password);
-			stream_key_show_button_->setText(obs_module_text(
-				showing ? "Settings.ShowStreamKey.Hide"
-					: "Settings.ShowStreamKey.Show"));
+			stream_key_show_button_->setText(
+				obs_frontend_get_locale_string(
+					showing ? "Hide" : "Show"));
 		});
 	connect(button_box_, &QDialogButtonBox::clicked,
 		[=](QAbstractButton *button) { this->ButtonPressed(button); });
@@ -139,7 +139,7 @@ void SimulcastSettingsWindow::ResetWindow()
 {
 	stream_key_edit_->setEchoMode(QLineEdit::Password);
 	stream_key_show_button_->setText(
-		obs_module_text("Settings.ShowStreamKey.Show"));
+		obs_frontend_get_locale_string("Show"));
 
 	SetApplyEnabled(false);
 }
