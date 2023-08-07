@@ -60,7 +60,6 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 		QDialogButtonBox::Apply | QDialogButtonBox::Cancel |
 		QDialogButtonBox::Ok | QDialogButtonBox::Reset);
 
-	// TODO: Disable stream key edit while stream is active (<-> OBS settings dialog)?
 	stream_key_edit_layout->addWidget(stream_key_edit_);
 	stream_key_edit_layout->addWidget(stream_key_show_button_);
 
@@ -89,6 +88,12 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 
 	connect(dock_, &SimulcastDockWidget::ProfileChanged,
 		[=] { ResetSettings(); });
+
+	connect(&dock_->Output(), &SimulcastOutput::StreamStarted, this,
+		[=] { stream_key_edit_->setEnabled(false); });
+
+	connect(&dock_->Output(), &SimulcastOutput::StreamStopped, this,
+		[=] { stream_key_edit_->setEnabled(true); });
 
 	ResetWindow();
 	ResetSettings();
