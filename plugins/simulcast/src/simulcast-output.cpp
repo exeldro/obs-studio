@@ -70,6 +70,10 @@ static OBSOutputAutoRelease create_output()
 	if (!output)
 		blog(LOG_ERROR, "failed to create simulcast rtmp output");
 
+	if (output) {
+		obs_output_set_media(output, obs_get_video(), obs_get_audio());
+	}
+
 	return output;
 }
 
@@ -386,6 +390,11 @@ void SimulcastOutput::StopStreaming()
 bool SimulcastOutput::IsStreaming() const
 {
 	return streaming_;
+}
+
+const std::vector<OBSEncoderAutoRelease> &SimulcastOutput::VideoEncoders() const
+{
+	return video_encoders_;
 }
 
 static OBSOutputAutoRelease

@@ -220,6 +220,11 @@ OBSDataAutoRelease system_info()
 	obs_data_set_int(cpu_data, "physical_cores", os_get_physical_cores());
 	obs_data_set_int(cpu_data, "logical_cores", os_get_logical_cores());
 
+	OBSDataAutoRelease memory_data = obs_data_create();
+	obs_data_set_obj(data, "memory", memory_data);
+	obs_data_set_int(memory_data, "total", os_get_sys_total_size());
+	obs_data_set_int(memory_data, "free", os_get_sys_free_size());
+
 	DWORD processorSpeed;
 	char *processorName;
 	get_processor_info(&processorName, &processorSpeed);
