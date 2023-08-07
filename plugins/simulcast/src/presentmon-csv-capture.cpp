@@ -4,11 +4,10 @@
 #include <QMutex>
 #include <QMutexLocker>
 
+#include <unordered_map>
 #include <cinttypes>
 
-#define GAME1 "MassEffectLauncher.exe"
-#define GAME2 "MassEffect3.exe"
-#define GAME3 "Cyberpunk2077.exe"
+#include <obs-module.h>
 
 #define PRESENTMON_PATH \
 	"c:\\obsdev\\PresentMon\\build\\Release\\PresentMon-dev-x64.exe"
@@ -20,72 +19,72 @@
 
 void PresentMonCapture_accumulator::frame(const ParsedCsvRow &row)
 {
-	// XXX big hack
-	if (0 != strcmp(row.Application, GAME1) &&
-	    0 != strcmp(row.Application, GAME2) &&
-	    0 != strcmp(row.Application, GAME3))
-		return;
-
 	QMutexLocker locked(&mutex);
+
+	auto &app_rows = per_app_rows_[row.Application];
 
 	// don't do this every time, it'll be slow
 	// this is just a safety check so we don't allocate memory forever
-	if (rows_.size() > 3 * DISCARD_SAMPLES_BEYOND)
-		trimRows(locked);
+	if (app_rows.size() > 3 * DISCARD_SAMPLES_BEYOND)
+		trimRows(app_rows, locked);
 
-	rows_.push_back(row);
+	app_rows.push_back(row);
 }
 
 void PresentMonCapture_accumulator::summarizeAndReset(obs_data_t *dest)
 {
-	double fps = -1;
-	char game[PRESENTMON_APPNAME_LEN] = {0};
+	OBSDataAutoRelease data = obs_data_create();
+	OBSDataArrayAutoRelease array = obs_data_array_create();
+	obs_data_set_array(data, "games", array);
 
-	QMutexLocker locked(&mutex);
-#if 1
-	blog(LOG_INFO,
-	     "PresentMonCapture_accumulator::summarizeAndReset has %zu samples",
-	     rows_.size());
-#endif
-	if (rows_.size() >= 2 &&
-	    rows_.rbegin()->TimeInSeconds > rows_[0].TimeInSeconds) {
-		trimRows(locked);
-		const size_t n = rows_.size();
-#if 1
-		double allButFirstBetweenPresents = -rows_[0].msBetweenPresents;
-		for (const auto &p : rows_)
-			allButFirstBetweenPresents += p.msBetweenPresents;
-		allButFirstBetweenPresents /= 1000.0;
+	{
+		QMutexLocker locked(&mutex);
 
-		blog(LOG_INFO,
-		     "frame timing, all but first msBetweenPresents: %f",
-		     allButFirstBetweenPresents);
-		blog(LOG_INFO, "frame timing, time from first to last: %f",
-		     rows_[n - 1].TimeInSeconds - rows_[0].TimeInSeconds);
-#endif
-		fps = (n - 1) /
-		      (rows_[n - 1].TimeInSeconds - rows_[0].TimeInSeconds);
+		for (auto &app_rows : per_app_rows_) {
+			if (!(app_rows.second.size() >= 2 &&
+			      app_rows.second.rbegin()->TimeInSeconds >
+				      app_rows.second[0].TimeInSeconds))
+				continue;
 
-		// delete all but the most recently received data point
-		// XXX is this just a very convoluated rows_.erase(rows_.begin(), rows_.end()-1) ?
-		*rows_.begin() = *rows_.rbegin();
-		rows_.erase(rows_.begin() + 1, rows_.end());
-		strncpy(game, rows_[0].Application, PRESENTMON_APPNAME_LEN - 1);
+			trimRows(app_rows.second, locked);
+			const size_t n = app_rows.second.size();
+			double allButFirstBetweenPresents =
+				-app_rows.second[0].msBetweenPresents;
+			for (const auto &p : app_rows.second)
+				allButFirstBetweenPresents +=
+					p.msBetweenPresents;
+			allButFirstBetweenPresents /= 1000.0;
+
+			blog(LOG_INFO,
+			     "frame timing, all but first msBetweenPresents: %f",
+			     allButFirstBetweenPresents);
+			blog(LOG_INFO,
+			     "frame timing, time from first to last: %f",
+			     app_rows.second[n - 1].TimeInSeconds -
+				     app_rows.second[0].TimeInSeconds);
+			auto fps = (n - 1) /
+				   (app_rows.second[n - 1].TimeInSeconds -
+				    app_rows.second[0].TimeInSeconds);
+
+			OBSDataAutoRelease game = obs_data_create();
+			obs_data_set_string(game, "game",
+					    app_rows.first.c_str());
+			obs_data_set_double(game, "fps", fps);
+			obs_data_array_push_back(array, game);
+		}
 	}
 
-	if (fps >= 0.0)
-		obs_data_set_double(dest, "fps", fps);
-	if (*game)
-		obs_data_set_string(dest, "game", game);
+	obs_data_set_string(dest, "games", obs_data_get_json(data));
 }
 
 // You need to hold the mutex before calling this
-void PresentMonCapture_accumulator::trimRows(const QMutexLocker<QMutex> &)
+void PresentMonCapture_accumulator::trimRows(
+	std::vector<ParsedCsvRow> &app_rows, const QMutexLocker<QMutex> &)
 {
-	if (rows_.size() > DISCARD_SAMPLES_BEYOND) {
-		rows_.erase(rows_.begin(),
-			    rows_.begin() +
-				    (rows_.size() - DISCARD_SAMPLES_BEYOND));
+	if (app_rows.size() > DISCARD_SAMPLES_BEYOND) {
+		app_rows.erase(app_rows.begin(),
+			       app_rows.begin() + (app_rows.size() -
+						   DISCARD_SAMPLES_BEYOND));
 	}
 }
 
