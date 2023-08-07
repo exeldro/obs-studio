@@ -9,8 +9,9 @@
 
 #include <obs-module.h>
 
-#define PRESENTMON_PATH \
-	"c:\\obsdev\\PresentMon\\build\\Release\\PresentMon-dev-x64.exe"
+#define PRESENTMON_PATH                                           \
+	QString(obs_get_module_data_path(obs_current_module())) + \
+		"/PresentMon-1.8.0-x64.exe"
 
 #define DISCARD_SAMPLES_BEYOND \
 	144 * 60 * 2 // 144fps, one minute, times two for safety
