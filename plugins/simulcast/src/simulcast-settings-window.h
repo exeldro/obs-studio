@@ -5,6 +5,7 @@
 class SimulcastDockWidget;
 
 class QAbstractButton;
+class QCheckBox;
 class QDialogButtonBox;
 class QLineEdit;
 class QPushButton;
@@ -27,4 +28,6 @@ private:
 	QLineEdit *stream_key_edit_;
 	QPushButton *stream_key_show_button_;
 	QDialogButtonBox *button_box_;
+
+	QCheckBox *telemetry_checkbox_;
 };

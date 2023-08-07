@@ -2,6 +2,7 @@
 #include "simulcast-dock-widget.h"
 
 #include <QAction>
+#include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QHBoxLayout>
@@ -52,6 +53,9 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 	stream_key_edit_ = new QLineEdit;
 	stream_key_show_button_ = new QPushButton;
 
+	telemetry_checkbox_ =
+		new QCheckBox(obs_module_text("Settings.EnableTelemetry"));
+
 	// Allow button box to move to bottom of window, even when the window is resized
 	auto stretch_spacer = new QSpacerItem(1, 1, QSizePolicy::Minimum,
 					      QSizePolicy::MinimumExpanding);
@@ -60,12 +64,12 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 		QDialogButtonBox::Apply | QDialogButtonBox::Cancel |
 		QDialogButtonBox::Ok | QDialogButtonBox::Reset);
 
-	// TODO: Disable stream key edit while stream is active (<-> OBS settings dialog)?
 	stream_key_edit_layout->addWidget(stream_key_edit_);
 	stream_key_edit_layout->addWidget(stream_key_show_button_);
 
 	form_layout->addRow(obs_module_text("Settings.StreamKey"),
 			    stream_key_edit_layout);
+	form_layout->addRow("", telemetry_checkbox_);
 	form_layout->addItem(stretch_spacer);
 	form_layout->addRow(button_box_);
 
@@ -80,15 +84,23 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 			stream_key_edit_->setEchoMode(
 				showing ? QLineEdit::Normal
 					: QLineEdit::Password);
-			stream_key_show_button_->setText(obs_module_text(
-				showing ? "Settings.ShowStreamKey.Hide"
-					: "Settings.ShowStreamKey.Show"));
+			stream_key_show_button_->setText(
+				obs_frontend_get_locale_string(
+					showing ? "Hide" : "Show"));
 		});
+	connect(telemetry_checkbox_, &QCheckBox::stateChanged,
+		[=](int /*state*/) { SetApplyEnabled(true); });
 	connect(button_box_, &QDialogButtonBox::clicked,
 		[=](QAbstractButton *button) { this->ButtonPressed(button); });
 
 	connect(dock_, &SimulcastDockWidget::ProfileChanged,
 		[=] { ResetSettings(); });
+
+	connect(&dock_->Output(), &SimulcastOutput::StreamStarted, this,
+		[=] { stream_key_edit_->setEnabled(false); });
+
+	connect(&dock_->Output(), &SimulcastOutput::StreamStopped, this,
+		[=] { stream_key_edit_->setEnabled(true); });
 
 	ResetWindow();
 	ResetSettings();
@@ -111,6 +123,7 @@ void SimulcastSettingsWindow::ButtonPressed(QAbstractButton *button)
 
 	// Handle individual settings here
 	dock_->StreamKey() = stream_key_edit_->text();
+	dock_->TelemetryEanbled() = telemetry_checkbox_->isChecked();
 	dock_->SettingsWindowGeometry() = saveGeometry();
 	// Handle individual settings above
 
@@ -134,7 +147,7 @@ void SimulcastSettingsWindow::ResetWindow()
 {
 	stream_key_edit_->setEchoMode(QLineEdit::Password);
 	stream_key_show_button_->setText(
-		obs_module_text("Settings.ShowStreamKey.Show"));
+		obs_frontend_get_locale_string("Show"));
 
 	SetApplyEnabled(false);
 }
@@ -142,6 +155,7 @@ void SimulcastSettingsWindow::ResetWindow()
 void SimulcastSettingsWindow::ResetSettings()
 {
 	stream_key_edit_->setText(dock_->StreamKey());
+	telemetry_checkbox_->setChecked(dock_->TelemetryEanbled());
 
 	SetApplyEnabled(false);
 }
