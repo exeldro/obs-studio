@@ -56,8 +56,10 @@ static OBSServiceAutoRelease create_service(obs_data_t *go_live_config,
 	auto service = obs_service_create(
 		"simulcast_service", "simulcast service", settings, nullptr);
 
-	if (!service)
+	if (!service) {
 		blog(LOG_WARNING, "Failed to create simulcast service");
+		throw QString::asprintf("Failed to create simulcast service");
+	}
 
 	return service;
 }
@@ -67,8 +69,11 @@ static OBSOutputAutoRelease create_output()
 	OBSOutputAutoRelease output = obs_output_create(
 		"rtmp_output_simulcast", "rtmp simulcast", nullptr, nullptr);
 
-	if (!output)
+	if (!output) {
 		blog(LOG_ERROR, "failed to create simulcast rtmp output");
+		throw QString::asprintf(
+			"Failed to create simulcast rtmp output");
+	}
 
 	if (output) {
 		obs_output_set_media(output, obs_get_video(), obs_get_audio());
@@ -234,7 +239,9 @@ static OBSEncoderAutoRelease create_video_encoder(DStr &name_buffer,
 	if (!encoder_available(encoder_type)) {
 		blog(LOG_ERROR, "Encoder type '%s' not available",
 		     encoder_type);
-		return nullptr;
+		throw QString::asprintf(
+			"NVENC not available.\n\nFailed to find encoder type '%s'", // FIXME: Remove 'NVENC' bit once we support other encoders
+			encoder_type);
 	}
 
 	dstr_printf(name_buffer, "simulcast video encoder %zu", encoder_index);
@@ -243,7 +250,9 @@ static OBSEncoderAutoRelease create_video_encoder(DStr &name_buffer,
 	if (!video_encoder) {
 		blog(LOG_ERROR, "failed to create video encoder '%s'",
 		     name_buffer->array);
-		return nullptr;
+		throw QString::asprintf(
+			"Failed to create video encoder '%s' (type: '%s')",
+			name_buffer->array, encoder_type);
 	}
 	obs_encoder_set_video(video_encoder, obs_get_video());
 
@@ -252,7 +261,9 @@ static OBSEncoderAutoRelease create_video_encoder(DStr &name_buffer,
 		blog(LOG_WARNING,
 		     "Failed to get obs video info while creating encoder %zu",
 		     encoder_index);
-		return nullptr;
+		throw QString::asprintf(
+			"Failed to get obs video info while creating encoder '%s' (type: '%s')",
+			name_buffer->array, encoder_type);
 	}
 
 	adjust_video_encoder_scaling(ovi, video_encoder, encoder_config);
@@ -268,7 +279,7 @@ static OBSEncoderAutoRelease create_audio_encoder()
 		"ffmpeg_aac", "simulcast aac", nullptr, 0, nullptr);
 	if (!audio_encoder) {
 		blog(LOG_ERROR, "failed to create audio encoder");
-		return nullptr;
+		throw QString::asprintf("Failed to create audio encoder");
 	}
 	obs_encoder_set_audio(audio_encoder, obs_get_audio());
 	return audio_encoder;
@@ -367,7 +378,8 @@ QFuture<bool> SimulcastOutput::StartStreaming(const QString &stream_key,
 
 			if (!obs_output_start(output)) {
 				blog(LOG_WARNING, "Failed to start stream");
-				return false;
+				throw QString::asprintf(
+					"Failed to start stream (obs_output_start returned false)");
 			}
 
 			blog(LOG_INFO, "starting stream");
