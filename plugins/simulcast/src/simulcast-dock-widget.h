@@ -28,6 +28,7 @@ public:
 	SimulcastOutput &Output() { return output_; }
 
 	QString &StreamKey() { return stream_key_; }
+	bool &TelemetryEanbled() { return telemetry_enabled_; }
 	QByteArray &SettingsWindowGeometry()
 	{
 		return settings_window_geometry_;
@@ -46,6 +47,7 @@ private:
 
 	// Add config vars here
 	QString stream_key_;
+	bool telemetry_enabled_;
 	QByteArray settings_window_geometry_;
 	// Add config vars above
 

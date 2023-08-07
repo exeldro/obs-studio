@@ -63,6 +63,8 @@ public:
 	 */
 	void unsetAlways(QString propertyKey);
 
+	void enableTelemetry(bool enabled);
+
 public slots:
 	void SubmissionError(OBSData error);
 
@@ -72,6 +74,8 @@ signals:
 private:
 	QString url_;
 	OBSDataAutoRelease alwaysProperties_;
+
+	bool telemetry_enabled_;
 
 	SubmissionWorker submission_worker_;
 	QThread submission_thread_;

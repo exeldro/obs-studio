@@ -36,6 +36,9 @@ BerryessaSubmitter::~BerryessaSubmitter()
 
 void BerryessaSubmitter::submit(QString eventName, obs_data_t *properties)
 {
+	if (!telemetry_enabled_)
+		return;
+
 	// overlay the supplied properties over a copy of the always properties
 	//   (so if there's a conflict, supplied property wins)
 	OBSDataAutoRelease newProperties = obs_data_create();
@@ -128,6 +131,11 @@ void BerryessaSubmitter::unsetAlways(QString propertyKey)
 {
 	obs_data_unset_user_value(this->alwaysProperties_,
 				  propertyKey.toUtf8());
+}
+
+void BerryessaSubmitter::enableTelemetry(bool enabled)
+{
+	telemetry_enabled_ = enabled;
 }
 
 void BerryessaSubmitter::SubmissionError(OBSData error)

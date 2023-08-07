@@ -48,7 +48,8 @@
 static void
 handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 		    BerryessaSubmitter *berryessa,
-		    std::unique_ptr<BerryessaEveryMinute> *berryessaEveryMinute)
+		    std::unique_ptr<BerryessaEveryMinute> *berryessaEveryMinute,
+		    bool telemetry_enabled)
 {
 	auto start_time = self->GenerateStreamAttemptStartTime();
 	auto scope_name = profile_store_name(obs_get_profiler_name_store(),
@@ -118,6 +119,9 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 					berryessa->submit(
 						"ivs_obs_stream_start", event);
 
+					if (!telemetry_enabled)
+						return;
+
 					berryessaEveryMinute->reset(
 						new BerryessaEveryMinute(
 							self, berryessa,
@@ -130,12 +134,14 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 static void SetupSignalsAndSlots(
 	SimulcastDockWidget *self, QPushButton *streamingButton,
 	SimulcastOutput &output, BerryessaSubmitter &berryessa,
-	std::unique_ptr<BerryessaEveryMinute> &berryessaEveryMinute)
+	std::unique_ptr<BerryessaEveryMinute> &berryessaEveryMinute,
+	bool &telemetry_enabled)
 {
 	QObject::connect(
 		streamingButton, &QPushButton::clicked,
 		[self, streamingButton, berryessa = &berryessa,
-		 berryessaEveryMinute = &berryessaEveryMinute]() {
+		 berryessaEveryMinute = &berryessaEveryMinute,
+		 &telemetry_enabled]() {
 			if (self->Output().IsStreaming()) {
 				streamingButton->setText(
 					obs_frontend_get_locale_string(
@@ -152,7 +158,8 @@ static void SetupSignalsAndSlots(
 			} else {
 				handle_stream_start(self, streamingButton,
 						    berryessa,
-						    berryessaEveryMinute);
+						    berryessaEveryMinute,
+						    telemetry_enabled);
 			}
 		});
 
@@ -206,7 +213,7 @@ SimulcastDockWidget::SimulcastDockWidget(QWidget * /*parent*/)
 	dockLayout->addWidget(buttonContainer);
 
 	SetupSignalsAndSlots(this, streamingButton, output_, berryessa_,
-			     berryessaEveryMinute_);
+			     berryessaEveryMinute_, telemetry_enabled_);
 
 	// load config
 	LoadConfig();
@@ -236,6 +243,7 @@ static OBSDataAutoRelease load_or_create_obj(obs_data_t *data, const char *name)
 #define DATA_KEY_DEVICE_ID "device_id"
 #define DATA_KEY_PROFILES "profiles"
 #define DATA_KEY_STREAM_KEY "stream_key"
+#define DATA_KEY_TELEMETRY_ENABLED "telemetry"
 
 static void write_config(obs_data_t *config)
 {
@@ -245,11 +253,15 @@ static void write_config(obs_data_t *config)
 
 void SimulcastDockWidget::SaveConfig()
 {
+	berryessa_.enableTelemetry(telemetry_enabled_);
+
 	os_mkdirs(module_config_path(""));
 
 	// Set modified config values here
 	obs_data_set_string(profile_, DATA_KEY_STREAM_KEY,
 			    stream_key_.toUtf8().constData());
+	obs_data_set_bool(profile_, DATA_KEY_TELEMETRY_ENABLED,
+			  telemetry_enabled_);
 	obs_data_set_string(config_, DATA_KEY_SETTINGS_WINDOW_GEOMETRY,
 			    settings_window_geometry_.toBase64().constData());
 	// Set modified config values above
@@ -270,8 +282,12 @@ void SimulcastDockWidget::LoadConfig()
 
 	profile_ = load_or_create_obj(profiles_, profile_name_->array);
 
+	obs_data_set_default_bool(profile_, DATA_KEY_TELEMETRY_ENABLED, true);
+
 	// Set modified config values here
 	stream_key_ = obs_data_get_string(profile_, DATA_KEY_STREAM_KEY);
+	telemetry_enabled_ =
+		obs_data_get_bool(profile_, DATA_KEY_TELEMETRY_ENABLED);
 	settings_window_geometry_ = QByteArray::fromBase64(obs_data_get_string(
 		config_, DATA_KEY_SETTINGS_WINDOW_GEOMETRY));
 	// Set modified config values above
