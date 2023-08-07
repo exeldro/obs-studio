@@ -118,7 +118,9 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 
 					berryessaEveryMinute->reset(
 						new BerryessaEveryMinute(
-							self, berryessa));
+							self, berryessa,
+							self->Output()
+								.VideoEncoders()));
 				});
 		});
 }

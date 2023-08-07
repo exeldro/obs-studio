@@ -3,14 +3,17 @@
 #include "berryessa-every-minute.hpp"
 #include "presentmon-csv-capture.hpp"
 
+#include <util/dstr.hpp>
+
 #include <QTimer>
 #include <QRandomGenerator>
 #include <QDateTime>
 
 static OBSFrameCounters InitFrameCounters();
 
-BerryessaEveryMinute::BerryessaEveryMinute(QObject *parent,
-					   BerryessaSubmitter *berryessa)
+BerryessaEveryMinute::BerryessaEveryMinute(
+	QObject *parent, BerryessaSubmitter *berryessa,
+	const std::vector<OBSEncoderAutoRelease> &encoders)
 	: QObject(parent),
 	  berryessa_(berryessa),
 	  presentmon_(this),
@@ -18,6 +21,17 @@ BerryessaEveryMinute::BerryessaEveryMinute(QObject *parent,
 	  startTime_(QDateTime::currentDateTimeUtc()),
 	  frame_counters_(InitFrameCounters())
 {
+	encoder_counters_.reserve(encoders.size());
+	for (const auto &encoder : encoders) {
+		auto video = obs_encoder_video(encoder);
+		encoder_counters_.push_back(OBSEncoderFrameCounters{
+			OBSWeakEncoderAutoRelease(
+				obs_encoder_get_weak_encoder(encoder)),
+			video_output_get_total_frames(video),
+			video_output_get_skipped_frames(video),
+		});
+	}
+
 	obs_cpu_usage_info_.reset(os_cpu_usage_info_start());
 
 	connect(&timer_, &QTimer::timeout, this, &BerryessaEveryMinute::fire);
@@ -45,8 +59,10 @@ static OBSFrameCounters InitFrameCounters()
 	return frame_counters;
 }
 
-static void AddOBSStats(os_cpu_usage_info *info,
-			OBSFrameCounters &frame_counters, obs_data_t *event)
+static void
+AddOBSStats(os_cpu_usage_info *info, OBSFrameCounters &frame_counters,
+	    const std::vector<OBSEncoderFrameCounters> &encoder_counters,
+	    obs_data_t *event)
 {
 	obs_data_set_double(event, "obs_cpu_usage",
 			    os_cpu_usage_info_query(info));
@@ -83,6 +99,23 @@ static void AddOBSStats(os_cpu_usage_info *info,
 			 rendered_frames - frame_counters.rendered);
 	obs_data_set_int(event, "lagged_frames",
 			 lagged_frames - frame_counters.lagged);
+
+	DStr buffer;
+	for (size_t i = 0; i < encoder_counters.size(); i++) {
+		const auto &counter = encoder_counters[i];
+		OBSEncoderAutoRelease encoder =
+			obs_weak_encoder_get_encoder(counter.weak_output);
+		if (!encoder)
+			continue;
+		auto video = obs_encoder_video(encoder);
+		auto output_frames = video_output_get_total_frames(video);
+		auto skipped_frames = video_output_get_skipped_frames(video);
+
+		dstr_printf(buffer, "encoder%zu_total_frames", i);
+		obs_data_set_int(event, buffer->array, output_frames);
+		dstr_printf(buffer, "encoder%zu_skipped_frames", i);
+		obs_data_set_int(event, buffer->array, skipped_frames);
+	}
 }
 
 void BerryessaEveryMinute::fire()
@@ -93,7 +126,8 @@ void BerryessaEveryMinute::fire()
 
 	presentmon_.summarizeAndReset(event);
 
-	AddOBSStats(obs_cpu_usage_info_.get(), frame_counters_, event);
+	AddOBSStats(obs_cpu_usage_info_.get(), frame_counters_,
+		    encoder_counters_, event);
 
 	berryessa_->submit("ivs_obs_stream_minute", event);
 

@@ -10,6 +10,7 @@
 #include <util/platform.h>
 
 #include <memory>
+#include <vector>
 
 class BerryessaSubmitter;
 
@@ -25,10 +26,16 @@ struct OBSFrameCounters {
 	uint32_t rendered, lagged;
 };
 
+struct OBSEncoderFrameCounters {
+	OBSWeakEncoderAutoRelease weak_output;
+	uint32_t output, skipped;
+};
+
 class BerryessaEveryMinute : public QObject {
 	Q_OBJECT
 public:
-	BerryessaEveryMinute(QObject *parent, BerryessaSubmitter *berryessa);
+	BerryessaEveryMinute(QObject *parent, BerryessaSubmitter *berryessa,
+			     const std::vector<OBSEncoderAutoRelease> &outputs);
 	virtual ~BerryessaEveryMinute();
 
 private slots:
@@ -44,4 +51,5 @@ private:
 		obs_cpu_usage_info_;
 
 	OBSFrameCounters frame_counters_;
+	std::vector<OBSEncoderFrameCounters> encoder_counters_;
 };

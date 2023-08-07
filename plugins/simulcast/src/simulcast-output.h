@@ -23,6 +23,8 @@ public:
 	void StopStreaming();
 	bool IsStreaming() const;
 
+	const std::vector<OBSEncoderAutoRelease> &VideoEncoders() const;
+
 signals:
 	void StreamStarted();
 	void StreamStopped();
