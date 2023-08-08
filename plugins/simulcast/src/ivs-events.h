@@ -2,13 +2,16 @@
 
 #include <obs.hpp>
 
+#include <optional>
+
 #include "immutable-date-time.h"
 
 OBSDataAutoRelease MakeEvent_ivs_obs_stream_start(
 	obs_data_t *postData, obs_data_t *goLiveConfig,
 	const ImmutableDateTime &stream_attempt_start_time,
 	qint64 msecs_elapsed_after_go_live_config_download,
-	qint64 msecs_elapsed_after_start_streaming_returned);
+	qint64 msecs_elapsed_after_start_streaming_returned,
+	std::optional<int> connect_time_ms);
 
 OBSDataAutoRelease MakeEvent_ivs_obs_stream_start_failed(
 	obs_data_t *postData, obs_data_t *goLiveConfig,
