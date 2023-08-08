@@ -245,6 +245,17 @@ static OBSEncoderAutoRelease create_video_encoder(DStr &name_buffer,
 	}
 
 	dstr_printf(name_buffer, "simulcast video encoder %zu", encoder_index);
+
+	if (obs_data_has_user_value(encoder_config, "keyInt_sec") &&
+	    !obs_data_has_user_value(encoder_config, "keyint_sec")) {
+		blog(LOG_INFO,
+		     "Fixing Go Live Config for encoder '%s': keyInt_sec -> keyint_sec",
+		     name_buffer->array);
+		obs_data_set_int(encoder_config, "keyint_sec",
+				 obs_data_get_int(encoder_config,
+						  "keyInt_sec"));
+	}
+
 	OBSEncoderAutoRelease video_encoder = obs_video_encoder_create(
 		encoder_type, name_buffer, encoder_config, nullptr);
 	if (!video_encoder) {
