@@ -23,14 +23,15 @@ public:
 class PresentMonCapture_accumulator {
 public:
 	QMutex mutex; // XXX I have not thought out the concurrency here
-	std::vector<ParsedCsvRow> rows_;
+	std::unordered_map<std::string, std::vector<ParsedCsvRow>> per_app_rows_;
 
 	void frame(const ParsedCsvRow &row);
 	void summarizeAndReset(obs_data_t *dest);
 
 private:
 	// You need to hold the mutex before calling this
-	void trimRows(const QMutexLocker<QMutex> &ensure_lock);
+	void trimRows(std::vector<ParsedCsvRow> &rows,
+		      const QMutexLocker<QMutex> &ensure_lock);
 };
 
 class PresentMonCapture : public QObject {

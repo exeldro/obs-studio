@@ -65,70 +65,90 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 		ProfileScope("constructGoLivePostData");
 		return constructGoLivePost(start_time);
 	}()};
-	DownloadGoLiveConfig(self, GO_LIVE_API_URL, postData)
-		.then(self, [=](OBSDataAutoRelease goLiveConfig) mutable {
-			auto download_time_elapsed = start_time.MSecsElapsed();
+	DownloadGoLiveConfig(self, GO_LIVE_API_URL, postData).then(self, [=](OBSDataAutoRelease goLiveConfig) mutable {
+		auto download_time_elapsed = start_time.MSecsElapsed();
 
-			self->Output()
-				.StartStreaming(self->StreamKey(), goLiveConfig)
-				.then(self, [=, goLiveConfig =
-							OBSData{goLiveConfig}](
-						    bool started) {
-					if (!started) {
-						streamingButton->setText(
-							obs_frontend_get_locale_string(
-								"Basic.Main.StartStreaming"));
-						streamingButton->setDisabled(
-							false);
+		self->Output()
+			.StartStreaming(self->StreamKey(), goLiveConfig)
+			.then(self,
+			      [=, goLiveConfig =
+					  OBSData{goLiveConfig}](bool started) {
+				      if (!started) {
+					      streamingButton->setText(
+						      obs_frontend_get_locale_string(
+							      "Basic.Main.StartStreaming"));
+					      streamingButton->setDisabled(
+						      false);
 
-						auto start_streaming_returned =
-							start_time
-								.MSecsElapsed();
-						auto event = MakeEvent_ivs_obs_stream_start_failed(
-							postData, goLiveConfig,
-							start_time,
-							download_time_elapsed,
-							start_streaming_returned);
-						berryessa->submit(
-							"ivs_obs_stream_start_failed",
+					      auto start_streaming_returned =
+						      start_time.MSecsElapsed();
+					      auto event = MakeEvent_ivs_obs_stream_start_failed(
+						      postData, goLiveConfig,
+						      start_time,
+						      download_time_elapsed,
+						      start_streaming_returned);
+					      berryessa->submit(
+						      "ivs_obs_stream_start_failed",
+						      event);
+					      return;
+				      }
+
+				      auto start_streaming_returned =
+					      start_time.MSecsElapsed();
+
+				      auto event =
+					      MakeEvent_ivs_obs_stream_start(
+						      postData, goLiveConfig,
+						      start_time,
+						      download_time_elapsed,
+						      start_streaming_returned);
+				      const char *configId =
+					      obs_data_get_string(event,
+								  "config_id");
+				      if (configId) {
+					      // put the config_id on all events until the stream ends
+					      berryessa->setAlwaysString(
+						      "config_id", configId);
+				      }
+				      berryessa->setAlwaysString(
+					      "stream_attempt_start_time",
+					      start_time.CStr());
+
+				      berryessa->submit("ivs_obs_stream_start",
 							event);
-						return;
-					}
 
-					auto start_streaming_returned =
-						start_time.MSecsElapsed();
+				      if (!telemetry_enabled)
+					      return;
 
-					auto event =
-						MakeEvent_ivs_obs_stream_start(
-							postData, goLiveConfig,
-							start_time,
-							download_time_elapsed,
-							start_streaming_returned);
-					const char *configId =
-						obs_data_get_string(
-							event, "config_id");
-					if (configId) {
-						// put the config_id on all events until the stream ends
-						berryessa->setAlwaysString(
-							"config_id", configId);
-					}
-					berryessa->setAlwaysString(
-						"stream_attempt_start_time",
-						start_time.CStr());
+				      berryessaEveryMinute->reset(
+					      new BerryessaEveryMinute(
+						      self, berryessa,
+						      self->Output()
+							      .VideoEncoders()));
+			      })
+			.onFailed(self, [=,
+					 goLiveConfig = OBSData{goLiveConfig}](
+						const QString &error) {
+				streamingButton->setText(
+					obs_frontend_get_locale_string(
+						"Basic.Main.StartStreaming"));
+				streamingButton->setDisabled(false);
 
-					berryessa->submit(
-						"ivs_obs_stream_start", event);
+				auto start_streaming_returned =
+					start_time.MSecsElapsed();
+				auto event =
+					MakeEvent_ivs_obs_stream_start_failed(
+						postData, goLiveConfig,
+						start_time,
+						download_time_elapsed,
+						start_streaming_returned);
+				berryessa->submit("ivs_obs_stream_start_failed",
+						  event);
 
-					if (!telemetry_enabled)
-						return;
-
-					berryessaEveryMinute->reset(
-						new BerryessaEveryMinute(
-							self, berryessa,
-							self->Output()
-								.VideoEncoders()));
-				});
-		});
+				QMessageBox::critical(
+					self, "Failed to start stream", error);
+			});
+	});
 }
 
 static void SetupSignalsAndSlots(
