@@ -46,6 +46,8 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 						 QWidget *parent)
 	: QDialog(parent), dock_(dock)
 {
+	setWindowTitle("Twitch Simulcast Settings"); // TODO: localize?
+
 	auto window_layout = new QVBoxLayout(this);
 	auto form_layout = new QFormLayout;
 
