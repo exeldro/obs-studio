@@ -335,6 +335,7 @@ QFuture<bool> SimulcastOutput::StartStreaming(const QString &stream_key,
 			      if (!go_live_config)
 				      return std::nullopt;
 
+			      video_encoders.clear();
 			      OBSEncoderAutoRelease audio_encoder = nullptr;
 			      auto output = SetupOBSOutput(go_live_config,
 							   video_encoders,
