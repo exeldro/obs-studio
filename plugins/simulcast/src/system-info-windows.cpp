@@ -38,6 +38,11 @@ OBSDataArrayAutoRelease system_gpu_data()
 		OBSDataAutoRelease data = obs_data_create();
 		obs_data_set_string(data, "model", name);
 
+		obs_data_set_int(data, "dedicated_video_memory",
+				 desc.DedicatedVideoMemory);
+		obs_data_set_int(data, "shared_system_memory",
+				 desc.SharedSystemMemory);
+
 		/* driver version */
 		LARGE_INTEGER umd;
 		hr = adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice),
