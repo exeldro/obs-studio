@@ -19,6 +19,9 @@ BerryessaEveryMinute::BerryessaEveryMinute(
 	  presentmon_(this),
 	  timer_(this),
 	  startTime_(QDateTime::currentDateTimeUtc()),
+#ifdef WIN32
+	  wmi_queries_(WMIQueries::Create()),
+#endif
 	  frame_counters_(InitFrameCounters())
 {
 	encoder_counters_.reserve(encoders.size());
@@ -128,6 +131,11 @@ void BerryessaEveryMinute::fire()
 
 	AddOBSStats(obs_cpu_usage_info_.get(), frame_counters_,
 		    encoder_counters_, event);
+
+#ifdef _WIN32
+	if (wmi_queries_.has_value())
+		wmi_queries_->SummarizeData(event);
+#endif
 
 	berryessa_->submit("ivs_obs_stream_minute", event);
 

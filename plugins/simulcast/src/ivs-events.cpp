@@ -6,7 +6,8 @@ OBSDataAutoRelease MakeEvent_ivs_obs_stream_start(
 	obs_data_t *postData, obs_data_t *goLiveConfig,
 	const ImmutableDateTime &stream_attempt_start_time,
 	qint64 msecs_elapsed_after_go_live_config_download,
-	qint64 msecs_elapsed_after_start_streaming_returned)
+	qint64 msecs_elapsed_after_start_streaming_returned,
+	std::optional<int> connect_time_ms)
 {
 	OBSDataAutoRelease event = obs_data_create();
 
@@ -23,6 +24,9 @@ OBSDataAutoRelease MakeEvent_ivs_obs_stream_start(
 			 msecs_elapsed_after_go_live_config_download);
 	obs_data_set_int(event, "msecs_elapsed_until_start_streaming_returned",
 			 msecs_elapsed_after_start_streaming_returned);
+
+	if (connect_time_ms.has_value())
+		obs_data_set_int(event, "connect_time_msecs", *connect_time_ms);
 
 	// extract specific items of interest from the capabilities API response
 	OBSDataAutoRelease goLiveMeta = obs_data_get_obj(goLiveConfig, "meta");
@@ -53,7 +57,7 @@ OBSDataAutoRelease MakeEvent_ivs_obs_stream_start_failed(
 	return MakeEvent_ivs_obs_stream_start(
 		postData, goLiveConfig, stream_attempt_start_time,
 		msecs_elapsed_after_go_live_config_download,
-		msecs_elapsed_after_start_streaming_returned);
+		msecs_elapsed_after_start_streaming_returned, std::nullopt);
 }
 
 OBSDataAutoRelease MakeEvent_ivs_obs_stream_stop()

@@ -3,6 +3,7 @@
 #include <dxgi.h>
 #include <cinttypes>
 
+#include <util/dstr.hpp>
 #include <util/platform.h>
 #include <util/windows/ComPtr.hpp>
 #include <util/windows/win-registry.h>
@@ -20,6 +21,7 @@ OBSDataArrayAutoRelease system_gpu_data()
 		return nullptr;
 
 	OBSDataArrayAutoRelease adapter_info = obs_data_array_create();
+	DStr luid_buffer;
 	for (i = 0; factory->EnumAdapters1(i, adapter.Assign()) == S_OK; ++i) {
 		DXGI_ADAPTER_DESC desc;
 		char name[512] = "";
@@ -37,6 +39,16 @@ OBSDataArrayAutoRelease system_gpu_data()
 
 		OBSDataAutoRelease data = obs_data_create();
 		obs_data_set_string(data, "model", name);
+
+		obs_data_set_int(data, "dedicated_video_memory",
+				 desc.DedicatedVideoMemory);
+		obs_data_set_int(data, "shared_system_memory",
+				 desc.SharedSystemMemory);
+
+		dstr_printf(luid_buffer, "luid_0x%08X_0x%08X",
+			    desc.AdapterLuid.HighPart,
+			    desc.AdapterLuid.LowPart);
+		obs_data_set_string(data, "luid", luid_buffer->array);
 
 		/* driver version */
 		LARGE_INTEGER umd;

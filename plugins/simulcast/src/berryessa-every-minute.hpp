@@ -6,10 +6,14 @@
 #include <QTimer>
 
 #include "presentmon-csv-capture.hpp"
+#ifdef _WIN32
+#include "wmi-data-provider.h"
+#endif
 
 #include <util/platform.h>
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 class BerryessaSubmitter;
@@ -52,4 +56,8 @@ private:
 
 	OBSFrameCounters frame_counters_;
 	std::vector<OBSEncoderFrameCounters> encoder_counters_;
+
+#ifdef _WIN32
+	std::optional<WMIQueries> wmi_queries_;
+#endif
 };

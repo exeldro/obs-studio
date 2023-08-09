@@ -101,7 +101,9 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 						      postData, goLiveConfig,
 						      start_time,
 						      download_time_elapsed,
-						      start_streaming_returned);
+						      start_streaming_returned,
+						      self->Output()
+							      .ConnectTimeMs());
 				      const char *configId =
 					      obs_data_get_string(event,
 								  "config_id");

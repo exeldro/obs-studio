@@ -3,6 +3,7 @@
 #include <obs.hpp>
 
 #include <atomic>
+#include <optional>
 #include <vector>
 
 #include <qobject.h>
@@ -22,6 +23,7 @@ public:
 				     obs_data_t *go_live_config);
 	void StopStreaming();
 	bool IsStreaming() const;
+	std::optional<int> ConnectTimeMs() const;
 
 	const std::vector<OBSEncoderAutoRelease> &VideoEncoders() const;
 

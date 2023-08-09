@@ -427,6 +427,14 @@ bool SimulcastOutput::IsStreaming() const
 	return streaming_;
 }
 
+std::optional<int> SimulcastOutput::ConnectTimeMs() const
+{
+	if (!output_)
+		return std::nullopt;
+
+	return obs_output_get_connect_time_ms(output_);
+}
+
 const std::vector<OBSEncoderAutoRelease> &SimulcastOutput::VideoEncoders() const
 {
 	return video_encoders_;
