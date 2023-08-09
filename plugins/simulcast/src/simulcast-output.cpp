@@ -96,7 +96,7 @@ static pixel_resolution scale_resolution(const obs_video_info &ovi,
 	auto aspect_height = ovi.base_height / aspect_segments;
 
 	auto base_pixels =
-		static_cast<uint64_t>(ovi.output_width) * ovi.output_height;
+		static_cast<uint64_t>(ovi.base_width) * ovi.base_height;
 
 	auto requested_pixels = requested_width * requested_height;
 
@@ -105,6 +105,12 @@ static pixel_resolution scale_resolution(const obs_video_info &ovi,
 
 	auto target_aspect_segments = static_cast<uint32_t>(std::floor(
 		std::sqrt(pixel_ratio * aspect_segments * aspect_segments)));
+
+	if (target_aspect_segments + 1 * aspect_width > ovi.base_width)
+		target_aspect_segments = ovi.base_width / aspect_width - 1;
+	if (target_aspect_segments + 1 * aspect_height > ovi.base_height)
+		target_aspect_segments = ovi.base_height / aspect_height - 1;
+
 	for (auto i : {0, 1, -1}) {
 		auto target_segments = std::max(
 			static_cast<uint32_t>(1),
@@ -128,6 +134,11 @@ static pixel_resolution scale_resolution(const obs_video_info &ovi,
 			    0) //libobs enforces multiple of 4 width and multiple of 2 height
 			continue;
 
+		if (output_width == requested_width &&
+		    output_height == requested_height)
+			return {static_cast<uint32_t>(output_width),
+				static_cast<uint32_t>(requested_height)};
+
 		blog(LOG_INFO,
 		     "Scaled output resolution from %" PRIu64 "x%" PRIu64
 		     " to %ux%u (base: %ux%u)",
@@ -140,7 +151,7 @@ static pixel_resolution scale_resolution(const obs_video_info &ovi,
 
 	blog(LOG_WARNING,
 	     "Failed to scale request resolution %" PRIu64 "x%" PRIu64
-	     "u to %ux%u",
+	     " to %ux%u",
 	     requested_width, requested_height, ovi.base_width,
 	     ovi.base_height);
 
