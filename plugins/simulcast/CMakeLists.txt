@@ -59,7 +59,7 @@ target_link_libraries(
 
 if(OS_WINDOWS)
   target_sources(simulcast PRIVATE # cmake-format: sortable
-                                   src/system-info-windows.cpp)
+                                   src/system-info-windows.cpp src/wmi-data-provider.cpp src/wmi-data-provider.h)
 elseif(OS_MACOS)
   target_sources(simulcast PRIVATE # cmake-format: sortable
                                    src/system-info-macos.cpp)
