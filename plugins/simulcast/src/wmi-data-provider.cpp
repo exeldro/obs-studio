@@ -358,7 +358,9 @@ void WMIQueries::SummarizeData(obs_data_t *data)
 	{
 		static std::optional<PropertyHandle> name_handle;
 		static std::optional<PropertyHandle> dedicated_usage_handle;
-		std::unordered_map<std::string, uint64_t> adapter_memory_usages;
+		static std::optional<PropertyHandle> shared_usage_handle;
+		std::unordered_map<std::string, std::pair<uint64_t, uint64_t>>
+			adapter_memory_usages;
 		gpu_memory_usage_->GetData([&](IWbemObjectAccess *object) {
 			if (!name_handle.has_value() &&
 			    !LoadPropertyHandle(name_handle,
@@ -369,6 +371,11 @@ void WMIQueries::SummarizeData(obs_data_t *data)
 			    !LoadPropertyHandle(dedicated_usage_handle,
 						gpu_memory_usage_->query_,
 						object, L"DedicatedUsage"))
+				return false;
+			if (!shared_usage_handle.has_value() &&
+			    !LoadPropertyHandle(shared_usage_handle,
+						gpu_memory_usage_->query_,
+						object, L"SharedUsage"))
 				return false;
 
 			auto name = ReadPropertyStringValue(
@@ -383,18 +390,28 @@ void WMIQueries::SummarizeData(obs_data_t *data)
 			if (!value.has_value())
 				return true;
 
+			auto shared_value = ReadPropertyQWORDValue(
+				gpu_memory_usage_->query_, object,
+				*shared_usage_handle);
+			if (!shared_value.value())
+				return true;
+
 			auto luid = GetLUID(*name);
 			if (!luid.has_value())
 				return true;
 
-			adapter_memory_usages[*luid] += *value;
+			auto &p = adapter_memory_usages[*luid];
+			p.first += *value;
+			p.second += *shared_value;
 			return true;
 		});
 		OBSDataAutoRelease memory_usages = obs_data_create();
 		for (auto &adapter_memory_usage : adapter_memory_usages) {
-			obs_data_set_int(memory_usages,
-					 adapter_memory_usage.first.c_str(),
-					 adapter_memory_usage.second);
+			obs_data_set_int(
+				memory_usages,
+				adapter_memory_usage.first.c_str(),
+				adapter_memory_usage.second.first -
+					adapter_memory_usage.second.second);
 		}
 		obs_data_set_string(data, "gpu_dedicated_memory_usage",
 				    obs_data_get_json(memory_usages));
