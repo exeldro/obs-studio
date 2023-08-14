@@ -262,6 +262,7 @@ static OBSDataAutoRelease load_or_create_obj(obs_data_t *data, const char *name)
 
 #define JSON_CONFIG_FILE module_config_path("config.json")
 #define DATA_KEY_SETTINGS_WINDOW_GEOMETRY "settings_window_geometry"
+#define DATA_KEY_MAKE_DOCK_VISIBLE_PROMPT "make_dock_visible_prompt"
 #define DATA_KEY_DEVICE_ID "device_id"
 #define DATA_KEY_PROFILES "profiles"
 #define DATA_KEY_STREAM_KEY "stream_key"
@@ -286,6 +287,13 @@ void SimulcastDockWidget::SaveConfig()
 			  telemetry_enabled_);
 	obs_data_set_string(config_, DATA_KEY_SETTINGS_WINDOW_GEOMETRY,
 			    settings_window_geometry_.toBase64().constData());
+	if (make_dock_visible_prompt_.has_value()) {
+		obs_data_set_string(config_, DATA_KEY_MAKE_DOCK_VISIBLE_PROMPT,
+				    make_dock_visible_prompt_
+					    ->toString(Qt::ISODate)
+					    .toUtf8()
+					    .constData());
+	}
 	// Set modified config values above
 
 	write_config(config_);
@@ -312,6 +320,13 @@ void SimulcastDockWidget::LoadConfig()
 		obs_data_get_bool(profile_, DATA_KEY_TELEMETRY_ENABLED);
 	settings_window_geometry_ = QByteArray::fromBase64(obs_data_get_string(
 		config_, DATA_KEY_SETTINGS_WINDOW_GEOMETRY));
+	if (obs_data_has_user_value(config_,
+				    DATA_KEY_MAKE_DOCK_VISIBLE_PROMPT)) {
+		make_dock_visible_prompt_ = QDateTime::fromString(
+			obs_data_get_string(config_,
+					    DATA_KEY_MAKE_DOCK_VISIBLE_PROMPT),
+			Qt::ISODate);
+	}
 	// Set modified config values above
 
 	// ==================== device id ====================
@@ -368,6 +383,40 @@ void SimulcastDockWidget::PruneDeletedProfiles()
 	}
 
 	write_config(config_);
+}
+
+void SimulcastDockWidget::CheckPromptToMakeDockVisible()
+{
+	if (isVisible())
+		return;
+
+	if (make_dock_visible_prompt_.has_value()) {
+		if (*make_dock_visible_prompt_ >
+		    QDateTime::currentDateTimeUtc())
+			return;
+	}
+
+	auto prompt = QMessageBox(QMessageBox::Icon::Question,
+				  obs_module_text("VisibilityPrompt.Title"),
+				  obs_module_text("VisibilityPrompt.Text"),
+				  QMessageBox::Yes | QMessageBox::No, this);
+	auto remind_button = prompt.addButton(
+		obs_module_text("VisibilityPrompt.RemindOneWeek"),
+		QMessageBox::ButtonRole::DestructiveRole);
+	prompt.exec();
+
+	auto button = prompt.clickedButton();
+	if (button == remind_button) {
+		make_dock_visible_prompt_ =
+			QDateTime::currentDateTimeUtc().addDays(7);
+		SaveConfig();
+	} else if (button == prompt.button(QMessageBox::StandardButton::Yes)) {
+		// this widget is wrapped in an OBSDock widget currently,
+		// so we need to call show on the parent widget
+		auto parent = parentWidget();
+		if (parent)
+			parent->show();
+	}
 }
 
 const ImmutableDateTime &SimulcastDockWidget::GenerateStreamAttemptStartTime()

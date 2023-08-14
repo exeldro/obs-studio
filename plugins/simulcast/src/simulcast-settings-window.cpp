@@ -3,6 +3,7 @@
 
 #include <QAction>
 #include <QCheckBox>
+#include <QDesktopServices>
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QHBoxLayout>
@@ -54,6 +55,10 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 	auto stream_key_edit_layout = new QHBoxLayout;
 	stream_key_edit_ = new QLineEdit;
 	stream_key_show_button_ = new QPushButton;
+	auto get_stream_key_button = new QPushButton(
+		obs_frontend_get_locale_string(
+			"Basic.AutoConfig.StreamPage.GetStreamKey"),
+		this);
 
 	telemetry_checkbox_ =
 		new QCheckBox(obs_module_text("Settings.EnableTelemetry"));
@@ -68,6 +73,7 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 
 	stream_key_edit_layout->addWidget(stream_key_edit_);
 	stream_key_edit_layout->addWidget(stream_key_show_button_);
+	stream_key_edit_layout->addWidget(get_stream_key_button);
 
 	form_layout->addRow(obs_module_text("Settings.StreamKey"),
 			    stream_key_edit_layout);
@@ -89,6 +95,11 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 			stream_key_show_button_->setText(
 				obs_frontend_get_locale_string(
 					showing ? "Hide" : "Show"));
+		});
+	connect(get_stream_key_button, &QPushButton::clicked,
+		[](bool /*toggled*/) {
+			QDesktopServices::openUrl(QUrl(
+				"https://dashboard.twitch.tv/settings/stream"));
 		});
 	connect(telemetry_checkbox_, &QCheckBox::stateChanged,
 		[=](int /*state*/) { SetApplyEnabled(true); });

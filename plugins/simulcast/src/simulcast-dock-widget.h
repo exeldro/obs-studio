@@ -25,6 +25,8 @@ public:
 	void ProfileRenamed();
 	void PruneDeletedProfiles();
 
+	void CheckPromptToMakeDockVisible();
+
 	SimulcastOutput &Output() { return output_; }
 
 	QString &StreamKey() { return stream_key_; }
@@ -49,6 +51,7 @@ private:
 	QString stream_key_;
 	bool telemetry_enabled_;
 	QByteArray settings_window_geometry_;
+	std::optional<QDateTime> make_dock_visible_prompt_;
 	// Add config vars above
 
 	OBSDataAutoRelease config_;
