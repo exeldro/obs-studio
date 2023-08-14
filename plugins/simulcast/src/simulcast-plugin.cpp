@@ -81,7 +81,7 @@ bool obs_module_load(void)
 
 	register_settings_window(dock);
 
-	obs_frontend_add_dock_by_id("simulcast", "Simulcast", dock);
+	obs_frontend_add_dock_by_id("twitch-go-live", "Twitch", dock);
 
 	obs_frontend_add_event_callback(
 		[](enum obs_frontend_event event, void *private_data) {
