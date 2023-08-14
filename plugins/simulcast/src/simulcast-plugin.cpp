@@ -51,6 +51,10 @@ static void obs_event_handler(obs_frontend_event event,
 		   event == obs_frontend_event::
 				    OBS_FRONTEND_EVENT_FINISHED_LOADING) {
 		simulcastWidget->LoadConfig();
+		if (event ==
+		    obs_frontend_event::OBS_FRONTEND_EVENT_FINISHED_LOADING) {
+			simulcastWidget->CheckPromptToMakeDockVisible();
+		}
 	} else if (event ==
 		   obs_frontend_event::OBS_FRONTEND_EVENT_PROFILE_RENAMED) {
 		simulcastWidget->ProfileRenamed();
