@@ -26,7 +26,9 @@ std::shared_ptr<WMIProvider> WMIProvider::CreateProvider()
 		return nullptr;
 	}
 
-	QScopeGuard uninitialize_com{[] { CoUninitialize(); }};
+	QScopeGuard uninitialize_com{[] {
+		CoUninitialize();
+	}};
 
 	hres = CoInitializeSecurity(nullptr, -1, nullptr, nullptr,
 				    RPC_C_AUTHN_LEVEL_DEFAULT,
@@ -174,7 +176,9 @@ std::optional<WMIQueries> WMIQueries::Create()
 
 struct PropertyHandle {
 	PropertyHandle(const long handle, const CIMTYPE ty, const wchar_t *name)
-		: handle(handle), ty(ty), name(name)
+		: handle(handle),
+		  ty(ty),
+		  name(name)
 	{
 	}
 	const long handle;

@@ -15,7 +15,9 @@ void SubmissionWorker::QueueEvent(OBSData event)
 }
 
 BerryessaSubmitter::BerryessaSubmitter(QObject *parent, QString url)
-	: QObject(parent), url_(url), submission_worker_(url)
+	: QObject(parent),
+	  url_(url),
+	  submission_worker_(url)
 {
 	this->alwaysProperties_ = obs_data_create();
 
