@@ -788,23 +788,13 @@ struct OBSStudioAPI : obs_frontend_callbacks {
 
 	void obs_frontend_external_stream_started(obs_output_t *output) override
 	{
-		auto status_bar = reinterpret_cast<OBSBasicStatusBar *>(
-			main->statusBar());
-		if (!status_bar)
-			return;
-
-		status_bar->StreamStarted(output);
+		main->AddAdditionalStreamOutput(output);
 	}
 
-	void obs_frontend_external_stream_stopped(
-		obs_weak_output_t * /* output */) override
+	void
+	obs_frontend_external_stream_stopped(obs_weak_output_t *output) override
 	{
-		auto status_bar = reinterpret_cast<OBSBasicStatusBar *>(
-			main->statusBar());
-		if (!status_bar)
-			return;
-
-		status_bar->StreamStopped();
+		main->RemoveAdditionalStreamOutput(output);
 	}
 };
 

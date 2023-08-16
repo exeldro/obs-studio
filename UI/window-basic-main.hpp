@@ -228,6 +228,8 @@ private:
 
 	std::vector<OBSSignal> signalHandlers;
 
+	std::vector<OBSWeakOutputAutoRelease> additionalStreamingOutputs;
+
 	QList<QPointer<QDockWidget>> oldExtraDocks;
 	QStringList oldExtraDockNames;
 
@@ -1021,6 +1023,11 @@ public:
 	void SetDisplayAffinity(QWindow *window);
 
 	QColor GetSelectionColor() const;
+
+	void AddAdditionalStreamOutput(obs_output_t *output);
+	void RemoveAdditionalStreamOutput(obs_weak_output_t *weak_output);
+
+	std::vector<OBSOutputAutoRelease> GetAdditionalLiveStreamOutputs();
 
 protected:
 	virtual void closeEvent(QCloseEvent *event) override;
