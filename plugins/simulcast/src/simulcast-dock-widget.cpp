@@ -167,7 +167,7 @@ static void SetupSignalsAndSlots(
 			if (self->Output().IsStreaming()) {
 				streamingButton->setText(
 					obs_frontend_get_locale_string(
-						"Basic.Main.StoppingStream"));
+						"Basic.Main.StoppingStreaming"));
 				self->Output().StopStreaming();
 
 				berryessa->submit(
