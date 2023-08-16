@@ -87,6 +87,10 @@ static string lastCrashLogFile;
 
 bool portable_mode = false;
 bool steam = false;
+bool safe_mode = false;
+bool disable_3p_plugins = false;
+bool unclean_shutdown = false;
+bool disable_shutdown_check = false;
 static bool multi = false;
 static bool log_verbose = false;
 static bool unfiltered_log = false;
@@ -98,9 +102,6 @@ bool opt_start_virtualcam = false;
 bool opt_minimize_tray = false;
 bool opt_allow_opengl = false;
 bool opt_always_on_top = false;
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-bool opt_disable_high_dpi_scaling = false;
-#endif
 bool opt_disable_updater = false;
 bool opt_disable_missing_files_check = false;
 string opt_starting_collection;
@@ -108,6 +109,7 @@ string opt_starting_profile;
 string opt_starting_scene;
 
 bool restart = false;
+bool restart_safe = false;
 
 QPointer<OBSLogViewer> obsLogViewer;
 
@@ -1393,7 +1395,8 @@ std::vector<UpdateBranch> OBSApp::GetBranches()
 }
 
 OBSApp::OBSApp(int &argc, char **argv, profiler_name_store_t *store)
-	: QApplication(argc, argv), profilerNameStore(store)
+	: QApplication(argc, argv),
+	  profilerNameStore(store)
 {
 	/* fix float handling */
 #if defined(Q_OS_UNIX)
@@ -1659,10 +1662,6 @@ bool OBSApp::OBSInit()
 {
 	ProfileScope("OBSApp::OBSInit");
 
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-	setAttribute(Qt::AA_UseHighDpiPixmaps);
-#endif
-
 	qRegisterMetaType<VoidFunc>("VoidFunc");
 
 #if !defined(_WIN32) && !defined(__APPLE__)
@@ -1720,6 +1719,12 @@ bool OBSApp::OBSInit()
 	blog(LOG_INFO, "Qt Version: %s (runtime), %s (compiled)", qVersion(),
 	     QT_VERSION_STR);
 	blog(LOG_INFO, "Portable mode: %s", portable_mode ? "true" : "false");
+
+	if (safe_mode) {
+		blog(LOG_WARNING, "Safe Mode enabled.");
+	} else if (disable_3p_plugins) {
+		blog(LOG_WARNING, "Third-party plugins disabled.");
+	}
 
 	setQuitOnLastWindowClosed(false);
 
@@ -2319,13 +2324,7 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 
 	ScopeProfiler prof{run_program_init};
 
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)) && \
-	(QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
-	QGuiApplication::setAttribute(opt_disable_high_dpi_scaling
-					      ? Qt::AA_DisableHighDpiScaling
-					      : Qt::AA_EnableHighDpiScaling);
-#endif
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)) && defined(_WIN32)
+#ifdef _WIN32
 	QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
 		Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
 #endif
@@ -2350,14 +2349,12 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 
 	setenv("QT_STYLE_OVERRIDE", "Fusion", false);
 
-#if OBS_QT_VERSION == 6
 	/* NOTE: Users blindly set this, but this theme is incompatble with Qt6 and
 	 * crashes loading saved geometry. Just turn off this theme and let users complain OBS
 	 * looks ugly instead of crashing. */
 	const char *platform_theme = getenv("QT_QPA_PLATFORMTHEME");
 	if (platform_theme && strcmp(platform_theme, "qt5ct") == 0)
 		unsetenv("QT_QPA_PLATFORMTHEME");
-#endif
 
 #if defined(ENABLE_WAYLAND) && defined(USE_XDG)
 	/* NOTE: Qt doesn't use the Wayland platform on GNOME, so we have to
@@ -2443,6 +2440,10 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 			blog(LOG_WARNING, "================================");
 			blog(LOG_WARNING, "User is now running multiple "
 					  "instances of OBS!");
+			/* Clear unclean_shutdown flag as multiple instances
+			 * running from the same config will lead to a
+			 * false-positive detection.*/
+			unclean_shutdown = false;
 		}
 
 		/* --------------------------------------- */
@@ -2466,6 +2467,34 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 
 		if (!created_log)
 			create_log_file(logFile);
+
+		if (unclean_shutdown) {
+			blog(LOG_WARNING,
+			     "[Safe Mode] Unclean shutdown detected!");
+		}
+
+		if (unclean_shutdown && !safe_mode) {
+			QMessageBox mb(QMessageBox::Warning,
+				       QTStr("AutoSafeMode.Title"),
+				       QTStr("AutoSafeMode.Text"));
+			QPushButton *launchSafeButton =
+				mb.addButton(QTStr("AutoSafeMode.LaunchSafe"),
+					     QMessageBox::AcceptRole);
+			QPushButton *launchNormalButton =
+				mb.addButton(QTStr("AutoSafeMode.LaunchNormal"),
+					     QMessageBox::RejectRole);
+			mb.setDefaultButton(launchNormalButton);
+			mb.exec();
+
+			safe_mode = mb.clickedButton() == launchSafeButton;
+			if (safe_mode) {
+				blog(LOG_INFO,
+				     "[Safe Mode] User has launched in Safe Mode.");
+			} else {
+				blog(LOG_WARNING,
+				     "[Safe Mode] User elected to launch normally.");
+			}
+		}
 
 		qInstallMessageHandler([](QtMsgType type,
 					  const QMessageLogContext &,
@@ -2554,9 +2583,18 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 		OBSErrorBox(nullptr, "%s", error);
 	}
 
-	if (restart)
-		QProcess::startDetached(qApp->arguments()[0],
-					qApp->arguments());
+	if (restart || restart_safe) {
+		auto args = qApp->arguments();
+		auto executable = args[0];
+
+		if (restart_safe) {
+			args.append("--safe-mode");
+		} else {
+			args.removeAll("--safe-mode");
+		}
+
+		QProcess::startDetached(executable, args);
+	}
 
 	return ret;
 }
@@ -3208,6 +3246,32 @@ static void upgrade_settings(void)
 	os_closedir(dir);
 }
 
+static void check_safe_mode_sentinel(void)
+{
+#ifndef NDEBUG
+	/* Safe Mode detection is disabled in Debug builds to keep developers
+	 * somewhat sane. */
+	return;
+#else
+	if (disable_shutdown_check)
+		return;
+
+	BPtr sentinelPath = GetConfigPathPtr("obs-studio/safe_mode");
+	if (os_file_exists(sentinelPath)) {
+		unclean_shutdown = true;
+		return;
+	}
+
+	os_quick_write_utf8_file(sentinelPath, nullptr, 0, false);
+#endif
+}
+
+static void delete_safe_mode_sentinel(void)
+{
+	BPtr sentinelPath = GetConfigPathPtr("obs-studio/safe_mode");
+	os_unlink(sentinelPath);
+}
+
 #ifndef _WIN32
 void OBSApp::SigIntSignalHandler(int s)
 {
@@ -3295,6 +3359,17 @@ int main(int argc, char *argv[])
 		} else if (arg_is(argv[i], "--verbose", nullptr)) {
 			log_verbose = true;
 
+		} else if (arg_is(argv[i], "--safe-mode", nullptr)) {
+			safe_mode = true;
+
+		} else if (arg_is(argv[i], "--only-bundled-plugins", nullptr)) {
+			disable_3p_plugins = true;
+
+		} else if (arg_is(argv[i], "--disable-shutdown-check",
+				  nullptr)) {
+			/* This exists mostly to bypass the dialog during development. */
+			disable_shutdown_check = true;
+
 		} else if (arg_is(argv[i], "--always-on-top", nullptr)) {
 			opt_always_on_top = true;
 
@@ -3344,11 +3419,6 @@ int main(int argc, char *argv[])
 		} else if (arg_is(argv[i], "--steam", nullptr)) {
 			steam = true;
 
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-		} else if (arg_is(argv[i], "--disable-high-dpi-scaling",
-				  nullptr)) {
-			opt_disable_high_dpi_scaling = true;
-#endif
 		} else if (arg_is(argv[i], "--help", "-h")) {
 			std::string help =
 				"--help, -h: Get list of available commands.\n\n"
@@ -3366,15 +3436,14 @@ int main(int argc, char *argv[])
 				"--portable, -p: Use portable mode.\n"
 #endif
 				"--multi, -m: Don't warn when launching multiple instances.\n\n"
+				"--safe-mode: Run in Safe Mode (disables third-party plugins, scripting, and websockets).\n"
+				"--only-bundled-plugins: Only load included (first-party) plugins\n"
+				"--disable-shutdown-check: Disable unclean shutdown detection.\n"
 				"--verbose: Make log more verbose.\n"
 				"--always-on-top: Start in 'always on top' mode.\n\n"
 				"--unfiltered_log: Make log unfiltered.\n\n"
 				"--disable-updater: Disable built-in updater (Windows/Mac only)\n\n"
-				"--disable-missing-files-check: Disable the missing files dialog which can appear on startup.\n\n"
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-				"--disable-high-dpi-scaling: Disable automatic high-DPI scaling\n\n"
-#endif
-				;
+				"--disable-missing-files-check: Disable the missing files dialog which can appear on startup.\n\n";
 
 #ifdef _WIN32
 			MessageBoxA(NULL, help.c_str(), "Help",
@@ -3416,6 +3485,7 @@ int main(int argc, char *argv[])
 	}
 #endif
 
+	check_safe_mode_sentinel();
 	upgrade_settings();
 
 	fstream logFile;
@@ -3435,6 +3505,7 @@ int main(int argc, char *argv[])
 	log_blocked_dlls();
 #endif
 
+	delete_safe_mode_sentinel();
 	blog(LOG_INFO, "Number of memory leaks: %ld", bnum_allocs());
 	base_set_log_handler(nullptr, nullptr);
 	return ret;

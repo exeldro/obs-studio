@@ -33,7 +33,8 @@ static inline OBSScene GetCurrentScene()
 /* ========================================================================= */
 
 SourceTreeItem::SourceTreeItem(SourceTree *tree_, OBSSceneItem sceneitem_)
-	: tree(tree_), sceneitem(sceneitem_)
+	: tree(tree_),
+	  sceneitem(sceneitem_)
 {
 	setAttribute(Qt::WA_TranslucentBackground);
 	setMouseTracking(true);
@@ -335,11 +336,7 @@ void SourceTreeItem::mouseDoubleClickEvent(QMouseEvent *event)
 	}
 }
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 void SourceTreeItem::enterEvent(QEnterEvent *event)
-#else
-void SourceTreeItem::enterEvent(QEvent *event)
-#endif
 {
 	QWidget::enterEvent(event);
 
@@ -643,6 +640,9 @@ void SourceTreeModel::OBSFrontendEvent(enum obs_frontend_event event, void *ptr)
 		stm->SceneChanged();
 		break;
 	case OBS_FRONTEND_EVENT_EXIT:
+		stm->Clear();
+		obs_frontend_remove_event_callback(OBSFrontendEvent, stm);
+		break;
 	case OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP:
 		stm->Clear();
 		break;
@@ -857,14 +857,10 @@ OBSSceneItem SourceTreeModel::Get(int idx)
 }
 
 SourceTreeModel::SourceTreeModel(SourceTree *st_)
-	: QAbstractListModel(st_), st(st_)
+	: QAbstractListModel(st_),
+	  st(st_)
 {
 	obs_frontend_add_event_callback(OBSFrontendEvent, this);
-}
-
-SourceTreeModel::~SourceTreeModel()
-{
-	obs_frontend_remove_event_callback(OBSFrontendEvent, this);
 }
 
 int SourceTreeModel::rowCount(const QModelIndex &parent) const
@@ -1186,14 +1182,7 @@ void SourceTree::dropEvent(QDropEvent *event)
 	QModelIndexList indices = selectedIndexes();
 
 	DropIndicatorPosition indicator = dropIndicatorPosition();
-	int row = indexAt(
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-			  event->position().toPoint()
-#else
-			  event->pos()
-#endif
-				  )
-			  .row();
+	int row = indexAt(event->position().toPoint()).row();
 	bool emptyDrop = row == -1;
 
 	if (emptyDrop) {

@@ -231,6 +231,8 @@ private:
 	QList<QPointer<QDockWidget>> oldExtraDocks;
 	QStringList oldExtraDockNames;
 
+	OBSDataAutoRelease safeModeModuleData;
+
 	bool loaded = false;
 	long disableSaving = 1;
 	bool projectChanged = false;
@@ -626,7 +628,7 @@ private:
 	bool broadcastActive = false;
 	bool broadcastReady = false;
 	QPointer<QThread> youtubeStreamCheckThread;
-#if YOUTUBE_ENABLED
+#ifdef YOUTUBE_ENABLED
 	void YoutubeStreamCheck(const std::string &key);
 	void ShowYouTubeAutoStartWarning();
 	void YouTubeActionDialogOk(const QString &id, const QString &key,
@@ -661,6 +663,8 @@ private:
 	void UpdatePreviewOverflowSettings();
 
 	bool restartingVCam = false;
+
+	void UpdateTransformShortcuts();
 
 public slots:
 	void DeferSaveBegin();
@@ -1020,13 +1024,8 @@ public:
 
 protected:
 	virtual void closeEvent(QCloseEvent *event) override;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 	virtual bool nativeEvent(const QByteArray &eventType, void *message,
 				 qintptr *result) override;
-#else
-	virtual bool nativeEvent(const QByteArray &eventType, void *message,
-				 long *result) override;
-#endif
 	virtual void changeEvent(QEvent *event) override;
 
 private slots:
@@ -1047,6 +1046,7 @@ private slots:
 	void on_actionCheckForUpdates_triggered();
 	void on_actionRepair_triggered();
 	void on_actionShowWhatsNew_triggered();
+	void on_actionRestartSafe_triggered();
 
 	void on_actionShowCrashLogs_triggered();
 	void on_actionUploadLastCrashLog_triggered();

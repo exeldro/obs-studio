@@ -97,7 +97,9 @@ struct FormatDesc {
 	inline FormatDesc() = default;
 	inline FormatDesc(const char *name, const char *mimeType,
 			  const ff_format_desc *desc = nullptr)
-		: name(name), mimeType(mimeType), desc(desc)
+		: name(name),
+		  mimeType(mimeType),
+		  desc(desc)
 	{
 	}
 
@@ -626,6 +628,7 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	HookWidget(ui->processPriority,      COMBO_CHANGED,  ADV_CHANGED);
 	HookWidget(ui->confirmOnExit,        CHECK_CHANGED,  ADV_CHANGED);
 	HookWidget(ui->bindToIP,             COMBO_CHANGED,  ADV_CHANGED);
+	HookWidget(ui->ipFamily,             COMBO_CHANGED,  ADV_CHANGED);
 	HookWidget(ui->enableNewSocketLoop,  CHECK_CHANGED,  ADV_CHANGED);
 	HookWidget(ui->enableLowLatencyMode, CHECK_CHANGED,  ADV_CHANGED);
 	HookWidget(ui->hotkeyFocusType,      COMBO_CHANGED,  ADV_CHANGED);
@@ -897,6 +900,17 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 		ui->bindToIP->addItem(QT_UTF8(name), val);
 	}
 
+	// Add IP Family options
+	p = obs_properties_get(ppts, "ip_family");
+
+	count = obs_property_list_item_count(p);
+	for (size_t i = 0; i < count; i++) {
+		const char *name = obs_property_list_item_name(p, i);
+		const char *val = obs_property_list_item_string(p, i);
+
+		ui->ipFamily->addItem(QT_UTF8(name), val);
+	}
+
 	obs_properties_destroy(ppts);
 
 	InitStreamPage();
@@ -974,7 +988,6 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	connect(ui->advOutRecFormat, SIGNAL(currentIndexChanged(int)), this,
 		SLOT(AdvOutRecCheckCodecs()));
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
 	// Set placeholder used when selection was reset due to incompatibilities
 	ui->advOutRecEncoder->setPlaceholderText(
 		QTStr("CodecCompat.CodecPlaceholder"));
@@ -986,7 +999,6 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 		QTStr("CodecCompat.CodecPlaceholder"));
 	ui->simpleOutRecFormat->setPlaceholderText(
 		QTStr("CodecCompat.ContainerPlaceholder"));
-#endif
 
 	SimpleRecordingQualityChanged();
 	AdvOutSplitFileChanged();
@@ -2897,7 +2909,8 @@ void OBSBasicSettings::LoadAdvancedSettings()
 		App()->GlobalConfig(), "General", "HotkeyFocusType");
 	bool dynBitrate =
 		config_get_bool(main->Config(), "Output", "DynamicBitrate");
-
+	const char *ipFamily =
+		config_get_string(main->Config(), "Output", "IPFamily");
 	bool confirmOnExit =
 		config_get_bool(GetGlobalConfig(), "General", "ConfirmOnExit");
 	ui->confirmOnExit->setChecked(confirmOnExit);
@@ -2936,6 +2949,7 @@ void OBSBasicSettings::LoadAdvancedSettings()
 	ui->sdrWhiteLevel->setValue(sdrWhiteLevel);
 	ui->hdrNominalPeakLevel->setValue(hdrNominalPeakLevel);
 
+	SetComboByValue(ui->ipFamily, ipFamily);
 	if (!SetComboByValue(ui->bindToIP, bindIP))
 		SetInvalidValue(ui->bindToIP, bindIP, bindIP);
 
@@ -3669,6 +3683,7 @@ void OBSBasicSettings::SaveAdvancedSettings()
 	SaveSpinBox(ui->reconnectRetryDelay, "Output", "RetryDelay");
 	SaveSpinBox(ui->reconnectMaxRetries, "Output", "MaxRetries");
 	SaveComboData(ui->bindToIP, "Output", "BindIP");
+	SaveComboData(ui->ipFamily, "Output", "IPFamily");
 	SaveCheckBox(ui->autoRemux, "Video", "AutoRemux");
 	SaveCheckBox(ui->dynBitrate, "Output", "DynamicBitrate");
 
@@ -5140,7 +5155,9 @@ static void ResetInvalidSelection(QComboBox *cbox)
 
 void OBSBasicSettings::AdvOutRecCheckWarnings()
 {
-	auto Checked = [](QCheckBox *box) { return box->isChecked() ? 1 : 0; };
+	auto Checked = [](QCheckBox *box) {
+		return box->isChecked() ? 1 : 0;
+	};
 
 	QString errorMsg;
 	QString warningMsg;
@@ -6233,6 +6250,8 @@ void OBSBasicSettings::UpdateAdvNetworkGroup()
 	ui->bindToIPLabel->setVisible(enabled);
 	ui->bindToIP->setVisible(enabled);
 	ui->dynBitrate->setVisible(enabled);
+	ui->ipFamilyLabel->setVisible(enabled);
+	ui->ipFamily->setVisible(enabled);
 #ifdef _WIN32
 	ui->enableNewSocketLoop->setVisible(enabled);
 	ui->enableLowLatencyMode->setVisible(enabled);

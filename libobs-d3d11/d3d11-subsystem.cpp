@@ -52,7 +52,8 @@ static inline void LogD3D11ErrorDetails(HRError error, gs_device_t *device)
 }
 
 gs_obj::gs_obj(gs_device_t *device_, gs_type type)
-	: device(device_), obj_type(type)
+	: device(device_),
+	  obj_type(type)
 {
 	prev_next = &device->first_obj;
 	next = device->first_obj;
@@ -293,12 +294,14 @@ void gs_device::InitCompiler()
 		if (module) {
 			d3dCompile = (pD3DCompile)GetProcAddress(module,
 								 "D3DCompile");
+			d3dCreateBlob = (pD3DCreateBlob)GetProcAddress(
+				module, "D3DCreateBlob");
 
 #ifdef DISASSEMBLE_SHADERS
 			d3dDisassemble = (pD3DDisassemble)GetProcAddress(
 				module, "D3DDisassemble");
 #endif
-			if (d3dCompile) {
+			if (d3dCompile && d3dCreateBlob) {
 				return;
 			}
 
@@ -1458,7 +1461,7 @@ static inline void LogD3DAdapters()
 		     desc.DedicatedVideoMemory);
 		blog(LOG_INFO, "\t  Shared VRAM:    %" PRIu64,
 		     desc.SharedSystemMemory);
-		blog(LOG_INFO, "\t  PCI ID:         %x:%x", desc.VendorId,
+		blog(LOG_INFO, "\t  PCI ID:         %x:%.4x", desc.VendorId,
 		     desc.DeviceId);
 
 		if (auto hags_support = GetAdapterHagsStatus(&desc)) {
@@ -1491,6 +1494,17 @@ static inline void LogD3DAdapters()
 	}
 }
 
+static void CreateShaderCacheDirectory()
+{
+	BPtr cachePath =
+		os_get_program_data_path_ptr("obs-studio/shader-cache");
+
+	if (os_mkdirs(cachePath) == MKDIR_ERROR) {
+		blog(LOG_WARNING, "Failed to create shader cache directory, "
+				  "cache may not be available.");
+	}
+}
+
 int device_create(gs_device_t **p_device, uint32_t adapter)
 {
 	gs_device *device = NULL;
@@ -1500,6 +1514,7 @@ int device_create(gs_device_t **p_device, uint32_t adapter)
 		blog(LOG_INFO, "---------------------------------");
 		blog(LOG_INFO, "Initializing D3D11...");
 		LogD3DAdapters();
+		CreateShaderCacheDirectory();
 
 		device = new gs_device(adapter);
 

@@ -502,7 +502,8 @@ QMenu *OBSBasicFilters::CreateAddFilterPopupMenu(bool async)
 		string name;
 
 		inline FilterInfo(const char *type_, const char *name_)
-			: type(type_), name(name_)
+			: type(type_),
+			  name(name_)
 		{
 		}
 
@@ -682,11 +683,7 @@ void OBSBasicFilters::closeEvent(QCloseEvent *event)
 	main->SaveProject();
 }
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 bool OBSBasicFilters::nativeEvent(const QByteArray &, void *message, qintptr *)
-#else
-bool OBSBasicFilters::nativeEvent(const QByteArray &, void *message, long *)
-#endif
 {
 #ifdef _WIN32
 	const MSG &msg = *static_cast<MSG *>(message);
@@ -1284,7 +1281,7 @@ void OBSBasicFilters::FiltersMoved(const QModelIndex &, int srcIdxStart, int,
 		neighborIdx = 0;
 
 	OBSSource neighbor = GetFilter(neighborIdx, isAsync);
-	size_t idx = obs_source_filter_get_index(source, neighbor);
+	int idx = obs_source_filter_get_index(source, neighbor);
 
 	OBSSource filter = GetFilter(list->currentRow(), isAsync);
 	obs_source_filter_set_index(source, filter, idx);

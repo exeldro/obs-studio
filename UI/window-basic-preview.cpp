@@ -13,7 +13,7 @@
 
 #define HANDLE_RADIUS 4.0f
 #define HANDLE_SEL_RADIUS (HANDLE_RADIUS * 1.5f)
-#define HELPER_ROT_BREAKPONT 45.0f
+#define HELPER_ROT_BREAKPOINT 45.0f
 
 /* TODO: make C++ math classes and clean up code here later */
 
@@ -77,7 +77,8 @@ struct SceneFindData {
 	SceneFindData &operator=(SceneFindData &&) = delete;
 
 	inline SceneFindData(const vec2 &pos_, bool selectBelow_)
-		: pos(pos_), selectBelow(selectBelow_)
+		: pos(pos_),
+		  selectBelow(selectBelow_)
 	{
 	}
 };
@@ -93,7 +94,8 @@ struct SceneFindBoxData {
 	SceneFindBoxData &operator=(SceneFindData &&) = delete;
 
 	inline SceneFindBoxData(const vec2 &startPos_, const vec2 &pos_)
-		: startPos(startPos_), pos(pos_)
+		: startPos(startPos_),
+		  pos(pos_)
 	{
 	}
 };
@@ -314,7 +316,8 @@ struct HandleFindData {
 	HandleFindData &operator=(HandleFindData &&) = delete;
 
 	inline HandleFindData(const vec2 &pos_, float scale)
-		: pos(pos_), radius(HANDLE_SEL_RADIUS / scale)
+		: pos(pos_),
+		  radius(HANDLE_SEL_RADIUS / scale)
 	{
 		matrix4_identity(&parent_xform);
 	}
@@ -387,24 +390,24 @@ static bool FindHandleAtPos(obs_scene_t * /* scene */, obs_sceneitem_t *item,
 	TestHandle(0.5f, 1.0f, ItemHandle::BottomCenter);
 	TestHandle(1.0f, 1.0f, ItemHandle::BottomRight);
 
+	vec2 scale;
+	obs_sceneitem_get_scale(item, &scale);
+	obs_bounds_type boundsType = obs_sceneitem_get_bounds_type(item);
 	vec2 rotHandleOffset;
 	vec2_set(&rotHandleOffset, 0.0f,
 		 HANDLE_RADIUS * data.radius * 1.5 - data.radius);
-	RotatePos(&rotHandleOffset, atan2(transform.x.y, transform.x.x));
+	bool invertx = scale.x < 0.0f && boundsType == OBS_BOUNDS_NONE;
+	float angle = atan2(invertx ? transform.x.y * -1.0f : transform.x.y,
+			    invertx ? transform.x.x * -1.0f : transform.x.x);
+	RotatePos(&rotHandleOffset, angle);
 	RotatePos(&rotHandleOffset, RAD(data.angleOffset));
 
-	vec2 scale;
-	obs_sceneitem_get_scale(item, &scale);
-	bool invert = scale.y < 0.0f;
+	bool inverty = scale.y < 0.0f && boundsType == OBS_BOUNDS_NONE;
 	vec3 handlePos =
-		GetTransformedPos(0.5f, invert ? 1.0f : 0.0f, transform);
+		GetTransformedPos(0.5f, inverty ? 1.0f : 0.0f, transform);
 	vec3_transform(&handlePos, &handlePos, &data.parent_xform);
 	handlePos.x -= rotHandleOffset.x;
-
-	if (scale.x < 0.0f)
-		handlePos.y += rotHandleOffset.y;
-	else
-		handlePos.y -= rotHandleOffset.y;
+	handlePos.y -= rotHandleOffset.y;
 
 	float dist = vec3_dist(&handlePos, &pos3);
 	if (dist < data.radius) {
@@ -573,11 +576,7 @@ void OBSBasicPreview::wheelEvent(QWheelEvent *event)
 
 void OBSBasicPreview::mousePressEvent(QMouseEvent *event)
 {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 	QPointF pos = event->position();
-#else
-	QPointF pos = event->localPos();
-#endif
 
 	if (scrollMode && IsFixedScaling() &&
 	    event->button() == Qt::LeftButton) {
@@ -1361,9 +1360,13 @@ void OBSBasicPreview::CropItem(const vec2 &pos)
 	vec3_transform(&pos3, &pos3, &screenToItem);
 
 	obs_sceneitem_crop crop = startCrop;
-	vec2 scale;
+	vec2 scale, rawscale;
 
-	obs_sceneitem_get_scale(stretchItem, &scale);
+	obs_sceneitem_get_scale(stretchItem, &rawscale);
+	vec2_set(&scale,
+		 boundsType == OBS_BOUNDS_NONE ? rawscale.x : fabsf(rawscale.x),
+		 boundsType == OBS_BOUNDS_NONE ? rawscale.y
+					       : fabsf(rawscale.y));
 
 	vec2 max_tl;
 	vec2 max_br;
@@ -1375,10 +1378,18 @@ void OBSBasicPreview::CropItem(const vec2 &pos)
 
 	typedef std::function<float(float, float)> minmax_func_t;
 
-	minmax_func_t min_x = scale.x < 0.0f ? maxfunc : minfunc;
-	minmax_func_t min_y = scale.y < 0.0f ? maxfunc : minfunc;
-	minmax_func_t max_x = scale.x < 0.0f ? minfunc : maxfunc;
-	minmax_func_t max_y = scale.y < 0.0f ? minfunc : maxfunc;
+	minmax_func_t min_x = scale.x < 0.0f && boundsType == OBS_BOUNDS_NONE
+				      ? maxfunc
+				      : minfunc;
+	minmax_func_t min_y = scale.y < 0.0f && boundsType == OBS_BOUNDS_NONE
+				      ? maxfunc
+				      : minfunc;
+	minmax_func_t max_x = scale.x < 0.0f && boundsType == OBS_BOUNDS_NONE
+				      ? minfunc
+				      : maxfunc;
+	minmax_func_t max_y = scale.y < 0.0f && boundsType == OBS_BOUNDS_NONE
+				      ? minfunc
+				      : maxfunc;
 
 	pos3.x = min_x(pos3.x, max_br.x);
 	pos3.x = max_x(pos3.x, max_tl.x);
@@ -1595,11 +1606,7 @@ void OBSBasicPreview::mouseMoveEvent(QMouseEvent *event)
 	OBSBasic *main = reinterpret_cast<OBSBasic *>(App()->GetMainWindow());
 	changed = true;
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 	QPointF qtPos = event->position();
-#else
-	QPointF qtPos = event->localPos();
-#endif
 
 	float pixelRatio = main->GetDevicePixelRatio();
 
@@ -2121,7 +2128,8 @@ bool OBSBasicPreview::DrawSelectedItem(obs_scene_t *, obs_sceneitem_t *item,
 			prev->circleFill = gs_render_save();
 		}
 
-		bool invert = info.scale.y < 0.0f;
+		bool invert = info.scale.y < 0.0f &&
+			      info.bounds_type == OBS_BOUNDS_NONE;
 		DrawRotationHandle(prev->circleFill, info.rot + prev->groupRot,
 				   pixelRatio, invert);
 	}
@@ -2515,7 +2523,7 @@ void OBSBasicPreview::DrawSpacingHelpers()
 	}
 
 	// Switch top/bottom or right/left if scale is negative
-	if (oti.scale.x < 0.0f) {
+	if (oti.scale.x < 0.0f && oti.bounds_type == OBS_BOUNDS_NONE) {
 		vec3 l = left;
 		vec3 r = right;
 
@@ -2523,7 +2531,7 @@ void OBSBasicPreview::DrawSpacingHelpers()
 		vec3_copy(&right, &l);
 	}
 
-	if (oti.scale.y < 0.0f) {
+	if (oti.scale.y < 0.0f && oti.bounds_type == OBS_BOUNDS_NONE) {
 		vec3 t = top;
 		vec3 b = bottom;
 
@@ -2531,8 +2539,8 @@ void OBSBasicPreview::DrawSpacingHelpers()
 		vec3_copy(&bottom, &t);
 	}
 
-	if (rot >= HELPER_ROT_BREAKPONT) {
-		for (float i = HELPER_ROT_BREAKPONT; i <= 360.0f; i += 90.0f) {
+	if (rot >= HELPER_ROT_BREAKPOINT) {
+		for (float i = HELPER_ROT_BREAKPOINT; i <= 360.0f; i += 90.0f) {
 			if (rot < i)
 				break;
 
@@ -2546,8 +2554,8 @@ void OBSBasicPreview::DrawSpacingHelpers()
 			vec3_copy(&bottom, &r);
 			vec3_copy(&left, &b);
 		}
-	} else if (rot <= -HELPER_ROT_BREAKPONT) {
-		for (float i = -HELPER_ROT_BREAKPONT; i >= -360.0f;
+	} else if (rot <= -HELPER_ROT_BREAKPOINT) {
+		for (float i = -HELPER_ROT_BREAKPOINT; i >= -360.0f;
 		     i -= 90.0f) {
 			if (rot > i)
 				break;
