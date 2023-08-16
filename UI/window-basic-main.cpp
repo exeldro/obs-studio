@@ -21,6 +21,7 @@
 #include <cstddef>
 #include <ctime>
 #include <functional>
+#include <unordered_set>
 #include <obs-data.h>
 #include <obs.h>
 #include <obs.hpp>
@@ -60,7 +61,7 @@
 #endif
 #include "window-projector.hpp"
 #include "window-remux.hpp"
-#if YOUTUBE_ENABLED
+#ifdef YOUTUBE_ENABLED
 #include "auth-youtube.hpp"
 #include "window-youtube-actions.hpp"
 #include "youtube-api-wrappers.hpp"
@@ -232,6 +233,30 @@ static void AddExtraModulePaths()
 #endif
 }
 
+/* First-party modules considered to be potentially unsafe to load in Safe Mode
+ * due to them allowing external code (e.g. scripts) to modify OBS's state. */
+static const unordered_set<string> unsafe_modules = {
+	"frontend-tools", // Scripting
+	"obs-websocket",  // Allows outside modifications
+};
+
+static void SetSafeModuleNames()
+{
+#ifndef SAFE_MODULES
+	return;
+#else
+	string module;
+	stringstream modules(SAFE_MODULES);
+
+	while (getline(modules, module, '|')) {
+		/* When only disallowing third-party plugins, still add
+		 * "unsafe" bundled modules to the safe list. */
+		if (disable_3p_plugins || !unsafe_modules.count(module))
+			obs_add_safe_module(module.c_str());
+	}
+#endif
+}
+
 extern obs_frontend_callbacks *InitializeAPIInterface(OBSBasic *main);
 
 void assignDockToggle(QDockWidget *dock, QAction *action)
@@ -271,36 +296,29 @@ void setupDockAction(QDockWidget *dock)
 	dock->connect(action, &QAction::triggered, newToggleView);
 
 	// Make the action unable to be disabled
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-	action->connect(action, &QAction::changed, neverDisable);
-#else
 	action->connect(action, &QAction::enabledChanged, neverDisable);
-#endif
 }
 
 extern void RegisterTwitchAuth();
 extern void RegisterRestreamAuth();
-#if YOUTUBE_ENABLED
+#ifdef YOUTUBE_ENABLED
 extern void RegisterYoutubeAuth();
 #endif
 
 OBSBasic::OBSBasic(QWidget *parent)
-	: OBSMainWindow(parent), undo_s(ui), ui(new Ui::OBSBasic)
+	: OBSMainWindow(parent),
+	  undo_s(ui),
+	  ui(new Ui::OBSBasic)
 {
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-	qRegisterMetaTypeStreamOperators<SignalContainer<OBSScene>>(
-		"SignalContainer<OBSScene>");
-#endif
-
 	setAttribute(Qt::WA_NativeWindow);
 
-#if TWITCH_ENABLED
+#ifdef TWITCH_ENABLED
 	RegisterTwitchAuth();
 #endif
-#if RESTREAM_ENABLED
+#ifdef RESTREAM_ENABLED
 	RegisterRestreamAuth();
 #endif
-#if YOUTUBE_ENABLED
+#ifdef YOUTUBE_ENABLED
 	RegisterYoutubeAuth();
 #endif
 
@@ -339,13 +357,6 @@ OBSBasic::OBSBasic(QWidget *parent)
 	qRegisterMetaType<OBSSource>("OBSSource");
 	qRegisterMetaType<obs_hotkey_id>("obs_hotkey_id");
 	qRegisterMetaType<SavedProjectorInfo *>("SavedProjectorInfo *");
-
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-	qRegisterMetaTypeStreamOperators<std::vector<std::shared_ptr<OBSSignal>>>(
-		"std::vector<std::shared_ptr<OBSSignal>>");
-	qRegisterMetaTypeStreamOperators<OBSScene>("OBSScene");
-	qRegisterMetaTypeStreamOperators<OBSSource>("OBSSource");
-#endif
 
 	ui->scenes->setAttribute(Qt::WA_MacShowFocusRect, false);
 	ui->sources->setAttribute(Qt::WA_MacShowFocusRect, false);
@@ -815,9 +826,18 @@ void OBSBasic::Save(const char *file)
 	}
 
 	if (api) {
-		OBSDataAutoRelease moduleObj = obs_data_create();
-		api->on_save(moduleObj);
-		obs_data_set_obj(saveData, "modules", moduleObj);
+		if (safeModeModuleData) {
+			/* If we're in Safe Mode and have retained unloaded
+			 * plugin data, update the existing data object instead
+			 * of creating a new one. */
+			api->on_save(safeModeModuleData);
+			obs_data_set_obj(saveData, "modules",
+					 safeModeModuleData);
+		} else {
+			OBSDataAutoRelease moduleObj = obs_data_create();
+			api->on_save(moduleObj);
+			obs_data_set_obj(saveData, "modules", moduleObj);
+		}
 	}
 
 	if (!obs_data_save_json_safe(saveData, file, "tmp", "bak"))
@@ -1098,6 +1118,12 @@ void OBSBasic::LoadData(obs_data_t *data, const char *file)
 	if (api)
 		api->on_preload(modulesObj);
 
+	if (safe_mode || disable_3p_plugins) {
+		/* Keep a reference to "modules" data so plugins that are not
+		 * loaded do not have their collection specific data lost. */
+		safeModeModuleData = obs_data_get_obj(data, "modules");
+	}
+
 	OBSDataArrayAutoRelease sceneOrder =
 		obs_data_get_array(data, "scene_order");
 	OBSDataArrayAutoRelease sources = obs_data_get_array(data, "sources");
@@ -1273,14 +1299,14 @@ retryScene:
 	if (!opt_starting_scene.empty())
 		opt_starting_scene.clear();
 
-	if (opt_start_streaming) {
+	if (opt_start_streaming && !safe_mode) {
 		blog(LOG_INFO, "Starting stream due to command line parameter");
 		QMetaObject::invokeMethod(this, "StartStreaming",
 					  Qt::QueuedConnection);
 		opt_start_streaming = false;
 	}
 
-	if (opt_start_recording) {
+	if (opt_start_recording && !safe_mode) {
 		blog(LOG_INFO,
 		     "Starting recording due to command line parameter");
 		QMetaObject::invokeMethod(this, "StartRecording",
@@ -1288,13 +1314,13 @@ retryScene:
 		opt_start_recording = false;
 	}
 
-	if (opt_start_replaybuffer) {
+	if (opt_start_replaybuffer && !safe_mode) {
 		QMetaObject::invokeMethod(this, "StartReplayBuffer",
 					  Qt::QueuedConnection);
 		opt_start_replaybuffer = false;
 	}
 
-	if (opt_start_virtualcam) {
+	if (opt_start_virtualcam && !safe_mode) {
 		QMetaObject::invokeMethod(this, "StartVirtualCam",
 					  Qt::QueuedConnection);
 		opt_start_virtualcam = false;
@@ -1648,6 +1674,8 @@ bool OBSBasic::InitBasicConfigDefaults()
 	config_set_default_uint(basicConfig, "Output", "MaxRetries", 25);
 
 	config_set_default_string(basicConfig, "Output", "BindIP", "default");
+	config_set_default_string(basicConfig, "Output", "IPFamily",
+				  "IPv4+IPv6");
 	config_set_default_bool(basicConfig, "Output", "NewSocketLoopEnable",
 				false);
 	config_set_default_bool(basicConfig, "Output", "LowLatencyEnable",
@@ -1971,15 +1999,18 @@ void OBSBasic::OBSInit()
 	/* hack to prevent elgato from loading its own QtNetwork that it tries
 	 * to ship with */
 #if defined(_WIN32) && !defined(_DEBUG)
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-	LoadLibraryW(L"Qt5Network");
-#else
 	LoadLibraryW(L"Qt6Network");
-#endif
 #endif
 	struct obs_module_failure_info mfi;
 
-	AddExtraModulePaths();
+	/* Safe Mode disables third-party plugins so we don't need to add earch
+	 * paths outside the OBS bundle/installation. */
+	if (safe_mode || disable_3p_plugins) {
+		SetSafeModuleNames();
+	} else {
+		AddExtraModulePaths();
+	}
+
 	blog(LOG_INFO, "---------------------------------");
 	obs_load_all_modules2(&mfi);
 	blog(LOG_INFO, "---------------------------------");
@@ -2292,10 +2323,16 @@ void OBSBasic::OBSInit()
 	ui->actionShowWhatsNew = nullptr;
 #endif
 
+	if (safe_mode) {
+		ui->actionRestartSafe->setText(
+			QTStr("Basic.MainMenu.Help.RestartNormal"));
+	}
+
 	UpdatePreviewProgramIndicators();
 	OnFirstLoad();
 
-	activateWindow();
+	if (!hideWindowOnStart)
+		activateWindow();
 
 	/* ------------------------------------------- */
 	/* display warning message for failed modules  */
@@ -3328,9 +3365,24 @@ void OBSBasic::SourceToolBarActionsSetEnabled()
 	RefreshToolBarStyling(ui->sourcesToolbar);
 }
 
+void OBSBasic::UpdateTransformShortcuts()
+{
+	OBSSource source = obs_sceneitem_get_source(GetCurrentSceneItem());
+	uint32_t flags = obs_source_get_output_flags(source);
+	bool audioOnly = (flags & OBS_SOURCE_VIDEO) == 0;
+
+	ui->actionEditTransform->setEnabled(!audioOnly);
+	ui->actionCopyTransform->setEnabled(!audioOnly);
+	ui->actionPasteTransform->setEnabled(audioOnly ? false
+						       : hasCopiedTransform);
+
+	ui->actionResetTransform->setEnabled(!audioOnly);
+}
+
 void OBSBasic::UpdateContextBar(bool force)
 {
 	SourceToolBarActionsSetEnabled();
+	UpdateTransformShortcuts();
 
 	if (!ui->contextContainer->isVisible() && !force)
 		return;
@@ -3564,7 +3616,9 @@ void OBSBasic::UnhideAllAudioControls()
 	using UnhideAudioMixer_t = decltype(UnhideAudioMixer);
 
 	auto PreEnum = [](void *data, obs_source_t *source) -> bool /* -- */
-	{ return (*reinterpret_cast<UnhideAudioMixer_t *>(data))(source); };
+	{
+		return (*reinterpret_cast<UnhideAudioMixer_t *>(data))(source);
+	};
 
 	obs_enum_sources(PreEnum, &UnhideAudioMixer);
 }
@@ -4904,6 +4958,7 @@ void OBSBasic::ClearSceneData()
 		outputHandler->UpdateVirtualCamOutputSource();
 	}
 
+	safeModeModuleData = nullptr;
 	lastScene = nullptr;
 	swapScene = nullptr;
 	programScene = nullptr;
@@ -4993,7 +5048,7 @@ void OBSBasic::closeEvent(QCloseEvent *event)
 		return;
 	}
 
-#if YOUTUBE_ENABLED
+#ifdef YOUTUBE_ENABLED
 	/* Also don't close the window if the youtube stream check is active */
 	if (youtubeStreamCheckThread) {
 		QTimer::singleShot(1000, this, SLOT(close()));
@@ -5091,14 +5146,14 @@ void OBSBasic::closeEvent(QCloseEvent *event)
 	if (api)
 		api->on_event(OBS_FRONTEND_EVENT_EXIT);
 
+	// Destroys the frontend API so plugins can't continue calling it
+	obs_frontend_set_callbacks_internal(nullptr);
+	api = nullptr;
+
 	QMetaObject::invokeMethod(App(), "quit", Qt::QueuedConnection);
 }
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 bool OBSBasic::nativeEvent(const QByteArray &, void *message, qintptr *)
-#else
-bool OBSBasic::nativeEvent(const QByteArray &, void *message, long *)
-#endif
 {
 #ifdef _WIN32
 	const MSG &msg = *static_cast<MSG *>(message);
@@ -5853,7 +5908,8 @@ QMenu *OBSBasic::AddBackgroundColorMenu(QMenu *menu,
 }
 
 ColorSelect::ColorSelect(QWidget *parent)
-	: QWidget(parent), ui(new Ui::ColorSelect)
+	: QWidget(parent),
+	  ui(new Ui::ColorSelect)
 {
 	ui->setupUi(this);
 }
@@ -6562,6 +6618,20 @@ void OBSBasic::on_actionRepair_triggered()
 #endif
 }
 
+void OBSBasic::on_actionRestartSafe_triggered()
+{
+	QMessageBox::StandardButton button = OBSMessageBox::question(
+		this, QTStr("Restart"),
+		safe_mode ? QTStr("SafeMode.RestartNormal")
+			  : QTStr("SafeMode.Restart"));
+
+	if (button == QMessageBox::Yes) {
+		restart = safe_mode;
+		restart_safe = !safe_mode;
+		close();
+	}
+}
+
 void OBSBasic::logUploadFinished(const QString &text, const QString &error)
 {
 	ui->menuLogFiles->setEnabled(true);
@@ -6748,7 +6818,7 @@ void OBSBasic::DisplayStreamStartError()
 	QMessageBox::critical(this, QTStr("Output.StartStreamFailed"), message);
 }
 
-#if YOUTUBE_ENABLED
+#ifdef YOUTUBE_ENABLED
 void OBSBasic::YouTubeActionDialogOk(const QString &id, const QString &key,
 				     bool autostart, bool autostop,
 				     bool start_now)
@@ -6944,7 +7014,7 @@ void OBSBasic::StartStreaming()
 	if (replayBufferWhileStreaming)
 		StartReplayBuffer();
 
-#if YOUTUBE_ENABLED
+#ifdef YOUTUBE_ENABLED
 	if (!autoStartBroadcast)
 		OBSBasic::ShowYouTubeAutoStartWarning();
 #endif
@@ -6961,7 +7031,7 @@ void OBSBasic::BroadcastButtonClicked()
 	}
 
 	if (!autoStartBroadcast) {
-#if YOUTUBE_ENABLED
+#ifdef YOUTUBE_ENABLED
 		std::shared_ptr<YoutubeApiWrappers> ytAuth =
 			dynamic_pointer_cast<YoutubeApiWrappers>(auth);
 		if (ytAuth.get()) {
@@ -7001,7 +7071,7 @@ void OBSBasic::BroadcastButtonClicked()
 		ui->broadcastButton->style()->unpolish(ui->broadcastButton);
 		ui->broadcastButton->style()->polish(ui->broadcastButton);
 	} else if (!autoStopBroadcast) {
-#if YOUTUBE_ENABLED
+#ifdef YOUTUBE_ENABLED
 		bool confirm = config_get_bool(GetGlobalConfig(), "BasicWindow",
 					       "WarnBeforeStoppingStream");
 		if (confirm && isVisible()) {
@@ -7060,7 +7130,7 @@ void OBSBasic::SetBroadcastFlowEnabled(bool enabled)
 
 void OBSBasic::SetupBroadcast()
 {
-#if YOUTUBE_ENABLED
+#ifdef YOUTUBE_ENABLED
 	Auth *const auth = GetAuth();
 	if (IsYouTubeService(auth->service())) {
 		OBSYoutubeActions dialog(this, auth, broadcastReady);
@@ -7323,7 +7393,7 @@ void OBSBasic::StreamingStart()
 		sysTrayStream->setEnabled(true);
 	}
 
-#if YOUTUBE_ENABLED
+#ifdef YOUTUBE_ENABLED
 	if (!autoStartBroadcast) {
 		// get a current stream key
 		obs_service_t *service_obj = GetService();
@@ -7975,7 +8045,7 @@ void OBSBasic::on_streamButton_clicked()
 		bool confirm = config_get_bool(GetGlobalConfig(), "BasicWindow",
 					       "WarnBeforeStoppingStream");
 
-#if YOUTUBE_ENABLED
+#ifdef YOUTUBE_ENABLED
 		if (isVisible() && auth && IsYouTubeService(auth->service()) &&
 		    autoStopBroadcast) {
 			QMessageBox::StandardButton button = OBSMessageBox::question(
@@ -9269,6 +9339,8 @@ void OBSBasic::UpdateTitleBar()
 		name << "Studio ";
 
 	name << App()->GetVersionString(false);
+	if (safe_mode)
+		name << " (SAFE MODE)";
 	if (App()->IsPortableMode())
 		name << " - " << Str("TitleBar.PortableMode");
 

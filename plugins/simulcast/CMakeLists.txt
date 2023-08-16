@@ -45,15 +45,7 @@ target_sources(
           src/simulcast-settings-window.h
           src/system-info.h)
 
-target_link_libraries(
-  simulcast
-  PRIVATE OBS::libobs
-          OBS::frontend-api
-          Qt::Core
-          Qt::Widgets
-          Qt::Svg
-          Qt::Network
-          CURL::libcurl)
+target_link_libraries(simulcast PRIVATE OBS::libobs OBS::frontend-api Qt::Widgets Qt::Svg Qt::Network CURL::libcurl)
 
 # target_compile_definitions(simulcast PRIVATE USE_MBEDTLS CRYPTO)
 

@@ -28,7 +28,8 @@ public:
 private:
 	WMIProvider(ComPtr<IWbemServices> service_,
 		    ComPtr<IWbemRefresher> refresher_)
-		: service_(service_), refresher_(refresher_)
+		: service_(service_),
+		  refresher_(refresher_)
 	{
 	}
 
@@ -59,7 +60,9 @@ private:
 	WMIDataQuery(const wchar_t *query_,
 		     std::shared_ptr<WMIProvider> provider_,
 		     ComPtr<IWbemHiPerfEnum> enumerator_)
-		: query_(query_), provider_(provider_), enumerator_(enumerator_)
+		: query_(query_),
+		  provider_(provider_),
+		  enumerator_(enumerator_)
 	{
 	}
 

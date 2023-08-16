@@ -16,7 +16,7 @@
 
 #include "ui-config.h"
 
-#if YOUTUBE_ENABLED
+#ifdef YOUTUBE_ENABLED
 #include "youtube-api-wrappers.hpp"
 #endif
 
@@ -185,7 +185,6 @@ void OBSBasicSettings::LoadStream1Settings()
 	else
 		ui->key->setText(key);
 
-	lastService.clear();
 	ServiceChanged();
 
 	UpdateKeyLink();
@@ -458,7 +457,7 @@ static void reset_service_ui_fields(Ui::OBSBasicSettings *ui,
 	ui->disconnectAccount->setVisible(false);
 }
 
-#if YOUTUBE_ENABLED
+#ifdef YOUTUBE_ENABLED
 static void get_yt_ch_title(Ui::OBSBasicSettings *ui)
 {
 	const char *name = config_get_string(OBSBasic::Get()->Config(),
@@ -560,7 +559,7 @@ void OBSBasicSettings::ServiceChanged()
 	auto system_auth_service = main->auth->service();
 	bool service_check = service.find(system_auth_service) !=
 			     std::string::npos;
-#if YOUTUBE_ENABLED
+#ifdef YOUTUBE_ENABLED
 	service_check = service_check ? service_check
 				      : IsYouTubeService(system_auth_service) &&
 						IsYouTubeService(service);
@@ -728,7 +727,7 @@ void OBSBasicSettings::OnOAuthStreamKeyConnected()
 		} else {
 			ui->bandwidthTestEnable->setChecked(false);
 		}
-#if YOUTUBE_ENABLED
+#ifdef YOUTUBE_ENABLED
 		if (IsYouTubeService(a->service())) {
 			ui->key->clear();
 
@@ -983,7 +982,7 @@ void OBSBasicSettings::UpdateServiceRecommendations()
 	}
 #undef ENFORCE_TEXT
 
-#if YOUTUBE_ENABLED
+#ifdef YOUTUBE_ENABLED
 	if (IsYouTubeService(QT_TO_UTF8(ui->service->currentText()))) {
 		if (!text.isEmpty())
 			text += "<br><br>";
@@ -1652,6 +1651,7 @@ void OBSBasicSettings::ResetEncoders(bool streamOnly)
 
 	ui->simpleOutStrEncoder->addItem(ENCODER_STR("Software"),
 					 QString(SIMPLE_ENCODER_X264));
+#ifdef _WIN32
 	if (service_supports_encoder(vcodecs, "obs_qsv11"))
 		ui->simpleOutStrEncoder->addItem(
 			ENCODER_STR("Hardware.QSV.H264"),
@@ -1660,6 +1660,7 @@ void OBSBasicSettings::ResetEncoders(bool streamOnly)
 		ui->simpleOutStrEncoder->addItem(
 			ENCODER_STR("Hardware.QSV.AV1"),
 			QString(SIMPLE_ENCODER_QSV_AV1));
+#endif
 	if (service_supports_encoder(vcodecs, "ffmpeg_nvenc"))
 		ui->simpleOutStrEncoder->addItem(
 			ENCODER_STR("Hardware.NVENC.H264"),

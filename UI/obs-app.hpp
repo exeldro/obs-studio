@@ -267,6 +267,8 @@ static inline int GetProfilePath(char *path, size_t size, const char *file)
 
 extern bool portable_mode;
 extern bool steam;
+extern bool safe_mode;
+extern bool disable_3p_plugins;
 
 extern bool opt_start_streaming;
 extern bool opt_start_recording;
@@ -276,11 +278,9 @@ extern bool opt_minimize_tray;
 extern bool opt_studio_mode;
 extern bool opt_allow_opengl;
 extern bool opt_always_on_top;
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-extern bool opt_disable_high_dpi_scaling;
-#endif
 extern std::string opt_starting_scene;
 extern bool restart;
+extern bool restart_safe;
 
 #ifdef _WIN32
 extern "C" void install_dll_blocklist_hook(void);

@@ -825,8 +825,9 @@ static bool send_video_header(struct rtmp_stream *stream, size_t idx,
 	uint8_t *header;
 	size_t size;
 
-	struct encoder_packet packet = {
-		.type = OBS_ENCODER_VIDEO, .timebase_den = 1, .keyframe = true};
+	struct encoder_packet packet = {.type = OBS_ENCODER_VIDEO,
+					.timebase_den = 1,
+					.keyframe = true};
 
 	if (!vencoder) {
 		*next = false;

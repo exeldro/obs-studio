@@ -157,7 +157,9 @@ void register_service()
 {
 	obs_service_info info{};
 	info.id = "simulcast_service";
-	info.get_name = [](void *) { return obs_module_text("Service.Name"); };
+	info.get_name = [](void *) {
+		return obs_module_text("Service.Name");
+	};
 	info.create = simulcast_service_create;
 	info.destroy = simulcast_service_destroy;
 	info.update = simulcast_service_update;

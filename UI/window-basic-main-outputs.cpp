@@ -1198,6 +1198,8 @@ bool SimpleOutput::StartStreaming(obs_service_t *service)
 		config_get_bool(main->Config(), "Output", "DelayPreserve");
 	const char *bindIP =
 		config_get_string(main->Config(), "Output", "BindIP");
+	const char *ipFamily =
+		config_get_string(main->Config(), "Output", "IPFamily");
 #ifdef _WIN32
 	bool enableNewSocketLoop = config_get_bool(main->Config(), "Output",
 						   "NewSocketLoopEnable");
@@ -1209,6 +1211,7 @@ bool SimpleOutput::StartStreaming(obs_service_t *service)
 
 	OBSDataAutoRelease settings = obs_data_create();
 	obs_data_set_string(settings, "bind_ip", bindIP);
+	obs_data_set_string(settings, "ip_family", ipFamily);
 #ifdef _WIN32
 	obs_data_set_bool(settings, "new_socket_loop_enabled",
 			  enableNewSocketLoop);
@@ -1330,6 +1333,7 @@ bool SimpleOutput::ConfigureRecording(bool updateReplayBuffer)
 		config_get_int(main->Config(), "SimpleOutput", "RecTracks");
 
 	bool is_fragmented = strncmp(format, "fragmented", 10) == 0;
+	bool is_lossless = videoQuality == "Lossless";
 
 	string f;
 
@@ -1356,7 +1360,8 @@ bool SimpleOutput::ConfigureRecording(bool updateReplayBuffer)
 	}
 
 	// Use fragmented MOV/MP4 if user has not already specified custom movflags
-	if (is_fragmented && (!mux || strstr(mux, "movflags") == NULL)) {
+	if (is_fragmented && !is_lossless &&
+	    (!mux || strstr(mux, "movflags") == NULL)) {
 		string mux_frag =
 			"movflags=frag_keyframe+empty_moov+delay_moov";
 		if (mux) {
@@ -1366,7 +1371,7 @@ bool SimpleOutput::ConfigureRecording(bool updateReplayBuffer)
 		obs_data_set_string(settings, "muxer_settings",
 				    mux_frag.c_str());
 	} else {
-		if (is_fragmented)
+		if (is_fragmented && !is_lossless)
 			blog(LOG_WARNING,
 			     "User enabled fragmented recording, "
 			     "but custom muxer settings contained movflags.");
@@ -2148,6 +2153,8 @@ bool AdvancedOutput::StartStreaming(obs_service_t *service)
 		config_get_bool(main->Config(), "Output", "DelayPreserve");
 	const char *bindIP =
 		config_get_string(main->Config(), "Output", "BindIP");
+	const char *ipFamily =
+		config_get_string(main->Config(), "Output", "IPFamily");
 #ifdef _WIN32
 	bool enableNewSocketLoop = config_get_bool(main->Config(), "Output",
 						   "NewSocketLoopEnable");
@@ -2159,6 +2166,7 @@ bool AdvancedOutput::StartStreaming(obs_service_t *service)
 
 	OBSDataAutoRelease settings = obs_data_create();
 	obs_data_set_string(settings, "bind_ip", bindIP);
+	obs_data_set_string(settings, "ip_family", ipFamily);
 #ifdef _WIN32
 	obs_data_set_bool(settings, "new_socket_loop_enabled",
 			  enableNewSocketLoop);

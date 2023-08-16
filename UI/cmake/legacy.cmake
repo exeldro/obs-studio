@@ -82,7 +82,7 @@ set_target_properties(
              AUTORCC ON
              AUTOUIC_SEARCH_PATHS "forms;forms/source-toolbar")
 
-if(_QT_VERSION EQUAL 6 AND OS_WINDOWS)
+if(OS_WINDOWS)
   set_target_properties(obs PROPERTIES AUTORCC_OPTIONS "--format-version;1")
 endif()
 
@@ -116,6 +116,7 @@ target_sources(
           forms/OBSRemux.ui
           forms/OBSUpdate.ui
           forms/OBSYoutubeActions.ui
+          forms/StatusBarWidget.ui
           forms/source-toolbar/browser-source-toolbar.ui
           forms/source-toolbar/color-source-toolbar.ui
           forms/source-toolbar/device-select-toolbar.ui
@@ -357,11 +358,6 @@ if(OS_WINDOWS)
             update/crypto-helpers.hpp
             ${CMAKE_BINARY_DIR}/obs.rc)
 
-  if(_QT_VERSION EQUAL 5)
-    find_qt(COMPONENTS WinExtras)
-    target_link_libraries(obs PRIVATE Qt::WinExtras)
-  endif()
-
   find_package(MbedTLS)
   target_link_libraries(obs PRIVATE Mbedtls::Mbedtls OBS::blake2 Detours::Detours)
 
@@ -489,6 +485,10 @@ source_group(
   FILES ${_UI})
 unset(_SOURCES)
 unset(_UI)
+
+get_property(OBS_MODULE_LIST GLOBAL PROPERTY OBS_MODULE_LIST)
+list(JOIN OBS_MODULE_LIST "|" SAFE_MODULES)
+target_compile_definitions(obs PRIVATE "SAFE_MODULES=\"${SAFE_MODULES}\"")
 
 define_graphic_modules(obs)
 setup_obs_app(obs)

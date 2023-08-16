@@ -107,8 +107,9 @@ static bool get_audio_headers(struct ffmpeg_output *stream,
 	AVCodecParameters *par = data->audio_infos[idx].stream->codecpar;
 	obs_encoder_t *aencoder =
 		obs_output_get_audio_encoder(stream->output, idx);
-	struct encoder_packet packet = {
-		.type = OBS_ENCODER_AUDIO, .timebase_den = 1, .track_idx = idx};
+	struct encoder_packet packet = {.type = OBS_ENCODER_AUDIO,
+					.timebase_den = 1,
+					.track_idx = idx};
 
 	if (obs_encoder_get_extra_data(aencoder, &packet.data, &packet.size)) {
 		par->extradata = av_memdup(packet.data, packet.size);
@@ -645,9 +646,6 @@ bool ffmpeg_mpegts_data_init(struct ffmpeg_output *stream,
 	if (!config->url || !*config->url)
 		return false;
 
-#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 9, 100)
-	av_register_all();
-#endif
 	avformat_network_init();
 
 #if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(59, 0, 100)
