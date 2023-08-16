@@ -34,6 +34,8 @@ class OBSBasicStats : public QFrame {
 	uint64_t num_bytes = 0;
 	std::vector<long double> bitrates;
 
+	std::vector<OBSWeakOutputAutoRelease> additionalStreamingOutputs;
+
 	struct OutputLabels {
 		QPointer<QLabel> name;
 		QPointer<QLabel> status;
@@ -41,21 +43,26 @@ class OBSBasicStats : public QFrame {
 		QPointer<QLabel> megabytesSent;
 		QPointer<QLabel> bitrate;
 
+		OBSWeakOutput weakOutput;
+		bool recording = false;
+
 		uint64_t lastBytesSent = 0;
 		uint64_t lastBytesSentTime = 0;
 
 		int first_total = 0;
 		int first_dropped = 0;
 
-		void Update(obs_output_t *output, bool rec);
+		bool Update();
 		void Reset(obs_output_t *output);
+		bool ResetCounters();
 
 		long double kbps = 0.0l;
 	};
 
 	QList<OutputLabels> outputLabels;
 
-	void AddOutputLabels(QString name);
+	void AddOutputLabels(QString name, bool recording);
+	void RemoveOutputLabels(OutputLabels &labels);
 	void Update();
 
 	virtual void closeEvent(QCloseEvent *event) override;
