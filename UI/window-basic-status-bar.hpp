@@ -5,6 +5,7 @@
 #include <QTimer>
 #include <obs.h>
 #include <memory>
+#include <obs.hpp>
 
 class Ui_StatusBarWidget;
 
@@ -27,7 +28,7 @@ class OBSBasicStatusBar : public QStatusBar {
 private:
 	StatusBarWidget *statusWidget = nullptr;
 
-	obs_output_t *streamOutput = nullptr;
+	OBSWeakOutputAutoRelease streamOutput;
 	obs_output_t *recordOutput = nullptr;
 	bool active = false;
 	bool overloadedNotify = true;
