@@ -138,8 +138,8 @@ OBSBasicStats::OBSBasicStats(QWidget *parent, bool closeable)
 
 	/* --------------------------------------------- */
 
-	AddOutputLabels(QTStr("Basic.Stats.Output.Stream"));
-	AddOutputLabels(QTStr("Basic.Stats.Output.Recording"));
+	AddOutputLabels(QTStr("Basic.Stats.Output.Stream"), false);
+	AddOutputLabels(QTStr("Basic.Stats.Output.Recording"), true);
 
 	/* --------------------------------------------- */
 
@@ -240,7 +240,7 @@ OBSBasicStats::~OBSBasicStats()
 	os_cpu_usage_info_destroy(cpu_info);
 }
 
-void OBSBasicStats::AddOutputLabels(QString name)
+void OBSBasicStats::AddOutputLabels(QString name, bool recording)
 {
 	OutputLabels ol;
 	ol.name = new QLabel(name, this);
@@ -248,6 +248,8 @@ void OBSBasicStats::AddOutputLabels(QString name)
 	ol.droppedFrames = new QLabel(this);
 	ol.megabytesSent = new QLabel(this);
 	ol.bitrate = new QLabel(this);
+
+	ol.recording = recording;
 
 	int col = 0;
 	int row = outputLabels.size() + 1;
@@ -257,6 +259,21 @@ void OBSBasicStats::AddOutputLabels(QString name)
 	outputLayout->addWidget(ol.megabytesSent, row, col++);
 	outputLayout->addWidget(ol.bitrate, row, col++);
 	outputLabels.push_back(ol);
+}
+
+void OBSBasicStats::RemoveOutputLabels(OutputLabels &labels)
+{
+	outputLayout->removeWidget(labels.name);
+	outputLayout->removeWidget(labels.status);
+	outputLayout->removeWidget(labels.droppedFrames);
+	outputLayout->removeWidget(labels.megabytesSent);
+	outputLayout->removeWidget(labels.bitrate);
+
+	labels.name->deleteLater();
+	labels.status->deleteLater();
+	labels.droppedFrames->deleteLater();
+	labels.megabytesSent->deleteLater();
+	labels.bitrate->deleteLater();
 }
 
 static uint32_t first_encoded = 0xFFFFFFFF;
@@ -285,7 +302,19 @@ void OBSBasicStats::Update()
 	OBSOutputAutoRelease strOutput = obs_frontend_get_streaming_output();
 	OBSOutputAutoRelease recOutput = obs_frontend_get_recording_output();
 
-	if (!strOutput && !recOutput)
+	auto additionalLiveStreamOutputs =
+		main->GetAdditionalLiveStreamOutputs();
+
+	if (additionalLiveStreamOutputs.empty() && outputLabels.size() > 2) {
+		std::for_each(outputLabels.begin() + 2, outputLabels.end(),
+			      [&](auto &labels) {
+				      RemoveOutputLabels(labels);
+			      });
+		outputLabels.erase(outputLabels.begin() + 2,
+				   outputLabels.end());
+	}
+
+	if (!strOutput && !recOutput && additionalLiveStreamOutputs.empty())
 		return;
 
 	/* ------------------------------------------- */
@@ -425,8 +454,34 @@ void OBSBasicStats::Update()
 	/* ------------------------------------------- */
 	/* recording/streaming stats                   */
 
-	outputLabels[0].Update(strOutput, false);
-	outputLabels[1].Update(recOutput, true);
+	if (!outputLabels[0].Update())
+		outputLabels[0].Reset(OBSOutputAutoRelease{
+			obs_frontend_get_streaming_output()});
+	if (!outputLabels[1].Update())
+		outputLabels[0].Reset(OBSOutputAutoRelease{
+			obs_frontend_get_recording_output()});
+
+	for (auto it = outputLabels.begin() + 2; it != outputLabels.end();) {
+		if (!it->Update()) {
+			RemoveOutputLabels(*it);
+			it = outputLabels.erase(it);
+		} else {
+			++it;
+		}
+	}
+
+	for (auto &liveOutput : additionalLiveStreamOutputs) {
+		auto name = obs_output_get_name(liveOutput);
+		auto it = std::find_if(outputLabels.begin(), outputLabels.end(),
+				       [&](auto &it) {
+					       return it.name->text() == name;
+				       });
+		if (it == outputLabels.end()) {
+			AddOutputLabels(name, false);
+			outputLabels.last().Reset(liveOutput);
+			outputLabels.last().Update();
+		}
+	}
 
 	if (obs_output_active(recOutput)) {
 		long double kbps = outputLabels[1].kbps;
@@ -491,11 +546,23 @@ void OBSBasicStats::Reset()
 
 	outputLabels[0].Reset(strOutput);
 	outputLabels[1].Reset(recOutput);
+
+	for (auto it = outputLabels.begin() + 2; it != outputLabels.end();) {
+		if (!it->ResetCounters()) {
+			RemoveOutputLabels(*it);
+			it = outputLabels.erase(it);
+		} else {
+			++it;
+		}
+	}
+
 	Update();
 }
 
-void OBSBasicStats::OutputLabels::Update(obs_output_t *output, bool rec)
+bool OBSBasicStats::OutputLabels::Update()
 {
+	OBSOutputAutoRelease output = obs_weak_output_get_output(weakOutput);
+
 	uint64_t totalBytes = output ? obs_output_get_total_bytes(output) : 0;
 	uint64_t curTime = os_gettime_ns();
 	uint64_t bytesSent = totalBytes;
@@ -516,7 +583,7 @@ void OBSBasicStats::OutputLabels::Update(obs_output_t *output, bool rec)
 	QString str = QTStr("Basic.Stats.Status.Inactive");
 	QString themeID;
 	bool active = output ? obs_output_active(output) : false;
-	if (rec) {
+	if (recording) {
 		if (active)
 			str = QTStr("Basic.Stats.Status.Recording");
 	} else {
@@ -544,7 +611,7 @@ void OBSBasicStats::OutputLabels::Update(obs_output_t *output, bool rec)
 		QString("%1 MB").arg(QString::number(num, 'f', 1)));
 	bitrate->setText(QString("%1 kb/s").arg(QString::number(kbps, 'f', 0)));
 
-	if (!rec) {
+	if (!recording) {
 		int total = output ? obs_output_get_total_frames(output) : 0;
 		int dropped = output ? obs_output_get_frames_dropped(output)
 				     : 0;
@@ -576,6 +643,8 @@ void OBSBasicStats::OutputLabels::Update(obs_output_t *output, bool rec)
 
 	lastBytesSent = bytesSent;
 	lastBytesSentTime = curTime;
+
+	return output != nullptr;
 }
 
 void OBSBasicStats::OutputLabels::Reset(obs_output_t *output)
@@ -583,8 +652,22 @@ void OBSBasicStats::OutputLabels::Reset(obs_output_t *output)
 	if (!output)
 		return;
 
+	weakOutput =
+		OBSWeakOutputAutoRelease{obs_output_get_weak_output(output)};
+
+	ResetCounters();
+}
+
+bool OBSBasicStats::OutputLabels::ResetCounters()
+{
+	OBSOutputAutoRelease output = obs_weak_output_get_output(weakOutput);
+	if (!output)
+		return false;
+
 	first_total = obs_output_get_total_frames(output);
 	first_dropped = obs_output_get_frames_dropped(output);
+
+	return true;
 }
 
 void OBSBasicStats::showEvent(QShowEvent *)

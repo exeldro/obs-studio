@@ -389,6 +389,8 @@ QFuture<bool> SimulcastOutput::StartStreaming(const QString &stream_key,
 			      SetupSignalHandlers(this, vals.output);
 
 			      output_ = std::move(vals.output);
+			      weak_output_ =
+				      obs_output_get_weak_output(output_);
 			      video_encoders_ = std::move(vals.video_encoders);
 			      audio_encoder_ = std::move(vals.audio_encoder);
 			      simulcast_service_ =
@@ -482,6 +484,11 @@ void StreamStartHandler(void *arg, calldata_t * /* data */)
 {
 	auto self = static_cast<SimulcastOutput *>(arg);
 	self->streaming_ = true;
+
+	CreateFuture().then(self, [output = OBSOutput{self->output_}] {
+		obs_frontend_external_stream_started(output);
+	});
+
 	emit self->StreamStarted();
 }
 
@@ -489,5 +496,12 @@ void StreamStopHandler(void *arg, calldata_t * /* data */)
 {
 	auto self = static_cast<SimulcastOutput *>(arg);
 	self->streaming_ = false;
+
+	CreateFuture().then(self, [weak_output =
+					   OBSWeakOutput{self->weak_output_}] {
+		obs_frontend_external_stream_stopped(weak_output);
+	});
+	self->weak_output_ = nullptr;
+
 	emit self->StreamStopped();
 }

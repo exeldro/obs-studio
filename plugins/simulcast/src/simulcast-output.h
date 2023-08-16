@@ -35,6 +35,7 @@ private:
 	std::atomic<bool> streaming_ = false;
 
 	OBSOutputAutoRelease output_;
+	OBSWeakOutputAutoRelease weak_output_;
 	std::vector<OBSEncoderAutoRelease> video_encoders_;
 	OBSEncoderAutoRelease audio_encoder_;
 	OBSServiceAutoRelease simulcast_service_;

@@ -10946,6 +10946,44 @@ QColor OBSBasic::GetSelectionColor() const
 	}
 }
 
+void OBSBasic::AddAdditionalStreamOutput(obs_output_t *output)
+{
+	additionalStreamingOutputs.emplace_back(
+		obs_output_get_weak_output(output));
+
+	ui->statusbar->StreamStarted(output);
+}
+
+void OBSBasic::RemoveAdditionalStreamOutput(obs_weak_output_t *removedOutput)
+{
+	auto it = std::find(std::begin(additionalStreamingOutputs),
+			    std::end(additionalStreamingOutputs),
+			    removedOutput);
+	if (it != std::end(additionalStreamingOutputs))
+		additionalStreamingOutputs.erase(it);
+
+	ui->statusbar->StreamStopped();
+}
+
+std::vector<OBSOutputAutoRelease> OBSBasic::GetAdditionalLiveStreamOutputs()
+{
+	std::vector<OBSOutputAutoRelease> additionalLiveOutputs;
+
+	additionalLiveOutputs.reserve(additionalStreamingOutputs.size());
+	auto first_unalive = std::remove_if(
+		std::begin(additionalStreamingOutputs),
+		std::end(additionalStreamingOutputs), [&](auto &out) {
+			auto strong = obs_weak_output_get_output(out);
+			if (strong)
+				additionalLiveOutputs.push_back(strong);
+			return strong == nullptr;
+		});
+	additionalStreamingOutputs.erase(first_unalive,
+					 std::end(additionalStreamingOutputs));
+
+	return additionalLiveOutputs;
+}
+
 QColor OBSBasic::GetCropColor() const
 {
 	if (config_get_bool(GetGlobalConfig(), "Accessibility",

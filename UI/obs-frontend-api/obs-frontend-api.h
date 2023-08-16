@@ -252,6 +252,10 @@ EXPORT void obs_frontend_add_undo_redo_action(
 	const char *name, const undo_redo_cb undo, const undo_redo_cb redo,
 	const char *undo_data, const char *redo_data, bool repeatable);
 
+// these must be called on the UI thread, otherwise Qt will trigger assertions
+EXPORT void obs_frontend_external_stream_started(obs_output_t *output);
+EXPORT void obs_frontend_external_stream_stopped(obs_weak_output_t *output);
+
 /* ------------------------------------------------------------------------- */
 
 #ifdef __cplusplus

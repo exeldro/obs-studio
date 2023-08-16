@@ -4,6 +4,8 @@
 #include "window-basic-main.hpp"
 #include "window-basic-main-outputs.hpp"
 
+#include "window-basic-status-bar.hpp"
+
 #include <functional>
 
 using namespace std;
@@ -782,6 +784,17 @@ struct OBSStudioAPI : obs_frontend_callbacks {
 			auto cb = callbacks[i - 1];
 			cb.callback(event, cb.private_data);
 		}
+	}
+
+	void obs_frontend_external_stream_started(obs_output_t *output) override
+	{
+		main->AddAdditionalStreamOutput(output);
+	}
+
+	void
+	obs_frontend_external_stream_stopped(obs_weak_output_t *output) override
+	{
+		main->RemoveAdditionalStreamOutput(output);
 	}
 };
 
