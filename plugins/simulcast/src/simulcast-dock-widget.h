@@ -39,6 +39,8 @@ public:
 	const ImmutableDateTime &GenerateStreamAttemptStartTime();
 	const std::optional<ImmutableDateTime> &StreamAttemptStartTime() const;
 
+	void SetParentStyleSheet();
+
 signals:
 	void ProfileChanged();
 

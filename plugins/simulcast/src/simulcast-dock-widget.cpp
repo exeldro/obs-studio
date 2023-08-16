@@ -430,3 +430,9 @@ SimulcastDockWidget::StreamAttemptStartTime() const
 {
 	return stream_attempt_start_time_;
 }
+
+void SimulcastDockWidget::SetParentStyleSheet()
+{
+	parentWidget()->setStyleSheet(
+		"QDockWidget::title { background-color: #644186; color: white; }");
+}

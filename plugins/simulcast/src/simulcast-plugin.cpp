@@ -87,6 +87,9 @@ bool obs_module_load(void)
 
 	obs_frontend_add_dock_by_id("twitch-go-live", "Twitch", dock);
 
+	// Parent is set by `obs_frontend_add_dock_by_id`, so we need to call this externally/later
+	dock->SetParentStyleSheet();
+
 	obs_frontend_add_event_callback(
 		[](enum obs_frontend_event event, void *private_data) {
 			obs_event_handler(event,
