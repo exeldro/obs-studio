@@ -364,6 +364,18 @@ void obs_frontend_remove_event_callback(obs_frontend_event_cb callback,
 		c->obs_frontend_remove_event_callback(callback, private_data);
 }
 
+void obs_frontend_external_stream_started(obs_output_t *output)
+{
+	if (callbacks_valid())
+		c->obs_frontend_external_stream_started(output);
+}
+
+void obs_frontend_external_stream_stopped(obs_weak_output_t *output)
+{
+	if (callbacks_valid())
+		c->obs_frontend_external_stream_stopped(output);
+}
+
 obs_output_t *obs_frontend_get_streaming_output(void)
 {
 	return !!callbacks_valid() ? c->obs_frontend_get_streaming_output()
