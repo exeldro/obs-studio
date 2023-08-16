@@ -48,7 +48,8 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 	: QDialog(parent),
 	  dock_(dock)
 {
-	setWindowTitle("Twitch Simulcast Settings"); // TODO: localize?
+	setWindowTitle(
+		obs_module_text("Settings.WindowTitle")); // TODO: localize?
 
 	auto window_layout = new QVBoxLayout(this);
 	auto form_layout = new QFormLayout;
