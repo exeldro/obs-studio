@@ -8,6 +8,7 @@ class QAbstractButton;
 class QCheckBox;
 class QDialogButtonBox;
 class QLineEdit;
+class QPlainTextEdit;
 class QPushButton;
 
 class SimulcastSettingsWindow : public QDialog {
@@ -30,4 +31,7 @@ private:
 	QDialogButtonBox *button_box_;
 
 	QCheckBox *telemetry_checkbox_;
+
+	QCheckBox *use_twitch_config_;
+	QPlainTextEdit *custom_config_;
 };
