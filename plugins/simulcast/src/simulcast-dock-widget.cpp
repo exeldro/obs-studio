@@ -57,6 +57,24 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 					     start_time.CStr());
 	ProfileScope(scope_name);
 
+	QString url = GO_LIVE_API_URL;
+	OBSDataAutoRelease custom_config_data;
+	if (!self->UseTwitchConfig()) {
+		const auto &custom_config = self->CustomConfig();
+		if (custom_config.startsWith("http")) {
+			url = custom_config;
+		} else {
+			custom_config_data = obs_data_create_from_json(
+				self->CustomConfig().toUtf8().constData());
+			if (!custom_config_data) {
+				QMessageBox::critical(self,
+						      "Failed to start stream",
+						      "Invalid custom config");
+				return;
+			}
+		}
+	}
+
 	streamingButton->setText(
 		obs_frontend_get_locale_string("Basic.Main.Connecting"));
 	streamingButton->setDisabled(true);
@@ -65,92 +83,120 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 		ProfileScope("constructGoLivePostData");
 		return constructGoLivePost(start_time);
 	}()};
-	DownloadGoLiveConfig(self, GO_LIVE_API_URL, postData).then(self, [=](OBSDataAutoRelease goLiveConfig) mutable {
-		auto download_time_elapsed = start_time.MSecsElapsed();
 
-		self->Output()
-			.StartStreaming(self->StreamKey(), goLiveConfig)
-			.then(self,
-			      [=, goLiveConfig =
-					  OBSData{goLiveConfig}](bool started) {
-				      if (!started) {
-					      streamingButton->setText(
-						      obs_frontend_get_locale_string(
-							      "Basic.Main.StartStreaming"));
-					      streamingButton->setDisabled(
-						      false);
+	DownloadGoLiveConfig(self, url, postData)
+		.then(self, [=, use_custom_config = !self->UseTwitchConfig(),
+			     custom_config_data = OBSData{custom_config_data}](
+				    OBSDataAutoRelease goLiveConfig) mutable {
+			auto download_time_elapsed = start_time.MSecsElapsed();
+
+			if (!goLiveConfig && !custom_config_data) {
+				streamingButton->setText(
+					obs_frontend_get_locale_string(
+						"Basic.Main.StartStreaming"));
+				streamingButton->setDisabled(false);
+				QMessageBox::critical(
+					self, "Failed to start stream",
+					use_custom_config
+						? "Custom config URL returned invalid config, check log for details"
+						: "API returned invalid config; try again later");
+				return;
+			}
+
+			auto config_used = custom_config_data
+						   ? custom_config_data
+						   : OBSData{goLiveConfig};
+
+			self->Output()
+				.StartStreaming(self->StreamKey(), config_used)
+				.then(self,
+				      [=](bool started) {
+					      if (!started) {
+						      streamingButton->setText(
+							      obs_frontend_get_locale_string(
+								      "Basic.Main.StartStreaming"));
+						      streamingButton
+							      ->setDisabled(
+								      false);
+
+						      auto start_streaming_returned =
+							      start_time
+								      .MSecsElapsed();
+						      auto event = MakeEvent_ivs_obs_stream_start_failed(
+							      postData,
+							      config_used,
+							      start_time,
+							      download_time_elapsed,
+							      start_streaming_returned);
+						      berryessa->submit(
+							      "ivs_obs_stream_start_failed",
+							      event);
+						      return;
+					      }
 
 					      auto start_streaming_returned =
 						      start_time.MSecsElapsed();
-					      auto event = MakeEvent_ivs_obs_stream_start_failed(
-						      postData, goLiveConfig,
-						      start_time,
-						      download_time_elapsed,
-						      start_streaming_returned);
-					      berryessa->submit(
-						      "ivs_obs_stream_start_failed",
-						      event);
-					      return;
-				      }
 
-				      auto start_streaming_returned =
-					      start_time.MSecsElapsed();
-
-				      auto event =
-					      MakeEvent_ivs_obs_stream_start(
-						      postData, goLiveConfig,
+					      auto event = MakeEvent_ivs_obs_stream_start(
+						      postData, config_used,
 						      start_time,
 						      download_time_elapsed,
 						      start_streaming_returned,
 						      self->Output()
 							      .ConnectTimeMs());
-				      const char *configId =
-					      obs_data_get_string(event,
-								  "config_id");
-				      if (configId) {
-					      // put the config_id on all events until the stream ends
+
+					      if (!use_custom_config) {
+						      const char *configId =
+							      obs_data_get_string(
+								      event,
+								      "config_id");
+						      if (configId) {
+							      // put the config_id on all events until the stream ends
+							      berryessa->setAlwaysString(
+								      "config_id",
+								      configId);
+						      }
+					      }
+
 					      berryessa->setAlwaysString(
-						      "config_id", configId);
-				      }
-				      berryessa->setAlwaysString(
-					      "stream_attempt_start_time",
-					      start_time.CStr());
+						      "stream_attempt_start_time",
+						      start_time.CStr());
 
-				      berryessa->submit("ivs_obs_stream_start",
-							event);
+					      berryessa->submit(
+						      "ivs_obs_stream_start",
+						      event);
 
-				      if (!telemetry_enabled)
-					      return;
+					      if (!telemetry_enabled)
+						      return;
 
-				      berryessaEveryMinute->reset(
-					      new BerryessaEveryMinute(
+					      berryessaEveryMinute->reset(new BerryessaEveryMinute(
 						      self, berryessa,
 						      self->Output()
 							      .VideoEncoders()));
-			      })
-			.onFailed(self, [=,
-					 goLiveConfig = OBSData{goLiveConfig}](
-						const QString &error) {
-				streamingButton->setText(
-					obs_frontend_get_locale_string(
-						"Basic.Main.StartStreaming"));
-				streamingButton->setDisabled(false);
+				      })
+				.onFailed(self, [=](const QString &error) {
+					streamingButton->setText(
+						obs_frontend_get_locale_string(
+							"Basic.Main.StartStreaming"));
+					streamingButton->setDisabled(false);
 
-				auto start_streaming_returned =
-					start_time.MSecsElapsed();
-				auto event =
-					MakeEvent_ivs_obs_stream_start_failed(
-						postData, goLiveConfig,
-						start_time,
-						download_time_elapsed,
-						start_streaming_returned);
-				berryessa->submit("ivs_obs_stream_start_failed",
-						  event);
+					auto start_streaming_returned =
+						start_time.MSecsElapsed();
+					auto event =
+						MakeEvent_ivs_obs_stream_start_failed(
+							postData, config_used,
+							start_time,
+							download_time_elapsed,
+							start_streaming_returned);
+					berryessa->submit(
+						"ivs_obs_stream_start_failed",
+						event);
 
-				QMessageBox::critical(
-					self, "Failed to start stream", error);
-			});
-	});
+					QMessageBox::critical(
+						self, "Failed to start stream",
+						error);
+				});
+		});
 }
 
 static void SetupSignalsAndSlots(
@@ -263,10 +309,12 @@ static OBSDataAutoRelease load_or_create_obj(obs_data_t *data, const char *name)
 #define JSON_CONFIG_FILE module_config_path("config.json")
 #define DATA_KEY_SETTINGS_WINDOW_GEOMETRY "settings_window_geometry"
 #define DATA_KEY_MAKE_DOCK_VISIBLE_PROMPT "make_dock_visible_prompt"
+#define DATA_KEY_CUSTOM_CONFIG "custom_config"
 #define DATA_KEY_DEVICE_ID "device_id"
 #define DATA_KEY_PROFILES "profiles"
 #define DATA_KEY_STREAM_KEY "stream_key"
 #define DATA_KEY_TELEMETRY_ENABLED "telemetry"
+#define DATA_KEY_USE_TWITCH_CONFIG "use_twitch_config"
 
 static void write_config(obs_data_t *config)
 {
@@ -285,6 +333,10 @@ void SimulcastDockWidget::SaveConfig()
 			    stream_key_.toUtf8().constData());
 	obs_data_set_bool(profile_, DATA_KEY_TELEMETRY_ENABLED,
 			  telemetry_enabled_);
+	obs_data_set_bool(profile_, DATA_KEY_USE_TWITCH_CONFIG,
+			  use_twitch_config_);
+	obs_data_set_string(profile_, DATA_KEY_CUSTOM_CONFIG,
+			    custom_config_.toUtf8().constData());
 	obs_data_set_string(config_, DATA_KEY_SETTINGS_WINDOW_GEOMETRY,
 			    settings_window_geometry_.toBase64().constData());
 	if (make_dock_visible_prompt_.has_value()) {
@@ -313,11 +365,15 @@ void SimulcastDockWidget::LoadConfig()
 	profile_ = load_or_create_obj(profiles_, profile_name_->array);
 
 	obs_data_set_default_bool(profile_, DATA_KEY_TELEMETRY_ENABLED, true);
+	obs_data_set_default_bool(profile_, DATA_KEY_USE_TWITCH_CONFIG, true);
 
 	// Set modified config values here
 	stream_key_ = obs_data_get_string(profile_, DATA_KEY_STREAM_KEY);
 	telemetry_enabled_ =
 		obs_data_get_bool(profile_, DATA_KEY_TELEMETRY_ENABLED);
+	use_twitch_config_ =
+		obs_data_get_bool(profile_, DATA_KEY_USE_TWITCH_CONFIG);
+	custom_config_ = obs_data_get_string(profile_, DATA_KEY_CUSTOM_CONFIG);
 	settings_window_geometry_ = QByteArray::fromBase64(obs_data_get_string(
 		config_, DATA_KEY_SETTINGS_WINDOW_GEOMETRY));
 	if (obs_data_has_user_value(config_,

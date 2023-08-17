@@ -10,6 +10,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMainWindow>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSpacerItem>
 #include <QVBoxLayout>
@@ -64,6 +65,12 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 	telemetry_checkbox_ =
 		new QCheckBox(obs_module_text("Settings.EnableTelemetry"));
 
+	use_twitch_config_ =
+		new QCheckBox(obs_module_text("Settings.UseTwitchConfig"));
+	custom_config_ = new QPlainTextEdit;
+	auto custom_config_label =
+		new QLabel(obs_module_text("Settings.CustomConfig"));
+
 	// Allow button box to move to bottom of window, even when the window is resized
 	auto stretch_spacer = new QSpacerItem(1, 1, QSizePolicy::Minimum,
 					      QSizePolicy::MinimumExpanding);
@@ -79,6 +86,8 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 	form_layout->addRow(obs_module_text("Settings.StreamKey"),
 			    stream_key_edit_layout);
 	form_layout->addRow("", telemetry_checkbox_);
+	form_layout->addRow("", use_twitch_config_);
+	form_layout->addRow(custom_config_label, custom_config_);
 	form_layout->addItem(stretch_spacer);
 	form_layout->addRow(button_box_);
 
@@ -104,6 +113,16 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 		});
 	connect(telemetry_checkbox_, &QCheckBox::stateChanged,
 		[=](int /*state*/) { SetApplyEnabled(true); });
+	connect(use_twitch_config_, &QCheckBox::stateChanged,
+		[=](int /*state*/) {
+			SetApplyEnabled(true);
+			custom_config_->setEnabled(
+				!use_twitch_config_->isChecked());
+			custom_config_label->setEnabled(
+				!use_twitch_config_->isChecked());
+		});
+	connect(custom_config_, &QPlainTextEdit::textChanged,
+		[=] { SetApplyEnabled(true); });
 	connect(button_box_, &QDialogButtonBox::clicked,
 		[=](QAbstractButton *button) { this->ButtonPressed(button); });
 
@@ -138,6 +157,8 @@ void SimulcastSettingsWindow::ButtonPressed(QAbstractButton *button)
 	// Handle individual settings here
 	dock_->StreamKey() = stream_key_edit_->text();
 	dock_->TelemetryEanbled() = telemetry_checkbox_->isChecked();
+	dock_->UseTwitchConfig() = use_twitch_config_->isChecked();
+	dock_->CustomConfig() = custom_config_->toPlainText();
 	dock_->SettingsWindowGeometry() = saveGeometry();
 	// Handle individual settings above
 
@@ -170,6 +191,8 @@ void SimulcastSettingsWindow::ResetSettings()
 {
 	stream_key_edit_->setText(dock_->StreamKey());
 	telemetry_checkbox_->setChecked(dock_->TelemetryEanbled());
+	use_twitch_config_->setChecked(dock_->UseTwitchConfig());
+	custom_config_->setPlainText(dock_->CustomConfig());
 
 	SetApplyEnabled(false);
 }

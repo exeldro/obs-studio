@@ -31,6 +31,8 @@ public:
 
 	QString &StreamKey() { return stream_key_; }
 	bool &TelemetryEanbled() { return telemetry_enabled_; }
+	bool &UseTwitchConfig() { return use_twitch_config_; }
+	QString &CustomConfig() { return custom_config_; }
 	QByteArray &SettingsWindowGeometry()
 	{
 		return settings_window_geometry_;
@@ -52,6 +54,8 @@ private:
 	// Add config vars here
 	QString stream_key_;
 	bool telemetry_enabled_;
+	bool use_twitch_config_;
+	QString custom_config_;
 	QByteArray settings_window_geometry_;
 	std::optional<QDateTime> make_dock_visible_prompt_;
 	// Add config vars above
