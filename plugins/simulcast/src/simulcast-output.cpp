@@ -98,7 +98,8 @@ static pixel_resolution scale_resolution(const obs_video_info &ovi,
 	auto base_pixels =
 		static_cast<uint64_t>(ovi.base_width) * ovi.base_height;
 
-	auto requested_pixels = requested_width * requested_height;
+	auto requested_pixels =
+		std::min(requested_width * requested_height, base_pixels);
 
 	auto pixel_ratio = std::min(
 		requested_pixels / static_cast<double>(base_pixels), 1.0);
