@@ -68,6 +68,16 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 	DownloadGoLiveConfig(self, GO_LIVE_API_URL, postData).then(self, [=](OBSDataAutoRelease goLiveConfig) mutable {
 		auto download_time_elapsed = start_time.MSecsElapsed();
 
+		if (!goLiveConfig) {
+			streamingButton->setText(obs_frontend_get_locale_string(
+				"Basic.Main.StartStreaming"));
+			streamingButton->setDisabled(false);
+			QMessageBox::critical(
+				self, "Failed to start stream",
+				"API returned invalid config; try again later");
+			return;
+		}
+
 		self->Output()
 			.StartStreaming(self->StreamKey(), goLiveConfig)
 			.then(self,
