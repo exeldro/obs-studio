@@ -348,7 +348,8 @@ QFuture<bool> SimulcastOutput::StartStreaming(const QString &device_id,
 
 	return CreateFuture()
 		.then(QThreadPool::globalInstance(),
-		      [device_id, stream_key, go_live_config_data, self = this,
+		      [=, device_id = device_id, stream_key = stream_key,
+		       self = this,
 		       video_encoders = std::move(video_encoders_)]() mutable
 		      -> std::optional<OutputObjects> {
 			      auto config = go_live_config_data
