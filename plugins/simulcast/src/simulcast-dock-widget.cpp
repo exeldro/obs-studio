@@ -477,6 +477,12 @@ void SimulcastDockWidget::CheckPromptToMakeDockVisible()
 	}
 }
 
+void SimulcastDockWidget::OpenSettings()
+{
+	if (open_settings_action_)
+		open_settings_action_->trigger();
+}
+
 const ImmutableDateTime &SimulcastDockWidget::GenerateStreamAttemptStartTime()
 {
 	stream_attempt_start_time_.emplace(ImmutableDateTime::CurrentTimeUtc());

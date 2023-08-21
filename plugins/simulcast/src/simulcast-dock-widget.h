@@ -5,6 +5,7 @@
 #include "berryessa-submitter.hpp"
 #include "berryessa-every-minute.hpp"
 
+#include <QAction>
 #include <QByteArray>
 #include <QString>
 #include <QWidget>
@@ -26,6 +27,12 @@ public:
 	void PruneDeletedProfiles();
 
 	void CheckPromptToMakeDockVisible();
+
+	void OpenSettings();
+	void SetOpenSettingsAction(QAction *action)
+	{
+		open_settings_action_ = action;
+	}
 
 	SimulcastOutput &Output() { return output_; }
 
@@ -51,6 +58,8 @@ private:
 	SimulcastOutput output_;
 	BerryessaSubmitter berryessa_;
 	std::unique_ptr<BerryessaEveryMinute> berryessaEveryMinute_;
+
+	QPointer<QAction> open_settings_action_;
 
 	// Add config vars here
 	QString stream_key_;
