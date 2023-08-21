@@ -108,7 +108,8 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 						   : OBSData{goLiveConfig};
 
 			self->Output()
-				.StartStreaming(self->StreamKey(), config_used)
+				.StartStreaming(self->DeviceId(),
+						self->StreamKey(), config_used)
 				.then(self,
 				      [=](bool started) {
 					      if (!started) {
@@ -395,8 +396,9 @@ void SimulcastDockWidget::LoadConfig()
 		write_config(config_);
 	}
 
-	berryessa_.setAlwaysString(
-		"device_id", obs_data_get_string(config_, DATA_KEY_DEVICE_ID));
+	device_id_ = obs_data_get_string(config_, DATA_KEY_DEVICE_ID);
+
+	berryessa_.setAlwaysString("device_id", device_id_);
 	// ==================== device id ====================
 
 	emit ProfileChanged();
