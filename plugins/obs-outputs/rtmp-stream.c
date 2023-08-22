@@ -425,10 +425,17 @@ static int send_packet(struct rtmp_stream *stream,
 	if (handle_socket_read(stream))
 		return -1;
 
-	if (idx > 0) {
+	flv_additional_media_data_t *media_data =
+		packet->type == OBS_ENCODER_AUDIO
+			? &stream->additional_metadata
+				   .additional_audio_media_data[idx]
+			: &stream->additional_metadata
+				   .additional_video_media_data[idx];
+
+	if (media_data->active) {
 		flv_additional_packet_mux(
 			packet, is_header ? 0 : stream->start_dts_offset, &data,
-			&size, is_header, idx);
+			&size, is_header, media_data);
 	} else {
 		flv_packet_mux(packet, is_header ? 0 : stream->start_dts_offset,
 			       &data, &size, is_header);
@@ -452,7 +459,7 @@ static int send_packet(struct rtmp_stream *stream,
 
 static int send_packet_ex(struct rtmp_stream *stream,
 			  struct encoder_packet *packet, bool is_header,
-			  bool is_footer)
+			  bool is_footer, size_t idx)
 {
 	uint8_t *data;
 	size_t size = 0;
@@ -462,11 +469,12 @@ static int send_packet_ex(struct rtmp_stream *stream,
 		return -1;
 
 	if (is_header) {
-		flv_packet_start(packet, stream->video_codec, &data, &size);
+		flv_packet_start(packet, stream->video_codec[idx], &data,
+				 &size);
 	} else if (is_footer) {
-		flv_packet_end(packet, stream->video_codec, &data, &size);
+		flv_packet_end(packet, stream->video_codec[idx], &data, &size);
 	} else {
-		flv_packet_frames(packet, stream->video_codec,
+		flv_packet_frames(packet, stream->video_codec[idx],
 				  stream->start_dts_offset, &data, &size);
 	}
 
@@ -677,8 +685,9 @@ static void *send_thread(void *data)
 
 		int sent;
 		if (packet.type == OBS_ENCODER_VIDEO &&
-		    stream->video_codec != CODEC_H264) {
-			sent = send_packet_ex(stream, &packet, false, false);
+		    stream->video_codec[packet.track_idx] != CODEC_H264) {
+			sent = send_packet_ex(stream, &packet, false, false,
+					      packet.track_idx);
 		} else {
 			sent = send_packet(stream, &packet, false,
 					   packet.track_idx);
@@ -757,7 +766,8 @@ static bool send_additional_meta_data(struct rtmp_stream *stream)
 	size_t meta_data_size;
 	bool success = true;
 
-	flv_additional_meta_data(stream->output, &meta_data, &meta_data_size);
+	flv_additional_meta_data(stream->output, &stream->additional_metadata,
+				 &meta_data, &meta_data_size);
 	success = RTMP_Write(&stream->rtmp, (char *)meta_data,
 			     (int)meta_data_size, 0) >= 0;
 	bfree(meta_data);
@@ -800,10 +810,11 @@ static bool send_audio_header(struct rtmp_stream *stream, size_t idx,
 	return send_packet(stream, &packet, true, idx) >= 0;
 }
 
-static bool send_video_header(struct rtmp_stream *stream)
+static bool send_video_header(struct rtmp_stream *stream, size_t idx,
+			      bool *next)
 {
 	obs_output_t *context = stream->output;
-	obs_encoder_t *vencoder = obs_output_get_video_encoder(context);
+	obs_encoder_t *vencoder = obs_output_get_video_encoder2(context, idx);
 	uint8_t *header;
 	size_t size;
 
@@ -811,39 +822,58 @@ static bool send_video_header(struct rtmp_stream *stream)
 					.timebase_den = 1,
 					.keyframe = true};
 
+	if (!vencoder) {
+		*next = false;
+		return true;
+	}
+
 	if (!obs_encoder_get_extra_data(vencoder, &header, &size))
 		return false;
 
-	switch (stream->video_codec) {
+	switch (stream->video_codec[idx]) {
 	case CODEC_H264:
 		packet.size = obs_parse_avc_header(&packet.data, header, size);
-		return send_packet(stream, &packet, true, 0) >= 0;
+		return send_packet(stream, &packet, true, idx) >= 0;
 #ifdef ENABLE_HEVC
 	case CODEC_HEVC:
 		packet.size = obs_parse_hevc_header(&packet.data, header, size);
-		return send_packet_ex(stream, &packet, true, 0) >= 0;
+		return send_packet_ex(stream, &packet, true, false, idx) >= 0;
 #endif
 	case CODEC_AV1:
 		packet.size = obs_parse_av1_header(&packet.data, header, size);
-		return send_packet_ex(stream, &packet, true, 0) >= 0;
+		return send_packet_ex(stream, &packet, true, false, idx) >= 0;
 	}
 
 	return false;
 }
 
-static bool send_video_metadata(struct rtmp_stream *stream)
+// only returns false if there's an error, not if no metadata needs to be sent
+static bool send_video_metadata(struct rtmp_stream *stream, size_t idx)
 {
+	// send metadata only if HDR
+	obs_encoder_t *encoder =
+		obs_output_get_video_encoder2(stream->output, idx);
+	if (!encoder)
+		return false;
+
+	video_t *video = obs_encoder_video(encoder);
+	if (!video)
+		return false;
+
+	const struct video_output_info *info = video_output_get_info(video);
+	enum video_colorspace colorspace = info->colorspace;
+	if (!(colorspace == VIDEO_CS_2100_PQ ||
+	      colorspace == VIDEO_CS_2100_HLG))
+		return true;
+
 	if (handle_socket_read(stream))
-		return -1;
+		return false;
 
 	// Y2023 spec
-	if (stream->video_codec != CODEC_H264) {
+	if (stream->video_codec[idx] != CODEC_H264) {
 		uint8_t *data;
 		size_t size;
 
-		video_t *video = obs_get_video();
-		const struct video_output_info *info =
-			video_output_get_info(video);
 		enum video_format format = info->format;
 		enum video_colorspace colorspace = info->colorspace;
 
@@ -898,7 +928,7 @@ static bool send_video_metadata(struct rtmp_stream *stream)
 			max_luminance =
 				(int)obs_get_video_hdr_nominal_peak_level();
 
-		flv_packet_metadata(stream->video_codec, &data, &size,
+		flv_packet_metadata(stream->video_codec[idx], &data, &size,
 				    bits_per_raw_sample, pri, trc, spc, 0,
 				    max_luminance);
 
@@ -912,37 +942,39 @@ static bool send_video_metadata(struct rtmp_stream *stream)
 	return true;
 }
 
-static bool send_video_footer(struct rtmp_stream *stream)
+static bool send_video_footer(struct rtmp_stream *stream, size_t idx)
 {
 	struct encoder_packet packet = {.type = OBS_ENCODER_VIDEO,
 					.timebase_den = 1,
 					.keyframe = false};
 	packet.size = 0;
 
-	return send_packet_ex(stream, &packet, 0, true) >= 0;
+	return send_packet_ex(stream, &packet, false, true, idx) >= 0;
 }
 
 static inline bool send_headers(struct rtmp_stream *stream)
 {
 	stream->sent_headers = true;
 	size_t i = 0;
-	bool next = true;
+	bool next_audio = true;
+	bool next_video = true;
 
-	if (!send_audio_header(stream, i++, &next))
+	if (!send_audio_header(stream, 0, &next_audio))
 		return false;
-	if (!send_video_header(stream))
+	if (!send_video_header(stream, 0, &next_video) &&
+	    !send_video_metadata(stream, 0))
 		return false;
 
-	// send metadata only if HDR
-	video_t *video = obs_get_video();
-	const struct video_output_info *info = video_output_get_info(video);
-	enum video_colorspace colorspace = info->colorspace;
-	if (colorspace == VIDEO_CS_2100_PQ || colorspace == VIDEO_CS_2100_HLG)
-		if (!send_video_metadata(stream)) // Y2023 spec
+	i = 1;
+	while (next_audio) {
+		if (!send_audio_header(stream, i++, &next_audio))
 			return false;
+	}
 
-	while (next) {
-		if (!send_audio_header(stream, i++, &next))
+	i = 1;
+	while (next_video) {
+		if (!send_video_header(stream, i++, &next_video) &&
+		    !send_video_metadata(stream, i))
 			return false;
 	}
 
@@ -951,11 +983,20 @@ static inline bool send_headers(struct rtmp_stream *stream)
 
 static inline bool send_footers(struct rtmp_stream *stream)
 {
-	if (stream->video_codec == CODEC_H264)
-		return false;
+	for (size_t i = 0; i < MAX_OUTPUT_VIDEO_ENCODERS; i++) {
+		obs_encoder_t *encoder =
+			obs_output_get_video_encoder2(stream->output, i);
+		if (!encoder)
+			return true;
 
-	// Y2023 spec
-	return send_video_footer(stream);
+		if (stream->video_codec[i] == CODEC_H264)
+			continue;
+
+		if (!send_video_footer(stream, i))
+			return false;
+	}
+
+	return true;
 }
 
 static inline bool reset_semaphore(struct rtmp_stream *stream)
@@ -1072,8 +1113,9 @@ static int init_send(struct rtmp_stream *stream)
 		return OBS_OUTPUT_DISCONNECTED;
 	}
 
-	obs_encoder_t *aencoder = obs_output_get_audio_encoder(context, 1);
-	if (aencoder && !send_additional_meta_data(stream)) {
+	bool has_additional_media =
+		stream->additional_metadata.processing_intents.num > 0;
+	if (has_additional_media && !send_additional_meta_data(stream)) {
 		warn("Disconnected while attempting to send additional "
 		     "metadata");
 		return OBS_OUTPUT_DISCONNECTED;
@@ -1285,13 +1327,113 @@ static bool init_connect(struct rtmp_stream *stream)
 	stream->max_shutdown_time_sec =
 		(int)obs_data_get_int(settings, OPT_MAX_SHUTDOWN_TIME_SEC);
 
-	obs_encoder_t *venc = obs_output_get_video_encoder(stream->output);
-	obs_encoder_t *aenc = obs_output_get_audio_encoder(stream->output, 0);
+	obs_encoder_t *venc = NULL;
+	obs_encoder_t *aenc = NULL;
 	obs_data_t *vsettings = obs_encoder_get_settings(venc);
 	obs_data_t *asettings = obs_encoder_get_settings(aenc);
+	bool additional_audio = false;
+	bool additional_video = false;
 
-	const char *codec = obs_encoder_get_codec(venc);
-	stream->video_codec = to_video_type(codec);
+	for (size_t i = 0; i < MAX_OUTPUT_VIDEO_ENCODERS; i++) {
+		obs_encoder_t *enc =
+			obs_output_get_video_encoder2(stream->output, i);
+
+		if (enc) {
+			const char *codec = obs_encoder_get_codec(enc);
+			stream->video_codec[i] = to_video_type(codec);
+		}
+
+		if (enc && !venc) {
+			venc = enc;
+			vsettings = obs_encoder_get_settings(venc);
+			continue;
+		}
+
+		if (enc && enc != venc) {
+			additional_video = true;
+		}
+	}
+
+	for (size_t i = 0; i < MAX_OUTPUT_AUDIO_ENCODERS; i++) {
+		obs_encoder_t *enc =
+			obs_output_get_audio_encoder(stream->output, i);
+		if (enc && !aenc) {
+			aenc = enc;
+			asettings = obs_encoder_get_settings(aenc);
+			continue;
+		}
+
+		if (enc && enc != aenc) {
+			additional_audio = true;
+			break;
+		}
+	}
+
+	flv_additional_meta_data_free(&stream->additional_metadata);
+	flv_additional_meta_data_init(&stream->additional_metadata);
+
+	int stream_index = 0;
+	if (additional_audio) {
+		// Add our processing intent for audio
+		char *intent = bstrdup("ArchiveProgramNarrationAudio");
+		da_push_back(stream->additional_metadata.processing_intents,
+			     &intent);
+
+		for (size_t i = 0; i < MAX_OUTPUT_AUDIO_ENCODERS; i++) {
+			obs_encoder_t *enc =
+				obs_output_get_audio_encoder(stream->output, i);
+			flv_additional_media_data_t *amd =
+				&stream->additional_metadata
+					 .additional_audio_media_data[i];
+
+			// Skip primary audio or null encoders
+			if (!enc || enc == aenc)
+				continue;
+
+			amd->active = true;
+
+			dstr_printf(&amd->stream_name, "stream%d",
+				    stream_index++);
+			flv_media_label_t content_type =
+				flv_media_label_create_string("contentType",
+							      "PNAR");
+			da_push_back(amd->media_labels, &content_type);
+		}
+	}
+
+	if (additional_video) {
+		// Add our processing intent for video
+		char *intent = bstrdup("SimulcastVideo");
+		da_push_back(stream->additional_metadata.processing_intents,
+			     &intent);
+
+		for (size_t i = 0; i < MAX_OUTPUT_VIDEO_ENCODERS; i++) {
+			obs_encoder_t *enc = obs_output_get_video_encoder2(
+				stream->output, i);
+			flv_additional_media_data_t *amd =
+				&stream->additional_metadata
+					 .additional_video_media_data[i];
+
+			// Skip primary video or null encoders
+			if (!enc || enc == venc)
+				continue;
+
+			amd->active = true;
+
+			dstr_printf(&amd->stream_name, "stream%d",
+				    stream_index++);
+		}
+	}
+
+	flv_media_label_t audio_content_type =
+		flv_media_label_create_string("contentType", "PRM");
+	flv_media_label_t video_content_type =
+		flv_media_label_create_string("contentType", "PRM");
+
+	da_push_back(stream->additional_metadata.default_audio_media_labels,
+		     &audio_content_type);
+	da_push_back(stream->additional_metadata.default_video_media_labels,
+		     &video_content_type);
 
 	circlebuf_free(&stream->dbr_frames);
 	stream->audio_bitrate = (long)obs_data_get_int(asettings, "bitrate");
@@ -1375,9 +1517,9 @@ static void *connect_thread(void *data)
 		return NULL;
 	}
 
-	// HDR streaming disabled for AV1
-	if (stream->video_codec != CODEC_H264 &&
-	    stream->video_codec != CODEC_HEVC) {
+#if 0
+	// HDR streaming disabled for AV1 and HEVC
+	if (stream->video_codec != CODEC_H264) {
 		video_t *video = obs_get_video();
 		const struct video_output_info *info =
 			video_output_get_info(video);
@@ -1389,6 +1531,7 @@ static void *connect_thread(void *data)
 			return NULL;
 		}
 	}
+#endif
 
 	ret = try_connect(stream);
 
@@ -1698,7 +1841,7 @@ static void rtmp_stream_data(void *data, struct encoder_packet *packet)
 			stream->got_first_video = true;
 		}
 
-		switch (stream->video_codec) {
+		switch (stream->video_codec[packet->track_idx]) {
 		case CODEC_H264:
 			obs_parse_avc_packet(&new_packet, packet);
 			break;
@@ -1824,7 +1967,7 @@ static int rtmp_stream_connect_time(void *data)
 struct obs_output_info rtmp_output_info = {
 	.id = "rtmp_output",
 	.flags = OBS_OUTPUT_AV | OBS_OUTPUT_ENCODED | OBS_OUTPUT_SERVICE |
-		 OBS_OUTPUT_MULTI_TRACK,
+		 OBS_OUTPUT_MULTI_TRACK_AV,
 #ifdef NO_CRYPTO
 	.protocols = "RTMP",
 #else
