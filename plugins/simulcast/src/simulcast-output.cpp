@@ -72,7 +72,7 @@ static OBSServiceAutoRelease create_service(const QString &device_id,
 static OBSOutputAutoRelease create_output()
 {
 	OBSOutputAutoRelease output = obs_output_create(
-		"rtmp_output_simulcast", "rtmp simulcast", nullptr, nullptr);
+		"rtmp_output", "rtmp simulcast", nullptr, nullptr);
 
 	if (!output) {
 		blog(LOG_ERROR, "failed to create simulcast rtmp output");
