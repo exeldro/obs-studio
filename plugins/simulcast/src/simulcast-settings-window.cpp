@@ -42,6 +42,8 @@ void register_settings_window(SimulcastDockWidget *dock)
 	};
 
 	action->connect(action, &QAction::triggered, cb);
+
+	dock->SetOpenSettingsAction(action);
 }
 
 SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,

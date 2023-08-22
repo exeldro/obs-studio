@@ -23,6 +23,7 @@
 #include <QGroupBox>
 #include <QAction>
 #include <QUuid>
+#include <QPushButton>
 
 #include <obs.h>
 #include <obs-frontend-api.h>
@@ -51,6 +52,24 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 		    std::unique_ptr<BerryessaEveryMinute> *berryessaEveryMinute,
 		    bool telemetry_enabled)
 {
+	if (self->StreamKey().trimmed().isEmpty()) {
+		auto message_box = QMessageBox(
+			QMessageBox::Icon::Critical, "Failed to start stream",
+			"No stream key set in Twitch Settings",
+			QMessageBox::StandardButton::Ok, self);
+		auto open_settings_button =
+			new QPushButton("Open Twitch Settings", &message_box);
+		message_box.addButton(open_settings_button,
+				      QMessageBox::ButtonRole::AcceptRole);
+		message_box.exec();
+
+		auto clicked = message_box.clickedButton();
+		if (clicked == open_settings_button)
+			self->OpenSettings();
+
+		return;
+	}
+
 	auto start_time = self->GenerateStreamAttemptStartTime();
 	auto scope_name = profile_store_name(obs_get_profiler_name_store(),
 					     "IVSStreamStartPressed(%s)",
@@ -475,6 +494,12 @@ void SimulcastDockWidget::CheckPromptToMakeDockVisible()
 		if (parent)
 			parent->show();
 	}
+}
+
+void SimulcastDockWidget::OpenSettings()
+{
+	if (open_settings_action_)
+		open_settings_action_->trigger();
 }
 
 const ImmutableDateTime &SimulcastDockWidget::GenerateStreamAttemptStartTime()
