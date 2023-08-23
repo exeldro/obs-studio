@@ -244,7 +244,8 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 
 static void SetupSignalsAndSlots(
 	SimulcastDockWidget *self, QPushButton *streamingButton,
-	SimulcastOutput &output, BerryessaSubmitter &berryessa,
+	QPushButton *recordingButton, SimulcastOutput &output,
+	BerryessaSubmitter &berryessa,
 	std::unique_ptr<BerryessaEveryMinute> &berryessaEveryMinute,
 	bool &telemetry_enabled)
 {
@@ -299,6 +300,46 @@ static void SetupSignalsAndSlots(
 			streamingButton->setDisabled(false);
 		},
 		Qt::QueuedConnection);
+
+	QObject::connect(
+		recordingButton, &QPushButton::clicked,
+		[self, recordingButton]() {
+			if (self->Output().IsRecording()) {
+				recordingButton->setDisabled(true);
+				recordingButton->setText(
+					obs_frontend_get_locale_string(
+						"Basic.Main.StoppingRecording"));
+
+				self->Output().StopRecording();
+			} else {
+				if (!self->Output().StartRecording(
+					    OBSDataAutoRelease{
+						    obs_data_create_from_json(
+							    self->CustomConfig()
+								    .toUtf8()
+								    .constData())}))
+					return;
+			}
+			recordingButton->setDisabled(true);
+		});
+
+	QObject::connect(
+		&output, &SimulcastOutput::RecordingStarted, self,
+		[recordingButton]() {
+			recordingButton->setText(obs_frontend_get_locale_string(
+				"Basic.Main.StopRecording"));
+			recordingButton->setEnabled(true);
+		},
+		Qt::QueuedConnection);
+
+	QObject::connect(
+		&output, &SimulcastOutput::RecordingStopped, self,
+		[recordingButton]() {
+			recordingButton->setText(obs_frontend_get_locale_string(
+				"Basic.Main.StartRecording"));
+			recordingButton->setEnabled(true);
+		},
+		Qt::QueuedConnection);
 }
 
 SimulcastDockWidget::SimulcastDockWidget(QWidget * /*parent*/)
@@ -316,14 +357,17 @@ SimulcastDockWidget::SimulcastDockWidget(QWidget * /*parent*/)
 	auto buttonContainer = new QWidget(this);
 	auto buttonLayout = new QVBoxLayout();
 	auto streamingButton = new QPushButton(
-		obs_frontend_get_locale_string("Basic.Main.StartStreaming"),
-		buttonContainer);
+		obs_frontend_get_locale_string("Basic.Main.StartStreaming"));
+	auto recordingButton = new QPushButton(
+		obs_frontend_get_locale_string("Basic.Main.StartRecording"));
 	buttonLayout->addWidget(streamingButton);
+	buttonLayout->addWidget(recordingButton);
 	buttonContainer->setLayout(buttonLayout);
 	dockLayout->addWidget(buttonContainer);
 
-	SetupSignalsAndSlots(this, streamingButton, output_, berryessa_,
-			     berryessaEveryMinute_, telemetry_enabled_);
+	SetupSignalsAndSlots(this, streamingButton, recordingButton, output_,
+			     berryessa_, berryessaEveryMinute_,
+			     telemetry_enabled_);
 
 	// load config
 	LoadConfig();

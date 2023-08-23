@@ -13,6 +13,7 @@
 #include <cmath>
 #include <numeric>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include <QScopeGuard>
@@ -105,6 +106,34 @@ static OBSServiceAutoRelease create_service(const QString &device_id,
 	return service;
 }
 
+static void ensure_directory_exists(std::string &path)
+{
+	replace(path.begin(), path.end(), '\\', '/');
+
+	size_t last = path.rfind('/');
+	if (last == std::string::npos)
+		return;
+
+	std::string directory = path.substr(0, last);
+	os_mkdirs(directory.c_str());
+}
+
+std::string GetOutputFilename(const char *path, const char *format)
+{
+	std::string strPath;
+	strPath += path;
+
+	char lastChar = strPath.back();
+	if (lastChar != '/' && lastChar != '\\')
+		strPath += "/";
+
+	strPath += BPtr<char>{
+		os_generate_formatted_filename("flv", false, format)};
+	ensure_directory_exists(strPath);
+
+	return strPath;
+}
+
 static OBSOutputAutoRelease create_output()
 {
 	OBSOutputAutoRelease output = obs_output_create(
@@ -116,8 +145,24 @@ static OBSOutputAutoRelease create_output()
 			"FailedToStartStream.FailedToCreateSimulcastOutput"};
 	}
 
-	if (output) {
-		obs_output_set_media(output, obs_get_video(), obs_get_audio());
+	return output;
+}
+
+static OBSOutputAutoRelease create_recording_output()
+{
+	OBSDataAutoRelease settings = obs_data_create();
+	obs_data_set_string(settings, "path",
+			    GetOutputFilename("C:/Users/haruwenz/Videos/",
+					      "%CCYY-%MM-%DD_%hh-%mm-%ss")
+				    .c_str());
+
+	OBSOutputAutoRelease output = obs_output_create(
+		"flv_output", "flv simulcast", settings, nullptr);
+
+	if (!output) {
+		blog(LOG_ERROR, "failed to create simulcast flv output");
+		throw QString::asprintf(
+			"Failed to create simulcast flv output");
 	}
 
 	return output;
@@ -427,10 +472,11 @@ static OBSDataAutoRelease load_simulcast_config()
 }
 
 static OBSOutputAutoRelease
-SetupOBSOutput(obs_data_t *go_live_config,
+SetupOBSOutput(bool recording, obs_data_t *go_live_config,
 	       std::vector<OBSEncoderAutoRelease> &video_encoders,
 	       OBSEncoderAutoRelease &audio_encoder);
-static void SetupSignalHandlers(SimulcastOutput *self, obs_output_t *output);
+static void SetupSignalHandlers(bool recording, SimulcastOutput *self,
+				obs_output_t *output);
 
 struct OutputObjects {
 	OBSOutputAutoRelease output;
@@ -467,7 +513,8 @@ QFuture<bool> SimulcastOutput::StartStreaming(const QString &device_id,
 
 			      video_encoders.clear();
 			      OBSEncoderAutoRelease audio_encoder = nullptr;
-			      auto output = SetupOBSOutput(go_live_config,
+			      auto output = SetupOBSOutput(false,
+							   go_live_config,
 							   video_encoders,
 							   audio_encoder);
 			      if (!output)
@@ -495,7 +542,7 @@ QFuture<bool> SimulcastOutput::StartStreaming(const QString &device_id,
 
 			      auto vals = std::move(val).value();
 
-			      SetupSignalHandlers(this, vals.output);
+			      SetupSignalHandlers(false, this, vals.output);
 
 			      output_ = std::move(vals.output);
 			      weak_output_ =
@@ -546,18 +593,60 @@ std::optional<int> SimulcastOutput::ConnectTimeMs() const
 	return obs_output_get_connect_time_ms(output_);
 }
 
+bool SimulcastOutput::StartRecording(obs_data_t *go_live_config)
+{
+	if (streaming_)
+		return false;
+
+	if (!go_live_config)
+		return false;
+
+	video_encoders_.clear();
+	recording_output_ = SetupOBSOutput(true, go_live_config,
+					   video_encoders_, audio_encoder_);
+	if (!recording_output_)
+		return false;
+
+	SetupSignalHandlers(true, this, recording_output_);
+
+	weak_recording_output_ = obs_output_get_weak_output(recording_output_);
+	if (!obs_output_start(recording_output_)) {
+		blog(LOG_WARNING, "Failed to start recording");
+		throw QString::asprintf(
+			"Failed to start recording (obs_output_start returned false)");
+	}
+
+	blog(LOG_INFO, "starting recording");
+	return true;
+}
+
+void SimulcastOutput::StopRecording()
+{
+	if (!recording_)
+		return;
+
+	if (recording_output_)
+		obs_output_stop(recording_output_);
+
+	recording_output_ = nullptr;
+	video_encoders_.clear();
+	audio_encoder_ = nullptr;
+
+	recording_ = false;
+}
+
 const std::vector<OBSEncoderAutoRelease> &SimulcastOutput::VideoEncoders() const
 {
 	return video_encoders_;
 }
 
 static OBSOutputAutoRelease
-SetupOBSOutput(obs_data_t *go_live_config,
+SetupOBSOutput(bool recording, obs_data_t *go_live_config,
 	       std::vector<OBSEncoderAutoRelease> &video_encoders,
 	       OBSEncoderAutoRelease &audio_encoder)
 {
 
-	auto output = create_output();
+	auto output = !recording ? create_output() : create_recording_output();
 
 	OBSDataArrayAutoRelease encoder_configs =
 		obs_data_get_array(go_live_config, "encoder_configurations");
@@ -587,13 +676,18 @@ SetupOBSOutput(obs_data_t *go_live_config,
 	return output;
 }
 
-void SetupSignalHandlers(SimulcastOutput *self, obs_output_t *output)
+void SetupSignalHandlers(bool recording, SimulcastOutput *self,
+			 obs_output_t *output)
 {
 	auto handler = obs_output_get_signal_handler(output);
 
-	signal_handler_connect(handler, "start", StreamStartHandler, self);
+	signal_handler_connect(
+		handler, "start",
+		!recording ? StreamStartHandler : RecordingStartHandler, self);
 
-	signal_handler_connect(handler, "stop", StreamStopHandler, self);
+	signal_handler_connect(
+		handler, "stop",
+		!recording ? StreamStopHandler : RecordingStopHandler, self);
 }
 
 void StreamStartHandler(void *arg, calldata_t * /* data */)
@@ -620,4 +714,21 @@ void StreamStopHandler(void *arg, calldata_t * /* data */)
 	self->weak_output_ = nullptr;
 
 	emit self->StreamStopped();
+}
+
+void RecordingStartHandler(void *arg, calldata_t * /* data */)
+{
+	auto self = static_cast<SimulcastOutput *>(arg);
+	self->recording_ = true;
+
+	emit self->RecordingStarted();
+}
+
+void RecordingStopHandler(void *arg, calldata_t * /* data */)
+{
+	auto self = static_cast<SimulcastOutput *>(arg);
+	self->recording_ = false;
+	self->weak_recording_output_ = nullptr;
+
+	emit self->RecordingStopped();
 }
