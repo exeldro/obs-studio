@@ -370,7 +370,7 @@ void flv_packet_ex(struct encoder_packet *packet, enum video_id_t codec_id,
 	s_write(&s, packet->data, packet->size);
 
 	// packet tail
-	s_wb32(&s, (uint32_t)serializer_get_pos(&s) - 1);
+	write_previous_tag_size(&s);
 
 	*output = data.bytes.array;
 	*size = data.bytes.num;
@@ -483,7 +483,7 @@ void flv_packet_metadata(enum video_id_t codec_id, uint8_t **output,
 	array_output_serializer_free(&metadata); // must be freed
 
 	// packet tail
-	s_wb32(&s, (uint32_t)serializer_get_pos(&s) - 1);
+	write_previous_tag_size(&s);
 
 	*output = data.bytes.array;
 	*size = data.bytes.num;
