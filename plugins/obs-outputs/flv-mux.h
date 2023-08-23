@@ -221,3 +221,20 @@ extern void flv_packet_metadata(enum video_id_t codec, uint8_t **output,
 				uint8_t color_primaries, int color_trc,
 				int color_space, int min_luminance,
 				int max_luminance);
+
+extern void flv_additional_packet_start_ex(
+	struct encoder_packet *packet, flv_additional_media_data_t *media_data,
+	enum video_id_t codec, uint8_t **output, size_t *size);
+extern void
+flv_additional_packet_frames_ex(struct encoder_packet *packet,
+				flv_additional_media_data_t *media_data,
+				enum video_id_t codec, int32_t dts_offset,
+				uint8_t **output, size_t *size);
+extern void flv_additional_packet_end_ex(
+	struct encoder_packet *packet, flv_additional_media_data_t *media_data,
+	enum video_id_t codec, uint8_t **output, size_t *size);
+extern void flv_additional_packet_metadata_ex(
+	flv_additional_media_data_t *media_data, enum video_id_t codec_id,
+	uint8_t **output, size_t *size, int bits_per_raw_sample,
+	uint8_t color_primaries, int color_trc, int color_space,
+	int min_luminance, int max_luminance);

@@ -468,14 +468,39 @@ static int send_packet_ex(struct rtmp_stream *stream,
 	if (handle_socket_read(stream))
 		return -1;
 
-	if (is_header) {
-		flv_packet_start(packet, stream->video_codec[idx], &data,
-				 &size);
-	} else if (is_footer) {
-		flv_packet_end(packet, stream->video_codec[idx], &data, &size);
+	flv_additional_media_data_t *media_data =
+		packet->type == OBS_ENCODER_AUDIO
+			? &stream->additional_metadata
+				   .additional_audio_media_data[idx]
+			: &stream->additional_metadata
+				   .additional_video_media_data[idx];
+
+	if (media_data->active) {
+		if (is_header) {
+			flv_additional_packet_start_ex(packet, media_data,
+						       stream->video_codec[idx],
+						       &data, &size);
+		} else if (is_footer) {
+			flv_additional_packet_end_ex(packet, media_data,
+						     stream->video_codec[idx],
+						     &data, &size);
+		} else {
+			flv_additional_packet_frames_ex(
+				packet, media_data, stream->video_codec[idx],
+				stream->start_dts_offset, &data, &size);
+		}
 	} else {
-		flv_packet_frames(packet, stream->video_codec[idx],
-				  stream->start_dts_offset, &data, &size);
+		if (is_header) {
+			flv_packet_start(packet, stream->video_codec[idx],
+					 &data, &size);
+		} else if (is_footer) {
+			flv_packet_end(packet, stream->video_codec[idx], &data,
+				       &size);
+		} else {
+			flv_packet_frames(packet, stream->video_codec[idx],
+					  stream->start_dts_offset, &data,
+					  &size);
+		}
 	}
 
 #ifdef TEST_FRAMEDROPS
@@ -869,6 +894,9 @@ static bool send_video_metadata(struct rtmp_stream *stream, size_t idx)
 	if (handle_socket_read(stream))
 		return false;
 
+	flv_additional_media_data_t *media_data =
+		&stream->additional_metadata.additional_video_media_data[idx];
+
 	// Y2023 spec
 	if (stream->video_codec[idx] != CODEC_H264) {
 		uint8_t *data;
@@ -928,9 +956,16 @@ static bool send_video_metadata(struct rtmp_stream *stream, size_t idx)
 			max_luminance =
 				(int)obs_get_video_hdr_nominal_peak_level();
 
-		flv_packet_metadata(stream->video_codec[idx], &data, &size,
-				    bits_per_raw_sample, pri, trc, spc, 0,
-				    max_luminance);
+		if (media_data->active) {
+			flv_additional_packet_metadata_ex(
+				media_data, stream->video_codec[idx], &data,
+				&size, bits_per_raw_sample, pri, trc, spc, 0,
+				max_luminance);
+		} else {
+			flv_packet_metadata(stream->video_codec[idx], &data,
+					    &size, bits_per_raw_sample, pri,
+					    trc, spc, 0, max_luminance);
+		}
 
 		int ret = RTMP_Write(&stream->rtmp, (char *)data, (int)size, 0);
 		bfree(data);
