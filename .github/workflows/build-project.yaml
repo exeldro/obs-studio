@@ -28,7 +28,7 @@ jobs:
 
           case "${GITHUB_EVENT_NAME}" in
             pull_request)
-              config_data=('codesign:false' 'notarize:false' 'package:false' 'config:RelWithDebInfo')
+              config_data=('codesign:false' 'notarize:false' 'package:false' 'config:RelWithDebInfo' 'dev:true')
               if gh pr view --json labels \
                 | jq -e -r '.labels[] | select(.name == "Seeking Testers")' > /dev/null; then
                 config_data[0]='codesign:true'
@@ -36,17 +36,20 @@ jobs:
               fi
               ;;
             push)
-              config_data=('codesign:true' 'notarize:false' 'package:true' 'config:RelWithDebInfo')
+              config_data=('codesign:true' 'notarize:false' 'package:true' 'config:RelWithDebInfo' 'dev:true')
               if [[ ${GITHUB_REF_NAME} =~ [0-9]+.[0-9]+.[0-9]+(-(rc|beta).+)? ]]; then
                 config_data[1]='notarize:true'
                 config_data[3]='config:Release'
               fi
+              if [[ ${GITHUB_REF_NAME} =~ [0-9]+.[0-9]+.[0-9]+(-staff-beta.+)? ]]; then
+                config_data[4]='dev:false'
+              fi
               ;;
             workflow_dispatch)
-              config_data=('codesign:true' 'notarize:false' 'package:false' 'config:RelWithDebInfo')
+              config_data=('codesign:true' 'notarize:false' 'package:false' 'config:RelWithDebInfo' 'dev:true')
               ;;
             schedule)
-              config_data=('codesign:true' 'notarize:false' 'package:true' 'config:RelWithDebInfo')
+              config_data=('codesign:true' 'notarize:false' 'package:true' 'config:RelWithDebInfo' 'dev:true')
               ;;
             *) ;;
           esac
