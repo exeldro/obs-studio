@@ -78,6 +78,7 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 
 	QString url = GO_LIVE_API_URL;
 	OBSDataAutoRelease custom_config_data;
+#ifdef ENABLE_CUSTOM_TWITCH_CONFIG
 	if (!self->UseTwitchConfig()) {
 		const auto &custom_config = self->CustomConfig();
 		if (custom_config.startsWith("http")) {
@@ -93,6 +94,7 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 			}
 		}
 	}
+#endif
 
 	streamingButton->setText(
 		obs_frontend_get_locale_string("Basic.Main.Connecting"));

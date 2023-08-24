@@ -65,6 +65,11 @@ target_sources(simulcast PRIVATE plugin-macros.generated.h)
 
 target_include_directories(simulcast PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
+option(ENABLE_CUSTOM_TWITCH_CONFIG "Enable custom Twitch simulcast config" ON)
+if(ENABLE_CUSTOM_TWITCH_CONFIG)
+  add_compile_definitions(ENABLE_CUSTOM_TWITCH_CONFIG)
+endif()
+
 set_target_properties(
   simulcast
   PROPERTIES FOLDER plugins
