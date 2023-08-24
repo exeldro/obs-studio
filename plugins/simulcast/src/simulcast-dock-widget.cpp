@@ -130,6 +130,7 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 
 			self->Output()
 				.StartStreaming(self->DeviceId(),
+						self->OBSSessionId(),
 						self->StreamKey(), config_used)
 				.then(self,
 				      [=](bool started) {
@@ -285,9 +286,8 @@ SimulcastDockWidget::SimulcastDockWidget(QWidget * /*parent*/)
 {
 	//berryessa_ = new BerryessaSubmitter(this, "http://127.0.0.1:8787/");
 
-	berryessa_.setAlwaysString(
-		"obs_session_id",
-		QUuid::createUuid().toString(QUuid::WithoutBraces));
+	obs_session_id_ = QUuid::createUuid().toString(QUuid::WithoutBraces);
+	berryessa_.setAlwaysString("obs_session_id", obs_session_id_);
 
 	QGridLayout *dockLayout = new QGridLayout(this);
 	dockLayout->setAlignment(Qt::AlignmentFlag::AlignTop);

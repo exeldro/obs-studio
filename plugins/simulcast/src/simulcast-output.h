@@ -20,6 +20,7 @@ class SimulcastOutput : public QObject {
 
 public:
 	QFuture<bool> StartStreaming(const QString &device_id,
+				     const QString &obs_session_id,
 				     const QString &stream_key,
 				     obs_data_t *go_live_config);
 	void StopStreaming();
