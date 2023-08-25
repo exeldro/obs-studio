@@ -23,6 +23,7 @@
 #include "qt-helpers.h"
 
 static OBSServiceAutoRelease create_service(const QString &device_id,
+					    const QString &obs_session_id,
 					    obs_data_t *go_live_config,
 					    const QString &stream_key)
 {
@@ -50,7 +51,8 @@ static OBSServiceAutoRelease create_service(const QString &device_id,
 				    str->len - (found - str->array));
 	}
 
-	auto key_with_param = stream_key + "?deviceIdentifier=" + device_id;
+	auto key_with_param = stream_key + "?deviceIdentifier=" + device_id +
+			      "&obsSessionId=" + obs_session_id;
 
 	OBSDataAutoRelease settings = obs_data_create();
 	obs_data_set_string(settings, "server", str->array);
@@ -341,6 +343,7 @@ struct OutputObjects {
 };
 
 QFuture<bool> SimulcastOutput::StartStreaming(const QString &device_id,
+					      const QString &obs_session_id,
 					      const QString &stream_key,
 					      obs_data_t *go_live_config_)
 {
@@ -348,7 +351,8 @@ QFuture<bool> SimulcastOutput::StartStreaming(const QString &device_id,
 
 	return CreateFuture()
 		.then(QThreadPool::globalInstance(),
-		      [=, device_id = device_id, stream_key = stream_key,
+		      [=, device_id = device_id,
+		       obs_session_id = obs_session_id, stream_key = stream_key,
 		       self = this,
 		       video_encoders = std::move(video_encoders_)]() mutable
 		      -> std::optional<OutputObjects> {
@@ -372,7 +376,8 @@ QFuture<bool> SimulcastOutput::StartStreaming(const QString &device_id,
 				      return std::nullopt;
 
 			      auto simulcast_service = create_service(
-				      device_id, go_live_config, stream_key);
+				      device_id, obs_session_id, go_live_config,
+				      stream_key);
 			      if (!simulcast_service)
 				      return std::nullopt;
 

@@ -36,6 +36,8 @@ public:
 
 	SimulcastOutput &Output() { return output_; }
 
+	const QString &OBSSessionId() { return obs_session_id_; }
+
 	QString &StreamKey() { return stream_key_; }
 	bool &TelemetryEanbled() { return telemetry_enabled_; }
 	bool &UseTwitchConfig() { return use_twitch_config_; }
@@ -60,6 +62,8 @@ private:
 	std::unique_ptr<BerryessaEveryMinute> berryessaEveryMinute_;
 
 	QPointer<QAction> open_settings_action_;
+
+	QString obs_session_id_;
 
 	// Add config vars here
 	QString stream_key_;
