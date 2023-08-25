@@ -4,6 +4,7 @@ param(
     [string] $Target = 'x64',
     [ValidateSet('Debug', 'RelWithDebInfo', 'Release', 'MinSizeRel')]
     [string] $Configuration = 'RelWithDebInfo',
+    [switch] $Dev,
     [switch] $SkipAll,
     [switch] $SkipBuild,
     [switch] $SkipDeps
@@ -65,6 +66,12 @@ function Build {
         if ( ( $env:CI -ne $null ) -and ( $env:CCACHE_CONFIGPATH -ne $null ) ) {
             $CmakeArgs += @(
                 "-DENABLE_CCACHE:BOOL=TRUE"
+            )
+        }
+
+        if ( $Dev -ne $false ) {
+            $CmakeArgs += @(
+                "-DENABLE_CUSTOM_TWITCH_CONFIG:BOOL=TRUE"
             )
         }
 

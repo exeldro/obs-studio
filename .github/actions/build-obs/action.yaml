@@ -8,6 +8,10 @@ inputs:
     description: Build configuration
     required: false
     default: RelWithDebInfo
+  dev:
+    description: Enable developer/testing functionality
+    required: false
+    default: true
   codesign:
     description: Enable codesigning (macOS only)
     required: false
@@ -18,6 +22,10 @@ inputs:
     default: '-'
   codesignTeam:
     description: Team ID for application codesigning (macOS only)
+    required: false
+    default: ''
+  provisioningProfileUUID:
+    description: UUID of provisioning profile (macOS only)
     required: false
     default: ''
   workingDirectory:
@@ -34,12 +42,14 @@ runs:
       env:
         CODESIGN_IDENT: ${{ inputs.codesignIdent }}
         CODESIGN_TEAM: ${{ inputs.codesignTeam }}
+        PROVISIONING_PROFILE: ${{ inputs.provisioningProfileUUID }}
       run: |
         : Run macOS Build
 
         local -a build_args=(
           --config ${{ inputs.config }}
           --target macos-${{ inputs.target }}
+          --dev ${{ inputs.dev }}
         )
         if (( ${+RUNNER_DEBUG} )) build_args+=(--debug)
 
@@ -69,6 +79,7 @@ runs:
         local -a build_args=(
           --config ${{ inputs.config }}
           --target linux-${{ inputs.target }}
+          --dev ${{ inputs.dev }}
           --generator Ninja
         )
         if (( ${+RUNNER_DEBUG} )) build_args+=(--debug)
@@ -85,6 +96,12 @@ runs:
         $BuildArgs = @{
           Target = '${{ inputs.target }}'
           Configuration = '${{ inputs.config }}'
+        }
+
+        if ( ${{ inputs.dev }} -eq "false" ) {
+          $BuildArgs += @{ Dev = $false }
+        } else {
+          $BuildArgs += @{ Dev = $true }
         }
 
         if ( $Env:RUNNER_DEBUG -ne $null ) {

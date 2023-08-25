@@ -69,6 +69,7 @@ build() {
   local config='RelWithDebInfo'
   local -r -a _valid_configs=(Debug RelWithDebInfo Release MinSizeRel)
   local -i codesign=0
+  local dev=1
 
   if [[ ${host_os} == linux ]] {
     local -r -a _valid_generators=(Ninja 'Unix Makefiles')
@@ -147,6 +148,7 @@ ${_usage_host:-}"
         config=${2}
         shift 2
         ;;
+      --dev) dev="${2}"; shift 2 ;;
       -s|--codesign) codesign=1; shift ;;
       -q|--quiet) (( verbosity -= 1 )) || true; shift ;;
       -v|--verbose) (( verbosity += 1 )); shift ;;
@@ -207,6 +209,11 @@ ${_usage_host:-}"
       1) ;;
       2) cmake_build_args+=(--verbose) ;;
       *) cmake_args+=(--debug-output) ;;
+    }
+
+    case ${dev} {
+      1|true) cmake_args+=(-DENABLE_CUSTOM_TWITCH_CONFIG:BOOL=TRUE) ;;
+      0|false) cmake_args+=(-DENABLE_CUSTOM_TWITCH_CONFIG:BOOL=FALSE) ;;
     }
 
     case ${target} {

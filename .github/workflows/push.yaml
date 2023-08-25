@@ -14,7 +14,7 @@ permissions:
   contents: write
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.ref }}'
-  cancel-in-progress: ${{ github.ref_type == 'tag' }}
+  cancel-in-progress: ${{ fromJSON(github.ref_type == 'tag') }}
 jobs:
   check-format:
     name: Check Formatting 🔍
@@ -134,6 +134,8 @@ jobs:
     defaults:
       run:
         shell: bash
+    environment:
+      name: cf-pages-deploy
     steps:
       - name: Get Commit Information 🆔
         id: setup
@@ -217,7 +219,7 @@ jobs:
       - name: Upload Artifacts 📡
         uses: actions/upload-artifact@v3
         with:
-          name: macos-sparkle-update-${{ matrix.target }}
+          name: macos-sparkle-update
           path: ${{ github.workspace }}/output
 
   create-release:
@@ -242,7 +244,7 @@ jobs:
               echo 'prerelease=false' >> $GITHUB_OUTPUT
               echo "version=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
               ;;
-            +([0-9]).+([0-9]).+([0-9])-@(beta|rc)*([0-9]) )
+            +([0-9]).+([0-9]).+([0-9])-@(staff-beta|beta|rc)*([0-9]) )
               echo 'validTag=true' >> $GITHUB_OUTPUT
               echo 'prerelease=true' >> $GITHUB_OUTPUT
               echo "version=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
