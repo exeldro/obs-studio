@@ -13,6 +13,7 @@ jobs:
       codesign: ${{ steps.setup.outputs.codesign }}
       notarize: ${{ steps.setup.outputs.notarize }}
       config: ${{ steps.setup.outputs.config }}
+      dev: ${{ steps.setup.outputs.dev }}
       commitHash: ${{ steps.setup.outputs.commitHash }}
     steps:
       - uses: actions/checkout@v3
@@ -41,7 +42,10 @@ jobs:
                 config_data[1]='notarize:true'
                 config_data[3]='config:Release'
               fi
-              if [[ ${GITHUB_REF_NAME} =~ [0-9]+.[0-9]+.[0-9]+(-staff-beta.+)? ]]; then
+              if [[ ${GITHUB_REF_NAME} =~ [0-9]+.[0-9]+.[0-9]+-staff-beta.+ ]]; then
+                config_data[0]='codesign:false'
+                config_data[1]='notarize:false'
+                config_data[3]='config:RelWithDebInfo'
                 config_data[4]='dev:false'
               fi
               ;;
@@ -139,6 +143,7 @@ jobs:
         with:
           target: ${{ matrix.target }}
           config: ${{ needs.check-event.outputs.config }}
+          dev: ${{ needs.check-event.outputs.dev }}
           codesign: ${{ fromJSON(needs.check-event.outputs.codesign) }}
           codesignIdent: ${{ steps.codesign.outputs.codesignIdent }}
           codesignTeam: ${{ steps.codesign.outputs.codesignTeam }}
@@ -210,6 +215,7 @@ jobs:
         with:
           target: x86_64
           config: ${{ needs.check-event.outputs.config }}
+          dev: ${{ needs.check-event.outputs.dev }}
 
       - name: Package OBS Studio 📀
         uses: ./.github/actions/package-obs
@@ -336,6 +342,7 @@ jobs:
         with:
           target: x64
           config: ${{ needs.check-event.outputs.config }}
+          dev: ${{ needs.check-event.outputs.dev }}
 
       - name: Package OBS Studio 📀
         uses: ./.github/actions/package-obs
