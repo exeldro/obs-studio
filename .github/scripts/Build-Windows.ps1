@@ -69,9 +69,9 @@ function Build {
             )
         }
 
-        if ( $Dev -ne $false ) {
+        if ( $Dev -eq $false ) {
             $CmakeArgs += @(
-                "-DENABLE_CUSTOM_TWITCH_CONFIG:BOOL=TRUE"
+                "-DENABLE_CUSTOM_TWITCH_CONFIG:BOOL=FALSE"
             )
         }
 
