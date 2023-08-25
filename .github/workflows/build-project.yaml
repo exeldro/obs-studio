@@ -42,9 +42,10 @@ jobs:
                 config_data[1]='notarize:true'
                 config_data[3]='config:Release'
               fi
-              if [[ ${GITHUB_REF_NAME} =~ [0-9]+.[0-9]+.[0-9]+-staff-beta.+ ]]; then
+              if [[ ${GITHUB_REF_NAME} =~ [0-9]+.[0-9]+.[0-9]+-staff-build.+ ]]; then
                 config_data[0]='codesign:false'
                 config_data[1]='notarize:false'
+                config_data[2]='package:false'
                 config_data[3]='config:RelWithDebInfo'
                 config_data[4]='dev:false'
               fi
