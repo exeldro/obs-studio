@@ -98,9 +98,7 @@ runs:
           Configuration = '${{ inputs.config }}'
         }
 
-        if ( ${{ inputs.dev }} -eq "false" ) {
-          $BuildArgs += @{ Dev = $false }
-        } else {
+        if ( "${{ inputs.dev }}" -ne "false" ) {
           $BuildArgs += @{ Dev = $true }
         }
 
