@@ -79,7 +79,8 @@ QFuture<OBSDataAutoRelease> DownloadGoLiveConfig(QWidget *parent, QString url,
 
 			if (!encodeConfigError.isEmpty()) {
 				int carryOn = QMessageBox::warning(
-					parent, "Multi-encode Staff Beta Error",
+					parent,
+					"Twitch Go Live Config Download Error",
 					encodeConfigError, QMessageBox::Yes,
 					QMessageBox::No);
 
