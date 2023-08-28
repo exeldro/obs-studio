@@ -49,7 +49,7 @@ QFuture<OBSDataAutoRelease> DownloadGoLiveConfig(QWidget *parent, QString url,
 				      encodeConfigDownloadedOk,
 			      };
 		      })
-		.then(parent, [url](ReturnValues vals) -> OBSDataAutoRelease {
+		.then(parent, [url, parent](ReturnValues vals) -> OBSDataAutoRelease {
 			OBSDataAutoRelease encodeConfigObsData;
 			QString encodeConfigError;
 
@@ -79,8 +79,7 @@ QFuture<OBSDataAutoRelease> DownloadGoLiveConfig(QWidget *parent, QString url,
 
 			if (!encodeConfigError.isEmpty()) {
 				int carryOn = QMessageBox::warning(
-					nullptr /*this*/,
-					"Multi-encode Staff Beta Error",
+					parent, "Multi-encode Staff Beta Error",
 					encodeConfigError, QMessageBox::Yes,
 					QMessageBox::No);
 
