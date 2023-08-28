@@ -44,8 +44,8 @@ QFuture<OBSDataAutoRelease> DownloadGoLiveConfig(QWidget *parent, QString url,
 				      nullptr, // signature
 				      3);      // timeout in seconds
 			      return ReturnValues{
-				      libraryError,
 				      encodeConfigText,
+				      libraryError,
 				      encodeConfigDownloadedOk,
 			      };
 		      })
