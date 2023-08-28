@@ -9,40 +9,57 @@
 #include <QMessageBox>
 #include <QThreadPool>
 
-QFuture<OBSDataAutoRelease>
-DownloadGoLiveConfig(QWidget * /* parent*/, QString url, obs_data_t *postData_)
+struct ReturnValues {
+	std::string encodeConfigText;
+	std::string libraryError;
+	bool encodeConfigDownloadedOk;
+};
+
+QFuture<OBSDataAutoRelease> DownloadGoLiveConfig(QWidget *parent, QString url,
+						 obs_data_t *postData_)
 {
 	blog(LOG_INFO, "Go live POST data: %s", obs_data_get_json(postData_));
 
 	OBSData postData = postData_;
 
-	return CreateFuture().then(
-		QThreadPool::globalInstance(),
-		[url, postData]() -> OBSDataAutoRelease {
-			// andrew download code start
-			QString encodeConfigError;
+	return CreateFuture()
+		.then(QThreadPool::globalInstance(),
+		      [url, postData]() -> ReturnValues {
+			      // andrew download code start
+			      OBSDataAutoRelease encodeConfigObsData;
+
+			      std::string encodeConfigText;
+			      std::string libraryError;
+
+			      std::vector<std::string> headers;
+			      headers.push_back(
+				      "Content-Type: application/json");
+			      bool encodeConfigDownloadedOk = GetRemoteFile(
+				      url.toLocal8Bit(), encodeConfigText,
+				      libraryError, // out params
+				      nullptr,
+				      nullptr, // out params (response code and content type)
+				      "POST", obs_data_get_json(postData),
+				      headers,
+				      nullptr, // signature
+				      3);      // timeout in seconds
+			      return ReturnValues{
+				      libraryError,
+				      encodeConfigText,
+				      encodeConfigDownloadedOk,
+			      };
+		      })
+		.then(parent, [url, parent](ReturnValues vals) -> OBSDataAutoRelease {
 			OBSDataAutoRelease encodeConfigObsData;
+			QString encodeConfigError;
 
-			std::string encodeConfigText;
-			std::string libraryError;
-
-			std::vector<std::string> headers;
-			headers.push_back("Content-Type: application/json");
-			bool encodeConfigDownloadedOk = GetRemoteFile(
-				url.toLocal8Bit(), encodeConfigText,
-				libraryError, // out params
-				nullptr,
-				nullptr, // out params (response code and content type)
-				"POST", obs_data_get_json(postData), headers,
-				nullptr, // signature
-				3);      // timeout in seconds
-
-			if (!encodeConfigDownloadedOk) {
+			if (!vals.encodeConfigDownloadedOk) {
 				encodeConfigError =
 					QString() +
 					"Could not fetch config from " + url +
 					"\n\nHTTP error: " +
-					QString::fromStdString(libraryError) +
+					QString::fromStdString(
+						vals.libraryError) +
 					"\n\nDo you want to stream anyway? You'll only stream a single quality option.";
 			} else {
 #if 0
@@ -57,13 +74,13 @@ DownloadGoLiveConfig(QWidget * /* parent*/, QString url, obs_data_t *postData_)
 		}
 #endif
 				encodeConfigObsData = obs_data_create_from_json(
-					encodeConfigText.c_str());
+					vals.encodeConfigText.c_str());
 			}
 
 			if (!encodeConfigError.isEmpty()) {
 				int carryOn = QMessageBox::warning(
-					nullptr /*this*/,
-					"Multi-encode Staff Beta Error",
+					parent,
+					"Twitch Go Live Config Download Error",
 					encodeConfigError, QMessageBox::Yes,
 					QMessageBox::No);
 
@@ -74,7 +91,7 @@ DownloadGoLiveConfig(QWidget * /* parent*/, QString url, obs_data_t *postData_)
 			}
 
 			blog(LOG_INFO, "Go Live Config data: %s",
-			     encodeConfigText.c_str());
+			     vals.encodeConfigText.c_str());
 
 			return encodeConfigObsData;
 		});
