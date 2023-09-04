@@ -114,7 +114,7 @@ struct rtmp_stream {
 	long dbr_inc_bitrate;
 	bool dbr_enabled;
 
-	enum video_id_t video_codec;
+	enum video_id_t video_codec[MAX_OUTPUT_VIDEO_ENCODERS];
 
 	RTMP rtmp;
 
@@ -131,6 +131,8 @@ struct rtmp_stream {
 	os_event_t *buffer_has_data_event;
 	os_event_t *socket_available_event;
 	os_event_t *send_thread_signaled_exit;
+
+	flv_additional_meta_data_t additional_metadata;
 };
 
 #ifdef _WIN32

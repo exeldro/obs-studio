@@ -41,6 +41,8 @@ struct flv_output {
 	bool sent_headers;
 	int64_t last_packet_ts;
 
+	flv_additional_meta_data_t additional_metadata;
+
 	pthread_mutex_t mutex;
 
 	bool got_first_video;
@@ -85,20 +87,48 @@ static void *flv_output_create(obs_data_t *settings, obs_output_t *output)
 }
 
 static int write_packet(struct flv_output *stream,
-			struct encoder_packet *packet, bool is_header)
+			struct encoder_packet *packet, bool is_header,
+			size_t idx)
 {
 	uint8_t *data;
 	size_t size;
 	int ret = 0;
 
+	flv_additional_media_data_t *media_data =
+		packet->type == OBS_ENCODER_AUDIO
+			? &stream->additional_metadata
+				   .additional_audio_media_data[idx]
+			: &stream->additional_metadata
+				   .additional_video_media_data[idx];
+
 	stream->last_packet_ts = get_ms_time(packet, packet->dts);
 
-	flv_packet_mux(packet, is_header ? 0 : stream->start_dts_offset, &data,
-		       &size, is_header);
+	if (media_data->active) {
+		flv_additional_packet_mux(
+			packet, is_header ? 0 : stream->start_dts_offset, &data,
+			&size, is_header, media_data);
+	} else {
+		flv_packet_mux(packet, is_header ? 0 : stream->start_dts_offset,
+			       &data, &size, is_header);
+	}
 	fwrite(data, 1, size, stream->file);
 	bfree(data);
 
 	return ret;
+}
+
+static void write_additional_meta_data(struct flv_output *stream)
+{
+	uint8_t *meta_data;
+	size_t meta_data_size;
+
+	if (stream->additional_metadata.processing_intents.num <= 0)
+		return;
+
+	flv_additional_meta_data(stream->output, &stream->additional_metadata,
+				 &meta_data, &meta_data_size);
+	fwrite(meta_data, 1, meta_data_size, stream->file);
+	bfree(meta_data);
 }
 
 static void write_meta_data(struct flv_output *stream)
@@ -111,23 +141,27 @@ static void write_meta_data(struct flv_output *stream)
 	bfree(meta_data);
 }
 
-static void write_audio_header(struct flv_output *stream)
+static bool write_audio_header(struct flv_output *stream, size_t idx)
 {
 	obs_output_t *context = stream->output;
-	obs_encoder_t *aencoder = obs_output_get_audio_encoder(context, 0);
+	obs_encoder_t *aencoder = obs_output_get_audio_encoder(context, idx);
 
 	struct encoder_packet packet = {.type = OBS_ENCODER_AUDIO,
 					.timebase_den = 1};
 
-	if (!obs_encoder_get_extra_data(aencoder, &packet.data, &packet.size))
-		return;
-	write_packet(stream, &packet, true);
+	if (!aencoder)
+		return false;
+
+	if (obs_encoder_get_extra_data(aencoder, &packet.data, &packet.size))
+		write_packet(stream, &packet, true, idx);
+
+	return true;
 }
 
-static void write_video_header(struct flv_output *stream)
+static bool write_video_header(struct flv_output *stream, size_t idx)
 {
 	obs_output_t *context = stream->output;
-	obs_encoder_t *vencoder = obs_output_get_video_encoder(context);
+	obs_encoder_t *vencoder = obs_output_get_video_encoder2(context, idx);
 	uint8_t *header;
 	size_t size;
 
@@ -135,18 +169,131 @@ static void write_video_header(struct flv_output *stream)
 					.timebase_den = 1,
 					.keyframe = true};
 
-	if (!obs_encoder_get_extra_data(vencoder, &header, &size))
-		return;
-	packet.size = obs_parse_avc_header(&packet.data, header, size);
-	write_packet(stream, &packet, true);
-	bfree(packet.data);
+	if (!vencoder)
+		return false;
+
+	if (obs_encoder_get_extra_data(vencoder, &header, &size)) {
+		packet.size = obs_parse_avc_header(&packet.data, header, size);
+		write_packet(stream, &packet, true, idx);
+		bfree(packet.data);
+	}
+
+	return true;
 }
+
+static void add_processing_intents(struct flv_output *stream);
 
 static void write_headers(struct flv_output *stream)
 {
+	add_processing_intents(stream);
 	write_meta_data(stream);
-	write_video_header(stream);
-	write_audio_header(stream);
+	write_additional_meta_data(stream);
+	write_video_header(stream, 0);
+	write_audio_header(stream, 0);
+
+	for (size_t i = 1; write_audio_header(stream, i); i++)
+		;
+	for (size_t i = 1; write_video_header(stream, i); i++)
+		;
+}
+
+static void add_processing_intents(struct flv_output *stream)
+{
+	obs_encoder_t *venc = NULL;
+	obs_encoder_t *aenc = NULL;
+	bool additional_audio = false;
+	bool additional_video = false;
+
+	for (size_t i = 0; i < MAX_OUTPUT_VIDEO_ENCODERS; i++) {
+		obs_encoder_t *enc =
+			obs_output_get_video_encoder2(stream->output, i);
+		if (enc && !venc) {
+			venc = enc;
+			continue;
+		}
+
+		if (enc && enc != venc) {
+			additional_video = true;
+			break;
+		}
+	}
+
+	for (size_t i = 0; i < MAX_OUTPUT_AUDIO_ENCODERS; i++) {
+		obs_encoder_t *enc =
+			obs_output_get_audio_encoder(stream->output, i);
+		if (enc && !aenc) {
+			aenc = enc;
+			continue;
+		}
+
+		if (enc && enc != aenc) {
+			additional_audio = true;
+			break;
+		}
+	}
+
+	int stream_index = 0;
+	if (additional_audio) {
+		// Add our processing intent for audio
+		char *intent = bstrdup("ArchiveProgramNarrationAudio");
+		da_push_back(stream->additional_metadata.processing_intents,
+			     &intent);
+
+		for (size_t i = 0; i < MAX_OUTPUT_AUDIO_ENCODERS; i++) {
+			obs_encoder_t *enc =
+				obs_output_get_audio_encoder(stream->output, i);
+			flv_additional_media_data_t *amd =
+				&stream->additional_metadata
+					 .additional_audio_media_data[i];
+
+			// Skip primary audio or null encoders
+			if (!enc || enc == aenc)
+				continue;
+
+			amd->active = true;
+
+			dstr_printf(&amd->stream_name, "stream%d",
+				    stream_index++);
+			flv_media_label_t content_type =
+				flv_media_label_create_string("contentType",
+							      "PNAR");
+			da_push_back(amd->media_labels, &content_type);
+		}
+	}
+
+	if (additional_video) {
+		// Add our processing intent for video
+		char *intent = bstrdup("SimulcastVideo");
+		da_push_back(stream->additional_metadata.processing_intents,
+			     &intent);
+
+		for (size_t i = 0; i < MAX_OUTPUT_VIDEO_ENCODERS; i++) {
+			obs_encoder_t *enc = obs_output_get_video_encoder2(
+				stream->output, i);
+			flv_additional_media_data_t *amd =
+				&stream->additional_metadata
+					 .additional_video_media_data[i];
+
+			// Skip primary video or null encoders
+			if (!enc || enc == venc)
+				continue;
+
+			amd->active = true;
+
+			dstr_printf(&amd->stream_name, "stream%d",
+				    stream_index++);
+		}
+	}
+
+	flv_media_label_t audio_content_type =
+		flv_media_label_create_string("contentType", "PRM");
+	flv_media_label_t video_content_type =
+		flv_media_label_create_string("contentType", "PRM");
+
+	da_push_back(stream->additional_metadata.default_audio_media_labels,
+		     &audio_content_type);
+	da_push_back(stream->additional_metadata.default_video_media_labels,
+		     &video_content_type);
 }
 
 static bool flv_output_start(void *data)
@@ -163,6 +310,9 @@ static bool flv_output_start(void *data)
 	stream->got_first_video = false;
 	stream->sent_headers = false;
 	os_atomic_set_bool(&stream->stopping, false);
+
+	flv_additional_meta_data_free(&stream->additional_metadata);
+	flv_additional_meta_data_init(&stream->additional_metadata);
 
 	/* get path */
 	settings = obs_output_get_settings(stream->output);
@@ -207,6 +357,8 @@ static void flv_output_actual_stop(struct flv_output *stream, int code)
 		obs_output_end_data_capture(stream->output);
 	}
 
+	flv_additional_meta_data_free(&stream->additional_metadata);
+
 	info("FLV file output complete");
 }
 
@@ -245,10 +397,10 @@ static void flv_output_data(void *data, struct encoder_packet *packet)
 		}
 
 		obs_parse_avc_packet(&parsed_packet, packet);
-		write_packet(stream, &parsed_packet, false);
+		write_packet(stream, &parsed_packet, false, packet->track_idx);
 		obs_encoder_packet_release(&parsed_packet);
 	} else {
-		write_packet(stream, packet, false);
+		write_packet(stream, packet, false, packet->track_idx);
 	}
 
 unlock:
@@ -269,7 +421,7 @@ static obs_properties_t *flv_output_properties(void *unused)
 
 struct obs_output_info flv_output_info = {
 	.id = "flv_output",
-	.flags = OBS_OUTPUT_AV | OBS_OUTPUT_ENCODED,
+	.flags = OBS_OUTPUT_AV | OBS_OUTPUT_ENCODED | OBS_OUTPUT_MULTI_TRACK_AV,
 	.encoded_video_codecs = "h264",
 	.encoded_audio_codecs = "aac",
 	.get_name = flv_output_getname,
