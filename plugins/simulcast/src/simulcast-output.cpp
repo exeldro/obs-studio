@@ -63,7 +63,8 @@ static OBSServiceAutoRelease create_service(const QString &device_id,
 
 	if (!service) {
 		blog(LOG_WARNING, "Failed to create simulcast service");
-		throw QString::asprintf("Failed to create simulcast service");
+		throw QString{obs_module_text(
+			"FailedToStartStream.FailedToCreateSimulcastService")};
 	}
 
 	return service;
@@ -76,8 +77,8 @@ static OBSOutputAutoRelease create_output()
 
 	if (!output) {
 		blog(LOG_ERROR, "failed to create simulcast rtmp output");
-		throw QString::asprintf(
-			"Failed to create simulcast rtmp output");
+		throw QString{
+			"FailedToStartStream.FailedToCreateSimulcastOutput"};
 	}
 
 	if (output) {
@@ -257,7 +258,8 @@ static OBSEncoderAutoRelease create_video_encoder(DStr &name_buffer,
 		blog(LOG_ERROR, "Encoder type '%s' not available",
 		     encoder_type);
 		throw QString::asprintf(
-			"NVENC not available.\n\nFailed to find encoder type '%s'", // FIXME: Remove 'NVENC' bit once we support other encoders
+			obs_module_text(
+				"FailedToStartStream.EncoderNotAvailable"),
 			encoder_type);
 	}
 
@@ -279,7 +281,8 @@ static OBSEncoderAutoRelease create_video_encoder(DStr &name_buffer,
 		blog(LOG_ERROR, "failed to create video encoder '%s'",
 		     name_buffer->array);
 		throw QString::asprintf(
-			"Failed to create video encoder '%s' (type: '%s')",
+			obs_module_text(
+				"FailedToStartStream.FailedToCreateVideoEncoder"),
 			name_buffer->array, encoder_type);
 	}
 	obs_encoder_set_video(video_encoder, obs_get_video());
@@ -290,7 +293,8 @@ static OBSEncoderAutoRelease create_video_encoder(DStr &name_buffer,
 		     "Failed to get obs video info while creating encoder %zu",
 		     encoder_index);
 		throw QString::asprintf(
-			"Failed to get obs video info while creating encoder '%s' (type: '%s')",
+			obs_module_text(
+				"FailedToStartStream.FailedToGetOBSVideoInfo"),
 			name_buffer->array, encoder_type);
 	}
 
@@ -307,7 +311,8 @@ static OBSEncoderAutoRelease create_audio_encoder()
 		"ffmpeg_aac", "simulcast aac", nullptr, 0, nullptr);
 	if (!audio_encoder) {
 		blog(LOG_ERROR, "failed to create audio encoder");
-		throw QString::asprintf("Failed to create audio encoder");
+		throw QString{obs_module_text(
+			"FailedToStartStream.FailedToCreateAudioEncoder")};
 	}
 	obs_encoder_set_audio(audio_encoder, obs_get_audio());
 	return audio_encoder;
@@ -414,8 +419,8 @@ QFuture<bool> SimulcastOutput::StartStreaming(const QString &device_id,
 
 			if (!obs_output_start(output)) {
 				blog(LOG_WARNING, "Failed to start stream");
-				throw QString::asprintf(
-					"Failed to start stream (obs_output_start returned false)");
+				throw QString{obs_module_text(
+					"FailedToStartStream.OBSOutputStartFailed")};
 			}
 
 			blog(LOG_INFO, "starting stream");

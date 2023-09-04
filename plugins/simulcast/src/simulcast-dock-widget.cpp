@@ -54,11 +54,13 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 {
 	if (self->StreamKey().trimmed().isEmpty()) {
 		auto message_box = QMessageBox(
-			QMessageBox::Icon::Critical, "Failed to start stream",
-			"No stream key set in Twitch Settings",
+			QMessageBox::Icon::Critical,
+			obs_module_text("FailedToStartStream.Title"),
+			obs_module_text("FailedToStartStream.NoStreamKey"),
 			QMessageBox::StandardButton::Ok, self);
-		auto open_settings_button =
-			new QPushButton("Open Twitch Settings", &message_box);
+		auto open_settings_button = new QPushButton(
+			obs_module_text("FailedToStartStream.OpenSettings"),
+			&message_box);
 		message_box.addButton(open_settings_button,
 				      QMessageBox::ButtonRole::AcceptRole);
 		message_box.exec();
@@ -87,9 +89,12 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 			custom_config_data = obs_data_create_from_json(
 				self->CustomConfig().toUtf8().constData());
 			if (!custom_config_data) {
-				QMessageBox::critical(self,
-						      "Failed to start stream",
-						      "Invalid custom config");
+				QMessageBox::critical(
+					self,
+					obs_module_text(
+						"FailedToStartStream.Title"),
+					obs_module_text(
+						"FailedToStartStream.InvalidCustomConfig"));
 				return;
 			}
 		}
@@ -117,10 +122,14 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 						"Basic.Main.StartStreaming"));
 				streamingButton->setDisabled(false);
 				QMessageBox::critical(
-					self, "Failed to start stream",
+					self,
+					obs_module_text(
+						"FailedToStartStream.Title"),
 					use_custom_config
-						? "Custom config URL returned invalid config, check log for details"
-						: "API returned invalid config; try again later");
+						? obs_module_text(
+							  "FailedToStartStream.CustomConfigURLInvalidConfig")
+						: obs_module_text(
+							  "FailedToStartStream.GoLiveConfigInvalid"));
 				return;
 			}
 
@@ -216,7 +225,9 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 						event);
 
 					QMessageBox::critical(
-						self, "Failed to start stream",
+						self,
+						obs_module_text(
+							"FailedToStartStream.Title"),
 						error);
 				});
 		});
