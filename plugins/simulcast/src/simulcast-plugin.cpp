@@ -23,8 +23,10 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include <QAction>
 #include <QMainWindow>
+#include <obs.hpp>
 #include <obs-module.h>
 #include <obs-frontend-api.h>
+#include <util/util.hpp>
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("simulcast", "en-US")
@@ -39,7 +41,8 @@ const char *obs_module_description(void)
 }
 
 void register_service();
-void register_settings_window(SimulcastDockWidget *dock);
+void register_settings_window(SimulcastDockWidget *dock,
+			      obs_data_t *plugin_config);
 
 static void obs_event_handler(obs_frontend_event event,
 			      SimulcastDockWidget *simulcastWidget)
@@ -77,18 +80,38 @@ bool obs_module_load(void)
 	if (mainWindow == nullptr)
 		return false;
 
+	auto plugin_config_file = BPtr<char>{obs_module_file("plugin.json")};
+	if (!plugin_config_file) {
+		blog(LOG_WARNING, "Could not find 'plugin.json'");
+		return false;
+	}
+
+	OBSDataAutoRelease plugin_config =
+		obs_data_create_from_json_file(plugin_config_file);
+
+	OBSDataAutoRelease dock_config =
+		obs_data_get_obj(plugin_config, "dock");
+	if (!dock_config || !obs_data_has_user_value(dock_config, "id") ||
+	    !obs_data_has_user_value(dock_config, "title")) {
+		blog(LOG_ERROR, "Invalid dock config");
+		return false;
+	}
+
 	QMetaObject::invokeMethod(mainWindow, []() {
 		GetGlobalService().setCurrentThreadAsDefault();
 	});
 
 	auto dock = new SimulcastDockWidget(mainWindow);
 
-	register_settings_window(dock);
+	register_settings_window(dock, OBSDataAutoRelease{obs_data_get_obj(
+					       plugin_config, "settings")});
 
-	obs_frontend_add_dock_by_id("twitch-go-live", "Twitch", dock);
+	obs_frontend_add_dock_by_id(obs_data_get_string(dock_config, "id"),
+				    obs_data_get_string(dock_config, "title"),
+				    dock);
 
 	// Parent is set by `obs_frontend_add_dock_by_id`, so we need to call this externally/later
-	dock->SetParentStyleSheet();
+	dock->SetParentStyleSheet(dock_config);
 
 	obs_frontend_add_event_callback(
 		[](enum obs_frontend_event event, void *private_data) {

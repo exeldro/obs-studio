@@ -538,8 +538,22 @@ SimulcastDockWidget::StreamAttemptStartTime() const
 	return stream_attempt_start_time_;
 }
 
-void SimulcastDockWidget::SetParentStyleSheet()
+void SimulcastDockWidget::SetParentStyleSheet(obs_data_t *dock_config)
 {
-	parentWidget()->setStyleSheet(
-		"QDockWidget::title { background-color: #644186; color: white; }");
+	QString styles;
+	if (obs_data_has_user_value(dock_config, "color")) {
+		styles += QString::asprintf("color: %s;",
+					    obs_data_get_string(dock_config,
+								"color"));
+	}
+	if (obs_data_has_user_value(dock_config, "background_color")) {
+		styles += QString::asprintf(
+			"background-color: %s;",
+			obs_data_get_string(dock_config, "background_color"));
+	}
+
+	if (styles.isEmpty())
+		return;
+
+	parentWidget()->setStyleSheet("QDockWidget::title {" + styles + "}");
 }

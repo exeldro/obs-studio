@@ -51,7 +51,7 @@ public:
 	const ImmutableDateTime &GenerateStreamAttemptStartTime();
 	const std::optional<ImmutableDateTime> &StreamAttemptStartTime() const;
 
-	void SetParentStyleSheet();
+	void SetParentStyleSheet(obs_data_t *dock_config);
 
 signals:
 	void ProfileChanged();

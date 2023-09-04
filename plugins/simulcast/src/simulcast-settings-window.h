@@ -2,6 +2,8 @@
 #include <QWidget>
 #include <QDialog>
 
+#include <obs-data.h>
+
 class SimulcastDockWidget;
 
 class QAbstractButton;
@@ -15,7 +17,8 @@ class SimulcastSettingsWindow : public QDialog {
 	Q_OBJECT
 
 public:
-	SimulcastSettingsWindow(SimulcastDockWidget *widget, QWidget *parent);
+	SimulcastSettingsWindow(SimulcastDockWidget *widget, QWidget *parent,
+				obs_data_t *settings_config);
 
 private:
 	void ButtonPressed(QAbstractButton *button);
