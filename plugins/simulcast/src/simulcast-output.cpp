@@ -41,6 +41,12 @@ static OBSServiceAutoRelease create_service(const QString &device_id,
 		break;
 	}
 
+	if (!url) {
+		blog(LOG_ERROR, "No RTMP URL in go live config");
+		throw QString{obs_module_text(
+			"FailedToStartStream.NoRTMPURLInConfig")};
+	}
+
 	DStr str;
 	dstr_cat(str, url);
 
