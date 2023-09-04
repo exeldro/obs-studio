@@ -140,6 +140,7 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 			self->Output()
 				.StartStreaming(self->DeviceId(),
 						self->OBSSessionId(),
+						self->RTMPURL(),
 						self->StreamKey(), config_used)
 				.then(self,
 				      [=](bool started) {
@@ -345,6 +346,7 @@ static OBSDataAutoRelease load_or_create_obj(obs_data_t *data, const char *name)
 #define DATA_KEY_CUSTOM_CONFIG "custom_config"
 #define DATA_KEY_DEVICE_ID "device_id"
 #define DATA_KEY_PROFILES "profiles"
+#define DATA_KEY_RTMP_URL "rtmp_url"
 #define DATA_KEY_STREAM_KEY "stream_key"
 #define DATA_KEY_TELEMETRY_ENABLED "telemetry"
 #define DATA_KEY_USE_TWITCH_CONFIG "use_twitch_config"
@@ -363,6 +365,13 @@ void SimulcastDockWidget::SaveConfig()
 	os_mkdirs(module_config_path(""));
 
 	// Set modified config values here
+	if (!rtmp_url_.isEmpty()) {
+		obs_data_set_string(profile_, DATA_KEY_RTMP_URL,
+				    rtmp_url_.toUtf8().constData());
+	} else {
+		obs_data_unset_user_value(profile_, DATA_KEY_RTMP_URL);
+	}
+
 	obs_data_set_string(profile_, DATA_KEY_STREAM_KEY,
 			    stream_key_.toUtf8().constData());
 	obs_data_set_bool(profile_, DATA_KEY_TELEMETRY_ENABLED,
@@ -412,6 +421,10 @@ void SimulcastDockWidget::LoadConfig()
 	// Migrate old config values above
 
 	// Set modified config values here
+	if (obs_data_has_user_value(profile_, DATA_KEY_RTMP_URL)) {
+		rtmp_url_ = obs_data_get_string(profile_, DATA_KEY_RTMP_URL);
+	}
+
 	stream_key_ = obs_data_get_string(profile_, DATA_KEY_STREAM_KEY);
 	telemetry_enabled_ =
 		obs_data_get_bool(profile_, DATA_KEY_TELEMETRY_ENABLED);
@@ -538,8 +551,22 @@ SimulcastDockWidget::StreamAttemptStartTime() const
 	return stream_attempt_start_time_;
 }
 
-void SimulcastDockWidget::SetParentStyleSheet()
+void SimulcastDockWidget::SetParentStyleSheet(obs_data_t *dock_config)
 {
-	parentWidget()->setStyleSheet(
-		"QDockWidget::title { background-color: #644186; color: white; }");
+	QString styles;
+	if (obs_data_has_user_value(dock_config, "color")) {
+		styles += QString::asprintf("color: %s;",
+					    obs_data_get_string(dock_config,
+								"color"));
+	}
+	if (obs_data_has_user_value(dock_config, "background_color")) {
+		styles += QString::asprintf(
+			"background-color: %s;",
+			obs_data_get_string(dock_config, "background_color"));
+	}
+
+	if (styles.isEmpty())
+		return;
+
+	parentWidget()->setStyleSheet("QDockWidget::title {" + styles + "}");
 }

@@ -13,12 +13,14 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSpacerItem>
+#include <QString>
 #include <QVBoxLayout>
 
 #include <obs-frontend-api.h>
 #include <obs-module.h>
 
-void register_settings_window(SimulcastDockWidget *dock)
+void register_settings_window(SimulcastDockWidget *dock,
+			      obs_data_t *settings_config)
 {
 	auto action =
 		static_cast<QAction *>(obs_frontend_add_tools_menu_qaction(
@@ -27,7 +29,8 @@ void register_settings_window(SimulcastDockWidget *dock)
 	QMainWindow *window = (QMainWindow *)obs_frontend_get_main_window();
 
 	obs_frontend_push_ui_translation(obs_module_get_string);
-	auto settings = new SimulcastSettingsWindow(dock, window);
+	auto settings =
+		new SimulcastSettingsWindow(dock, window, settings_config);
 	obs_frontend_pop_ui_translation();
 
 	auto cb = [dock, settings]() {
@@ -47,22 +50,35 @@ void register_settings_window(SimulcastDockWidget *dock)
 }
 
 SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
-						 QWidget *parent)
+						 QWidget *parent,
+						 obs_data_t *settings_config)
 	: QDialog(parent),
 	  dock_(dock)
 {
 	setWindowTitle(obs_module_text("Settings.WindowTitle"));
 
+	auto get_stream_key_url =
+		obs_data_has_user_value(settings_config, "get_stream_key_url")
+			? QString{obs_data_get_string(settings_config,
+						      "get_stream_key_url")}
+			: QString{};
+
 	auto window_layout = new QVBoxLayout(this);
 	auto form_layout = new QFormLayout;
+
+	if (obs_data_get_bool(settings_config, "override_rtmp_url"))
+		rtmp_url_ = new QLineEdit;
 
 	auto stream_key_edit_layout = new QHBoxLayout;
 	stream_key_edit_ = new QLineEdit;
 	stream_key_show_button_ = new QPushButton;
-	auto get_stream_key_button = new QPushButton(
-		obs_frontend_get_locale_string(
-			"Basic.AutoConfig.StreamPage.GetStreamKey"),
-		this);
+	auto get_stream_key_button =
+		get_stream_key_url.isEmpty()
+			? nullptr
+			: new QPushButton(
+				  obs_frontend_get_locale_string(
+					  "Basic.AutoConfig.StreamPage.GetStreamKey"),
+				  this);
 
 	telemetry_checkbox_ =
 		new QCheckBox(obs_module_text("Settings.EnableTelemetry"));
@@ -85,7 +101,13 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 
 	stream_key_edit_layout->addWidget(stream_key_edit_);
 	stream_key_edit_layout->addWidget(stream_key_show_button_);
-	stream_key_edit_layout->addWidget(get_stream_key_button);
+	if (get_stream_key_button) {
+		stream_key_edit_layout->addWidget(get_stream_key_button);
+	}
+
+	if (rtmp_url_)
+		form_layout->addRow(obs_module_text("Settings.RTMPURL"),
+				    rtmp_url_);
 
 	form_layout->addRow(obs_module_text("Settings.StreamKey"),
 			    stream_key_edit_layout);
@@ -98,6 +120,12 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 	form_layout->addRow(button_box_);
 
 	window_layout->addLayout(form_layout, 1);
+
+	if (rtmp_url_)
+		connect(rtmp_url_, &QLineEdit::textEdited,
+			[=](const QString & /*text*/) {
+				SetApplyEnabled(true);
+			});
 
 	connect(stream_key_edit_, &QLineEdit::textEdited,
 		[=](const QString & /* text */) { SetApplyEnabled(true); });
@@ -112,11 +140,13 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 				obs_frontend_get_locale_string(
 					showing ? "Hide" : "Show"));
 		});
-	connect(get_stream_key_button, &QPushButton::clicked,
-		[](bool /*toggled*/) {
-			QDesktopServices::openUrl(QUrl(
-				"https://dashboard.twitch.tv/settings/stream"));
-		});
+	if (get_stream_key_button) {
+		connect(get_stream_key_button, &QPushButton::clicked,
+			[=](bool /*toggled*/) {
+				QDesktopServices::openUrl(
+					QUrl(get_stream_key_url));
+			});
+	}
 	connect(telemetry_checkbox_, &QCheckBox::stateChanged,
 		[=](int /*state*/) { SetApplyEnabled(true); });
 #ifdef ENABLE_CUSTOM_TWITCH_CONFIG
@@ -163,6 +193,8 @@ void SimulcastSettingsWindow::ButtonPressed(QAbstractButton *button)
 	}
 
 	// Handle individual settings here
+	if (rtmp_url_)
+		dock_->RTMPURL() = rtmp_url_->text();
 	dock_->StreamKey() = stream_key_edit_->text();
 	dock_->TelemetryEanbled() = telemetry_checkbox_->isChecked();
 #ifdef ENABLE_CUSTOM_TWITCH_CONFIG
@@ -199,6 +231,9 @@ void SimulcastSettingsWindow::ResetWindow()
 
 void SimulcastSettingsWindow::ResetSettings()
 {
+	if (rtmp_url_)
+		rtmp_url_->setText(dock_->RTMPURL());
+
 	stream_key_edit_->setText(dock_->StreamKey());
 	telemetry_checkbox_->setChecked(dock_->TelemetryEanbled());
 #ifdef ENABLE_CUSTOM_TWITCH_CONFIG

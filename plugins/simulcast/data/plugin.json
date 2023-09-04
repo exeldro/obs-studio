@@ -1,0 +1,11 @@
+{
+	"dock": {
+        "id": "twitch-go-live",
+		"title": "Twitch",
+		"color": "white",
+		"background_color": "#644186"
+	},
+    "settings": {
+        "get_stream_key_url": "https://dashboard.twitch.tv/settings/stream"
+    }
+}
