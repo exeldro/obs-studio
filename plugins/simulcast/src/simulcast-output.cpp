@@ -25,26 +25,37 @@
 static OBSServiceAutoRelease create_service(const QString &device_id,
 					    const QString &obs_session_id,
 					    obs_data_t *go_live_config,
+					    const QString &rtmp_url,
 					    const QString &stream_key)
 {
 	const char *url = nullptr;
-	OBSDataArrayAutoRelease ingest_endpoints =
-		obs_data_get_array(go_live_config, "ingest_endpoints");
-	for (size_t i = 0; i < obs_data_array_count(ingest_endpoints); i++) {
-		OBSDataAutoRelease item =
-			obs_data_array_item(ingest_endpoints, i);
-		if (qstrnicmp("RTMP", obs_data_get_string(item, "protocol"), 4))
-			continue;
+	QByteArray rtmp_url_utf8_data;
+	if (!rtmp_url.isEmpty()) {
+		rtmp_url_utf8_data = rtmp_url.toUtf8();
+		url = rtmp_url_utf8_data.constData();
 
-		url = obs_data_get_string(item, "url_template");
-		blog(LOG_INFO, "Using URL template: '%s'", url);
-		break;
-	}
+		blog(LOG_INFO, "Using custom rtmp URL: '%s'", url);
+	} else {
+		OBSDataArrayAutoRelease ingest_endpoints =
+			obs_data_get_array(go_live_config, "ingest_endpoints");
+		for (size_t i = 0; i < obs_data_array_count(ingest_endpoints);
+		     i++) {
+			OBSDataAutoRelease item =
+				obs_data_array_item(ingest_endpoints, i);
+			if (qstrnicmp("RTMP",
+				      obs_data_get_string(item, "protocol"), 4))
+				continue;
 
-	if (!url) {
-		blog(LOG_ERROR, "No RTMP URL in go live config");
-		throw QString{obs_module_text(
-			"FailedToStartStream.NoRTMPURLInConfig")};
+			url = obs_data_get_string(item, "url_template");
+			blog(LOG_INFO, "Using URL template: '%s'", url);
+			break;
+		}
+
+		if (!url) {
+			blog(LOG_ERROR, "No RTMP URL in go live config");
+			throw QString{obs_module_text(
+				"FailedToStartStream.NoRTMPURLInConfig")};
+		}
 	}
 
 	DStr str;
@@ -355,6 +366,7 @@ struct OutputObjects {
 
 QFuture<bool> SimulcastOutput::StartStreaming(const QString &device_id,
 					      const QString &obs_session_id,
+					      const QString &rtmp_url,
 					      const QString &stream_key,
 					      obs_data_t *go_live_config_)
 {
@@ -363,8 +375,8 @@ QFuture<bool> SimulcastOutput::StartStreaming(const QString &device_id,
 	return CreateFuture()
 		.then(QThreadPool::globalInstance(),
 		      [=, device_id = device_id,
-		       obs_session_id = obs_session_id, stream_key = stream_key,
-		       self = this,
+		       obs_session_id = obs_session_id, rtmp_url = rtmp_url,
+		       stream_key = stream_key, self = this,
 		       video_encoders = std::move(video_encoders_)]() mutable
 		      -> std::optional<OutputObjects> {
 			      auto config = go_live_config_data
@@ -388,7 +400,7 @@ QFuture<bool> SimulcastOutput::StartStreaming(const QString &device_id,
 
 			      auto simulcast_service = create_service(
 				      device_id, obs_session_id, go_live_config,
-				      stream_key);
+				      rtmp_url, stream_key);
 			      if (!simulcast_service)
 				      return std::nullopt;
 

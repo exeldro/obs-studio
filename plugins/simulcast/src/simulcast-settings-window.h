@@ -29,6 +29,8 @@ private:
 
 	SimulcastDockWidget *dock_;
 
+	QLineEdit *rtmp_url_ = nullptr;
+
 	QLineEdit *stream_key_edit_;
 	QPushButton *stream_key_show_button_;
 	QDialogButtonBox *button_box_;

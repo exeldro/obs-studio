@@ -66,6 +66,9 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 	auto window_layout = new QVBoxLayout(this);
 	auto form_layout = new QFormLayout;
 
+	if (obs_data_get_bool(settings_config, "override_rtmp_url"))
+		rtmp_url_ = new QLineEdit;
+
 	auto stream_key_edit_layout = new QHBoxLayout;
 	stream_key_edit_ = new QLineEdit;
 	stream_key_show_button_ = new QPushButton;
@@ -102,6 +105,10 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 		stream_key_edit_layout->addWidget(get_stream_key_button);
 	}
 
+	if (rtmp_url_)
+		form_layout->addRow(obs_module_text("Settings.RTMPURL"),
+				    rtmp_url_);
+
 	form_layout->addRow(obs_module_text("Settings.StreamKey"),
 			    stream_key_edit_layout);
 	form_layout->addRow("", telemetry_checkbox_);
@@ -113,6 +120,12 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 	form_layout->addRow(button_box_);
 
 	window_layout->addLayout(form_layout, 1);
+
+	if (rtmp_url_)
+		connect(rtmp_url_, &QLineEdit::textEdited,
+			[=](const QString & /*text*/) {
+				SetApplyEnabled(true);
+			});
 
 	connect(stream_key_edit_, &QLineEdit::textEdited,
 		[=](const QString & /* text */) { SetApplyEnabled(true); });
@@ -180,6 +193,8 @@ void SimulcastSettingsWindow::ButtonPressed(QAbstractButton *button)
 	}
 
 	// Handle individual settings here
+	if (rtmp_url_)
+		dock_->RTMPURL() = rtmp_url_->text();
 	dock_->StreamKey() = stream_key_edit_->text();
 	dock_->TelemetryEanbled() = telemetry_checkbox_->isChecked();
 #ifdef ENABLE_CUSTOM_TWITCH_CONFIG
@@ -216,6 +231,9 @@ void SimulcastSettingsWindow::ResetWindow()
 
 void SimulcastSettingsWindow::ResetSettings()
 {
+	if (rtmp_url_)
+		rtmp_url_->setText(dock_->RTMPURL());
+
 	stream_key_edit_->setText(dock_->StreamKey());
 	telemetry_checkbox_->setChecked(dock_->TelemetryEanbled());
 #ifdef ENABLE_CUSTOM_TWITCH_CONFIG

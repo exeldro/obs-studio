@@ -38,6 +38,7 @@ public:
 
 	const QString &OBSSessionId() { return obs_session_id_; }
 
+	QString &RTMPURL() { return rtmp_url_; }
 	QString &StreamKey() { return stream_key_; }
 	bool &TelemetryEanbled() { return telemetry_enabled_; }
 	bool &UseServerConfig() { return use_server_config_; }
@@ -66,6 +67,7 @@ private:
 	QString obs_session_id_;
 
 	// Add config vars here
+	QString rtmp_url_;
 	QString stream_key_;
 	bool telemetry_enabled_;
 	bool use_server_config_;
