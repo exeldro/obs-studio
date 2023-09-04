@@ -54,11 +54,13 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 {
 	if (self->StreamKey().trimmed().isEmpty()) {
 		auto message_box = QMessageBox(
-			QMessageBox::Icon::Critical, "Failed to start stream",
-			"No stream key set in Twitch Settings",
+			QMessageBox::Icon::Critical,
+			obs_module_text("FailedToStartStream.Title"),
+			obs_module_text("FailedToStartStream.NoStreamKey"),
 			QMessageBox::StandardButton::Ok, self);
-		auto open_settings_button =
-			new QPushButton("Open Twitch Settings", &message_box);
+		auto open_settings_button = new QPushButton(
+			obs_module_text("FailedToStartStream.OpenSettings"),
+			&message_box);
 		message_box.addButton(open_settings_button,
 				      QMessageBox::ButtonRole::AcceptRole);
 		message_box.exec();
@@ -79,7 +81,7 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 	QString url = GO_LIVE_API_URL;
 	OBSDataAutoRelease custom_config_data;
 #ifdef ENABLE_CUSTOM_TWITCH_CONFIG
-	if (!self->UseTwitchConfig()) {
+	if (!self->UseServerConfig()) {
 		const auto &custom_config = self->CustomConfig();
 		if (custom_config.startsWith("http")) {
 			url = custom_config;
@@ -87,9 +89,12 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 			custom_config_data = obs_data_create_from_json(
 				self->CustomConfig().toUtf8().constData());
 			if (!custom_config_data) {
-				QMessageBox::critical(self,
-						      "Failed to start stream",
-						      "Invalid custom config");
+				QMessageBox::critical(
+					self,
+					obs_module_text(
+						"FailedToStartStream.Title"),
+					obs_module_text(
+						"FailedToStartStream.InvalidCustomConfig"));
 				return;
 			}
 		}
@@ -106,7 +111,7 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 	}()};
 
 	DownloadGoLiveConfig(self, url, postData)
-		.then(self, [=, use_custom_config = !self->UseTwitchConfig(),
+		.then(self, [=, use_custom_config = !self->UseServerConfig(),
 			     custom_config_data = OBSData{custom_config_data}](
 				    OBSDataAutoRelease goLiveConfig) mutable {
 			auto download_time_elapsed = start_time.MSecsElapsed();
@@ -117,10 +122,14 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 						"Basic.Main.StartStreaming"));
 				streamingButton->setDisabled(false);
 				QMessageBox::critical(
-					self, "Failed to start stream",
+					self,
+					obs_module_text(
+						"FailedToStartStream.Title"),
 					use_custom_config
-						? "Custom config URL returned invalid config, check log for details"
-						: "API returned invalid config; try again later");
+						? obs_module_text(
+							  "FailedToStartStream.CustomConfigURLInvalidConfig")
+						: obs_module_text(
+							  "FailedToStartStream.GoLiveConfigInvalid"));
 				return;
 			}
 
@@ -216,7 +225,9 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 						event);
 
 					QMessageBox::critical(
-						self, "Failed to start stream",
+						self,
+						obs_module_text(
+							"FailedToStartStream.Title"),
 						error);
 				});
 		});
@@ -337,6 +348,7 @@ static OBSDataAutoRelease load_or_create_obj(obs_data_t *data, const char *name)
 #define DATA_KEY_STREAM_KEY "stream_key"
 #define DATA_KEY_TELEMETRY_ENABLED "telemetry"
 #define DATA_KEY_USE_TWITCH_CONFIG "use_twitch_config"
+#define DATA_KEY_USE_SERVER_CONFIG "use_server_config"
 
 static void write_config(obs_data_t *config)
 {
@@ -355,8 +367,8 @@ void SimulcastDockWidget::SaveConfig()
 			    stream_key_.toUtf8().constData());
 	obs_data_set_bool(profile_, DATA_KEY_TELEMETRY_ENABLED,
 			  telemetry_enabled_);
-	obs_data_set_bool(profile_, DATA_KEY_USE_TWITCH_CONFIG,
-			  use_twitch_config_);
+	obs_data_set_bool(profile_, DATA_KEY_USE_SERVER_CONFIG,
+			  use_server_config_);
 	obs_data_set_string(profile_, DATA_KEY_CUSTOM_CONFIG,
 			    custom_config_.toUtf8().constData());
 	obs_data_set_string(config_, DATA_KEY_SETTINGS_WINDOW_GEOMETRY,
@@ -387,14 +399,24 @@ void SimulcastDockWidget::LoadConfig()
 	profile_ = load_or_create_obj(profiles_, profile_name_->array);
 
 	obs_data_set_default_bool(profile_, DATA_KEY_TELEMETRY_ENABLED, true);
-	obs_data_set_default_bool(profile_, DATA_KEY_USE_TWITCH_CONFIG, true);
+	obs_data_set_default_bool(profile_, DATA_KEY_USE_SERVER_CONFIG, true);
+
+	// Migrate old config values if necessary
+	if (obs_data_has_user_value(profile_, DATA_KEY_USE_TWITCH_CONFIG) &&
+	    !obs_data_has_user_value(profile_, DATA_KEY_USE_SERVER_CONFIG)) {
+		obs_data_set_bool(
+			profile_, DATA_KEY_USE_SERVER_CONFIG,
+			obs_data_get_bool(profile_,
+					  DATA_KEY_USE_TWITCH_CONFIG));
+	}
+	// Migrate old config values above
 
 	// Set modified config values here
 	stream_key_ = obs_data_get_string(profile_, DATA_KEY_STREAM_KEY);
 	telemetry_enabled_ =
 		obs_data_get_bool(profile_, DATA_KEY_TELEMETRY_ENABLED);
-	use_twitch_config_ =
-		obs_data_get_bool(profile_, DATA_KEY_USE_TWITCH_CONFIG);
+	use_server_config_ =
+		obs_data_get_bool(profile_, DATA_KEY_USE_SERVER_CONFIG);
 	custom_config_ = obs_data_get_string(profile_, DATA_KEY_CUSTOM_CONFIG);
 	settings_window_geometry_ = QByteArray::fromBase64(obs_data_get_string(
 		config_, DATA_KEY_SETTINGS_WINDOW_GEOMETRY));

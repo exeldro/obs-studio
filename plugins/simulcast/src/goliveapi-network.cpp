@@ -1,6 +1,7 @@
 #include "goliveapi-network.hpp"
 
 #include <obs.hpp>
+#include <obs-module.h>
 #include "copy-from-obs/remote-text.hpp"
 #include "qt-helpers.h"
 
@@ -80,7 +81,8 @@ QFuture<OBSDataAutoRelease> DownloadGoLiveConfig(QWidget *parent, QString url,
 			if (!encodeConfigError.isEmpty()) {
 				int carryOn = QMessageBox::warning(
 					parent,
-					"Twitch Go Live Config Download Error",
+					obs_module_text(
+						"ConfigDownloadError.Title"),
 					encodeConfigError, QMessageBox::Yes,
 					QMessageBox::No);
 

@@ -40,7 +40,7 @@ public:
 
 	QString &StreamKey() { return stream_key_; }
 	bool &TelemetryEanbled() { return telemetry_enabled_; }
-	bool &UseTwitchConfig() { return use_twitch_config_; }
+	bool &UseServerConfig() { return use_server_config_; }
 	QString &CustomConfig() { return custom_config_; }
 	const QString &DeviceId() { return device_id_; }
 	QByteArray &SettingsWindowGeometry()
@@ -68,7 +68,7 @@ private:
 	// Add config vars here
 	QString stream_key_;
 	bool telemetry_enabled_;
-	bool use_twitch_config_;
+	bool use_server_config_;
 	QString custom_config_;
 	QString device_id_;
 	QByteArray settings_window_geometry_;

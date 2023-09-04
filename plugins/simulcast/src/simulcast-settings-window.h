@@ -33,7 +33,7 @@ private:
 	QCheckBox *telemetry_checkbox_;
 
 #ifdef ENABLE_CUSTOM_TWITCH_CONFIG
-	QCheckBox *use_twitch_config_;
+	QCheckBox *use_server_config_;
 	QPlainTextEdit *custom_config_;
 #endif
 };
