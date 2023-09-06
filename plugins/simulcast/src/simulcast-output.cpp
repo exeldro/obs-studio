@@ -489,6 +489,7 @@ SetupOBSOutput(obs_data_t *go_live_config,
 	OBSDataArrayAutoRelease encoder_configs =
 		obs_data_get_array(go_live_config, "encoder_configurations");
 	DStr video_encoder_name_buffer;
+	obs_encoder_t *first_encoder = nullptr;
 	for (size_t i = 0; i < obs_data_array_count(encoder_configs); i++) {
 		OBSDataAutoRelease encoder_config =
 			obs_data_array_item(encoder_configs, i);
@@ -496,6 +497,12 @@ SetupOBSOutput(obs_data_t *go_live_config,
 						    i, encoder_config);
 		if (!encoder)
 			return nullptr;
+
+		if (!first_encoder)
+			first_encoder = encoder;
+		else
+			obs_encoder_group_simulcast_encoder(first_encoder,
+							    encoder);
 
 		obs_output_set_video_encoder2(output, encoder, i);
 		video_encoders.emplace_back(std::move(encoder));
