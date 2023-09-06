@@ -1250,7 +1250,6 @@ struct obs_encoder {
 	 * up at the specific timestamp.  if this is the audio encoder,
 	 * wait_for_video makes it wait until it's ready to sync up with
 	 * video */
-	bool wait_for_video;
 	bool first_received;
 	struct obs_encoder *paired_encoder;
 	int64_t offset_usec;
