@@ -19,7 +19,7 @@ class SimulcastDockWidget : public QWidget {
 	Q_OBJECT;
 
 public:
-	SimulcastDockWidget(QWidget *parent = 0);
+	SimulcastDockWidget(obs_data_t *settings_config, QWidget *parent = 0);
 
 	void SaveConfig();
 	void LoadConfig();
@@ -63,6 +63,8 @@ private:
 	std::unique_ptr<BerryessaEveryMinute> berryessaEveryMinute_;
 
 	QPointer<QAction> open_settings_action_;
+
+	const bool override_rtmp_url_;
 
 	QString obs_session_id_;
 

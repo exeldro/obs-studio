@@ -101,10 +101,12 @@ bool obs_module_load(void)
 		GetGlobalService().setCurrentThreadAsDefault();
 	});
 
-	auto dock = new SimulcastDockWidget(mainWindow);
+	OBSDataAutoRelease settings_config =
+		obs_data_get_obj(plugin_config, "settings");
 
-	register_settings_window(dock, OBSDataAutoRelease{obs_data_get_obj(
-					       plugin_config, "settings")});
+	auto dock = new SimulcastDockWidget(settings_config, mainWindow);
+
+	register_settings_window(dock, settings_config);
 
 	obs_frontend_add_dock_by_id(obs_data_get_string(dock_config, "id"),
 				    obs_data_get_string(dock_config, "title"),
