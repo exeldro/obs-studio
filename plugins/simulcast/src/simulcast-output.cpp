@@ -292,6 +292,8 @@ static OBSEncoderAutoRelease create_video_encoder(DStr &name_buffer,
 						  "keyInt_sec"));
 	}
 
+	obs_data_set_bool(encoder_config, "disable_scenecut", true);
+
 	OBSEncoderAutoRelease video_encoder = obs_video_encoder_create(
 		encoder_type, name_buffer, encoder_config, nullptr);
 	if (!video_encoder) {
