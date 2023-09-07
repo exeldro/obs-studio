@@ -80,6 +80,17 @@ static void *gpu_encode_thread(struct obs_core_video_mix *video)
 			pkt.timebase_den = encoder->timebase_den;
 			pkt.encoder = encoder;
 
+			if (encoder->encoder_group && !encoder->start_ts) {
+				struct encoder_group *group =
+					encoder->encoder_group;
+				bool ready = false;
+				pthread_mutex_lock(&group->mutex);
+				ready = group->start_timestamp == timestamp;
+				pthread_mutex_unlock(&group->mutex);
+				if (!ready)
+					continue;
+			}
+
 			if (!encoder->first_received && pair) {
 				if (!pair->first_received ||
 				    pair->first_raw_ts > timestamp) {

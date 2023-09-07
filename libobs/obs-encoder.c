@@ -321,6 +321,17 @@ static void add_connection(struct obs_encoder *encoder)
 		}
 	}
 
+	if (encoder->encoder_group) {
+		bool ready = false;
+		pthread_mutex_lock(&encoder->encoder_group->mutex);
+		encoder->encoder_group->encoders_ready += 1;
+		ready = encoder->encoder_group->encoders_ready ==
+			encoder->encoder_group->encoders_added;
+		pthread_mutex_unlock(&encoder->encoder_group->mutex);
+		if (ready)
+			add_ready_encoder_group(encoder);
+	}
+
 	set_encoder_active(encoder, true);
 }
 
@@ -335,6 +346,12 @@ static void remove_connection(struct obs_encoder *encoder, bool shutdown)
 		} else {
 			stop_raw_video(encoder->media, receive_video, encoder);
 		}
+	}
+
+	if (encoder->encoder_group) {
+		pthread_mutex_lock(&encoder->encoder_group->mutex);
+		encoder->encoder_group->encoders_ready -= 1;
+		pthread_mutex_unlock(&encoder->encoder_group->mutex);
 	}
 
 	/* obs_encoder_shutdown locks init_mutex, so don't call it on encode
@@ -371,6 +388,23 @@ static void obs_encoder_actually_destroy(obs_encoder_t *encoder)
 
 		blog(LOG_DEBUG, "encoder '%s' destroyed",
 		     encoder->context.name);
+
+		if (encoder->encoder_group) {
+			struct encoder_group *group = encoder->encoder_group;
+			bool release = false;
+
+			encoder->encoder_group = NULL;
+
+			pthread_mutex_lock(&group->mutex);
+			group->encoders_added -= 1;
+			release = group->encoders_added == 0;
+			pthread_mutex_unlock(&group->mutex);
+
+			if (release) {
+				pthread_mutex_destroy(&group->mutex);
+				bfree(group);
+			}
+		}
 
 		free_audio_buffers(encoder);
 
@@ -1374,6 +1408,16 @@ static void receive_video(void *param, struct video_data *frame)
 	struct obs_encoder *pair = encoder->paired_encoder;
 	struct encoder_frame enc_frame;
 
+	if (encoder->encoder_group && !encoder->start_ts) {
+		struct encoder_group *group = encoder->encoder_group;
+		bool ready = false;
+		pthread_mutex_lock(&group->mutex);
+		ready = group->start_timestamp == frame->timestamp;
+		pthread_mutex_unlock(&group->mutex);
+		if (!ready)
+			goto wait_for_audio;
+	}
+
 	if (!encoder->first_received && pair) {
 		if (!pair->first_received ||
 		    pair->first_raw_ts > frame->timestamp) {
@@ -1865,4 +1909,47 @@ void obs_encoder_set_last_error(obs_encoder_t *encoder, const char *message)
 uint64_t obs_encoder_get_pause_offset(const obs_encoder_t *encoder)
 {
 	return encoder ? encoder->pause.ts_offset : 0;
+}
+
+bool obs_encoder_group_simulcast_encoder(obs_encoder_t *encoder,
+					 obs_encoder_t *bonded_encoder)
+{
+	if (!obs_encoder_valid(encoder,
+			       "obs_encoder_group_simulcast_encoder") ||
+	    !obs_encoder_valid(bonded_encoder,
+			       "obs_encoder_group_simulcast_encoder"))
+		return false;
+
+	if (obs_encoder_active(encoder) || obs_encoder_active(bonded_encoder)) {
+		obs_encoder_t *active =
+			obs_encoder_active(encoder) ? encoder : bonded_encoder;
+		obs_encoder_t *other = active == encoder ? bonded_encoder
+							 : encoder;
+		blog(LOG_ERROR,
+		     "obs_encoder_group_simulcast_encoder: encoder '%s' is already active, could not group with '%s'",
+		     obs_encoder_get_name(active), obs_encoder_get_name(other));
+		return false;
+	}
+
+	if (bonded_encoder->encoder_group) {
+		blog(LOG_ERROR,
+		     "encoder '%s' is already part of a simulcast group while trying to group with encoder '%s'",
+		     obs_encoder_get_name(bonded_encoder),
+		     obs_encoder_get_name(encoder));
+		return false;
+	}
+
+	if (!encoder->encoder_group) {
+		encoder->encoder_group = bzalloc(sizeof(struct encoder_group));
+		if (pthread_mutex_init(&encoder->encoder_group->mutex, NULL) <
+		    0)
+			return false;
+
+		encoder->encoder_group->encoders_added = 1;
+	}
+
+	bonded_encoder->encoder_group = encoder->encoder_group;
+	encoder->encoder_group->encoders_added += 1;
+
+	return true;
 }
