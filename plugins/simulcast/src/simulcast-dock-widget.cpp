@@ -294,7 +294,7 @@ static void SetupSignalsAndSlots(
 }
 
 SimulcastDockWidget::SimulcastDockWidget(QWidget * /*parent*/)
-	: berryessa_(this, "https://data-staging.stats.live-video.net/")
+	: berryessa_(this, "https://data.stats.live-video.net/")
 {
 	//berryessa_ = new BerryessaSubmitter(this, "http://127.0.0.1:8787/");
 
