@@ -293,8 +293,11 @@ static void SetupSignalsAndSlots(
 		Qt::QueuedConnection);
 }
 
-SimulcastDockWidget::SimulcastDockWidget(QWidget * /*parent*/)
-	: berryessa_(this, "https://data.stats.live-video.net/")
+SimulcastDockWidget::SimulcastDockWidget(obs_data_t *settings_config,
+					 QWidget * /*parent*/)
+	: berryessa_(this, "https://data.stats.live-video.net/"),
+	  override_rtmp_url_(
+		  obs_data_get_bool(settings_config, "override_rtmp_url"))
 {
 	//berryessa_ = new BerryessaSubmitter(this, "http://127.0.0.1:8787/");
 
@@ -421,7 +424,8 @@ void SimulcastDockWidget::LoadConfig()
 	// Migrate old config values above
 
 	// Set modified config values here
-	if (obs_data_has_user_value(profile_, DATA_KEY_RTMP_URL)) {
+	if (override_rtmp_url_ &&
+	    obs_data_has_user_value(profile_, DATA_KEY_RTMP_URL)) {
 		rtmp_url_ = obs_data_get_string(profile_, DATA_KEY_RTMP_URL);
 	}
 
