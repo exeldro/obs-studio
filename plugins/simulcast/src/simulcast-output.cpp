@@ -183,6 +183,60 @@ static pixel_resolution scale_resolution(const obs_video_info &ovi,
 		static_cast<uint32_t>(requested_height)};
 }
 
+static void data_item_release(obs_data_item_t *item)
+{
+	obs_data_item_release(&item);
+}
+
+using OBSDataItemAutoRelease =
+	OBSRefAutoRelease<obs_data_item_t *, data_item_release>;
+
+static obs_scale_type load_gpu_scale_type(obs_data_t *encoder_config)
+{
+	const auto default_scale_type = OBS_SCALE_BICUBIC;
+
+	OBSDataItemAutoRelease item =
+		obs_data_item_byname(encoder_config, "gpu_scale_type");
+	if (!item)
+		return default_scale_type;
+
+	switch (obs_data_item_gettype(item)) {
+	case OBS_DATA_NUMBER: {
+		auto val = obs_data_item_get_int(item);
+		if (val < OBS_SCALE_POINT || val > OBS_SCALE_AREA) {
+			blog(LOG_WARNING,
+			     "load_gpu_scale_type: scale type out of range %lld (must be 1 <= value <= 5)",
+			     val);
+			break;
+		}
+		return static_cast<obs_scale_type>(val);
+	}
+
+	case OBS_DATA_STRING: {
+		auto val = obs_data_item_get_string(item);
+		if (strncmp(val, "OBS_SCALE_POINT", 16) == 0)
+			return OBS_SCALE_POINT;
+		if (strncmp(val, "OBS_SCALE_BICUBIC", 18) == 0)
+			return OBS_SCALE_BICUBIC;
+		if (strncmp(val, "OBS_SCALE_BILINEAR", 19) == 0)
+			return OBS_SCALE_BILINEAR;
+		if (strncmp(val, "OBS_SCALE_LANCZOS", 18) == 0)
+			return OBS_SCALE_LANCZOS;
+		if (strncmp(val, "OBS_SCALE_AREA", 15) == 0)
+			return OBS_SCALE_AREA;
+		blog(LOG_WARNING,
+		     "load_gpu_scale_type: unknown scaling type: '%s'", val);
+		break;
+	}
+
+	default:
+		blog(LOG_WARNING, "load_gpu_scale_type: unknown data type: %d",
+		     obs_data_item_gettype(item));
+	}
+
+	return default_scale_type;
+}
+
 static void adjust_video_encoder_scaling(const obs_video_info &ovi,
 					 obs_encoder_t *video_encoder,
 					 obs_data_t *encoder_config)
@@ -202,7 +256,8 @@ static void adjust_video_encoder_scaling(const obs_video_info &ovi,
 				    static_cast<uint32_t>(requested_width),
 				    static_cast<uint32_t>(requested_height));
 #endif
-	obs_encoder_set_gpu_scale_type(video_encoder, OBS_SCALE_BICUBIC);
+	obs_encoder_set_gpu_scale_type(video_encoder,
+				       load_gpu_scale_type(encoder_config));
 }
 
 static uint32_t closest_divisor(const obs_video_info &ovi,
