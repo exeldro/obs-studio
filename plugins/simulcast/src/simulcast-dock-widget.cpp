@@ -107,7 +107,9 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 
 	OBSData postData{[&] {
 		ProfileScope("constructGoLivePostData");
-		return constructGoLivePost(start_time);
+		return constructGoLivePost(start_time,
+					   self->PreferenceMaximumBitrate(),
+					   self->PreferenceMaximumRenditions());
 	}()};
 
 	DownloadGoLiveConfig(self, url, postData)
@@ -351,6 +353,8 @@ static OBSDataAutoRelease load_or_create_obj(obs_data_t *data, const char *name)
 #define DATA_KEY_PROFILES "profiles"
 #define DATA_KEY_RTMP_URL "rtmp_url"
 #define DATA_KEY_STREAM_KEY "stream_key"
+#define DATA_KEY_PREFERENCE_MAXIMUM_BITRATE "preference_maximum_bitrate"
+#define DATA_KEY_PREFERENCE_MAXIMUM_RENDITIONS "preference_maximum_renditions"
 #define DATA_KEY_TELEMETRY_ENABLED "telemetry"
 #define DATA_KEY_USE_TWITCH_CONFIG "use_twitch_config"
 #define DATA_KEY_USE_SERVER_CONFIG "use_server_config"
@@ -377,6 +381,21 @@ void SimulcastDockWidget::SaveConfig()
 
 	obs_data_set_string(profile_, DATA_KEY_STREAM_KEY,
 			    stream_key_.toUtf8().constData());
+	if (preference_maximum_bitrate_.has_value()) {
+		obs_data_set_int(profile_, DATA_KEY_PREFERENCE_MAXIMUM_BITRATE,
+				 preference_maximum_bitrate_.value());
+	} else {
+		obs_data_unset_user_value(profile_,
+					  DATA_KEY_PREFERENCE_MAXIMUM_BITRATE);
+	}
+	if (preference_maximum_renditions_.has_value()) {
+		obs_data_set_int(profile_,
+				 DATA_KEY_PREFERENCE_MAXIMUM_RENDITIONS,
+				 preference_maximum_renditions_.value());
+	} else {
+		obs_data_unset_user_value(
+			profile_, DATA_KEY_PREFERENCE_MAXIMUM_RENDITIONS);
+	}
 	obs_data_set_bool(profile_, DATA_KEY_TELEMETRY_ENABLED,
 			  telemetry_enabled_);
 	obs_data_set_bool(profile_, DATA_KEY_USE_SERVER_CONFIG,
@@ -430,6 +449,20 @@ void SimulcastDockWidget::LoadConfig()
 	}
 
 	stream_key_ = obs_data_get_string(profile_, DATA_KEY_STREAM_KEY);
+	preference_maximum_bitrate_ =
+		obs_data_has_user_value(profile_,
+					DATA_KEY_PREFERENCE_MAXIMUM_BITRATE)
+			? std::optional(obs_data_get_int(
+				  profile_,
+				  DATA_KEY_PREFERENCE_MAXIMUM_BITRATE))
+			: std::nullopt;
+	preference_maximum_renditions_ =
+		obs_data_has_user_value(profile_,
+					DATA_KEY_PREFERENCE_MAXIMUM_RENDITIONS)
+			? std::optional(obs_data_get_int(
+				  profile_,
+				  DATA_KEY_PREFERENCE_MAXIMUM_RENDITIONS))
+			: std::nullopt;
 	telemetry_enabled_ =
 		obs_data_get_bool(profile_, DATA_KEY_TELEMETRY_ENABLED);
 	use_server_config_ =

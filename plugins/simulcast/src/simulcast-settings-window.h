@@ -12,6 +12,7 @@ class QDialogButtonBox;
 class QLineEdit;
 class QPlainTextEdit;
 class QPushButton;
+class QSpinBox;
 
 class SimulcastSettingsWindow : public QDialog {
 	Q_OBJECT
@@ -34,6 +35,12 @@ private:
 	QLineEdit *stream_key_edit_;
 	QPushButton *stream_key_show_button_;
 	QDialogButtonBox *button_box_;
+
+	QCheckBox *auto_preference_maximum_bitrate_;
+	QSpinBox *preference_maximum_bitrate_;
+
+	QCheckBox *auto_preference_maximum_renditions_;
+	QSpinBox *preference_maximum_renditions_;
 
 	QCheckBox *telemetry_checkbox_;
 

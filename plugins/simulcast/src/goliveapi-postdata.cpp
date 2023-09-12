@@ -3,8 +3,10 @@
 #include "immutable-date-time.h"
 #include "system-info.h"
 
-OBSDataAutoRelease
-constructGoLivePost(const ImmutableDateTime &attempt_start_time)
+OBSDataAutoRelease constructGoLivePost(
+	const ImmutableDateTime &attempt_start_time,
+	const std::optional<uint64_t> &preference_maximum_bitrate,
+	const std::optional<uint32_t> &preference_maximum_renditions)
 {
 	OBSDataAutoRelease postData = obs_data_create();
 	OBSDataAutoRelease capabilitiesData = obs_data_create();
@@ -37,6 +39,15 @@ constructGoLivePost(const ImmutableDateTime &attempt_start_time)
 		obs_data_set_int(clientData, "canvas_width", ovi.base_width);
 		obs_data_set_int(clientData, "canvas_height", ovi.base_height);
 	}
+
+	OBSDataAutoRelease preferences = obs_data_create();
+	obs_data_set_obj(postData, "preferences", preferences);
+	if (preference_maximum_bitrate.has_value())
+		obs_data_set_int(preferences, "maximum_bitrate",
+				 preference_maximum_bitrate.value());
+	if (preference_maximum_renditions.has_value())
+		obs_data_set_int(preferences, "maximum_renditions",
+				 preference_maximum_renditions.value());
 
 #if 0
 	// XXX hardcoding the present-day AdvancedOutput behavior here..

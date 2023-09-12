@@ -40,6 +40,14 @@ public:
 
 	QString &RTMPURL() { return rtmp_url_; }
 	QString &StreamKey() { return stream_key_; }
+	std::optional<uint64_t> &PreferenceMaximumBitrate()
+	{
+		return preference_maximum_bitrate_;
+	}
+	std::optional<uint32_t> &PreferenceMaximumRenditions()
+	{
+		return preference_maximum_renditions_;
+	}
 	bool &TelemetryEanbled() { return telemetry_enabled_; }
 	bool &UseServerConfig() { return use_server_config_; }
 	QString &CustomConfig() { return custom_config_; }
@@ -71,6 +79,8 @@ private:
 	// Add config vars here
 	QString rtmp_url_;
 	QString stream_key_;
+	std::optional<uint64_t> preference_maximum_bitrate_;
+	std::optional<uint32_t> preference_maximum_renditions_;
 	bool telemetry_enabled_;
 	bool use_server_config_;
 	QString custom_config_;

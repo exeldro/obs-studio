@@ -13,6 +13,7 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSpacerItem>
+#include <QSpinBox>
 #include <QString>
 #include <QVBoxLayout>
 
@@ -80,6 +81,16 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 					  "Basic.AutoConfig.StreamPage.GetStreamKey"),
 				  this);
 
+	auto preference_maximum_bitrate_layout = new QHBoxLayout;
+	auto_preference_maximum_bitrate_ = new QCheckBox(
+		obs_module_text("Settings.AutoPreferenceMaximumBitrate"));
+	preference_maximum_bitrate_ = new QSpinBox;
+
+	auto preference_maximum_renditions_layout = new QHBoxLayout;
+	auto_preference_maximum_renditions_ = new QCheckBox(
+		obs_module_text("Settings.AutoPreferenceMaximumRenditions"));
+	preference_maximum_renditions_ = new QSpinBox;
+
 	telemetry_checkbox_ =
 		new QCheckBox(obs_module_text("Settings.EnableTelemetry"));
 
@@ -105,12 +116,36 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 		stream_key_edit_layout->addWidget(get_stream_key_button);
 	}
 
+	auto_preference_maximum_bitrate_->setSizePolicy(QSizePolicy::Minimum,
+							QSizePolicy::Minimum);
+	preference_maximum_bitrate_->setSizePolicy(
+		QSizePolicy::MinimumExpanding, QSizePolicy::Minimum);
+	preference_maximum_bitrate_layout->addWidget(
+		auto_preference_maximum_bitrate_);
+	preference_maximum_bitrate_layout->addWidget(
+		preference_maximum_bitrate_);
+
+	auto_preference_maximum_renditions_->setSizePolicy(
+		QSizePolicy::Minimum, QSizePolicy::Minimum);
+	preference_maximum_renditions_->setSizePolicy(
+		QSizePolicy::MinimumExpanding, QSizePolicy::Minimum);
+	preference_maximum_renditions_layout->addWidget(
+		auto_preference_maximum_renditions_);
+	preference_maximum_renditions_layout->addWidget(
+		preference_maximum_renditions_);
+
 	if (rtmp_url_)
 		form_layout->addRow(obs_module_text("Settings.RTMPURL"),
 				    rtmp_url_);
 
 	form_layout->addRow(obs_module_text("Settings.StreamKey"),
 			    stream_key_edit_layout);
+	form_layout->addRow(
+		obs_module_text("Settings.PreferenceMaximumBitrate"),
+		preference_maximum_bitrate_layout);
+	form_layout->addRow(
+		obs_module_text("Settings.PreferenceMaximumRenditions"),
+		preference_maximum_renditions_layout);
 	form_layout->addRow("", telemetry_checkbox_);
 #ifdef ENABLE_CUSTOM_TWITCH_CONFIG
 	form_layout->addRow("", use_server_config_);
@@ -147,6 +182,23 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 					QUrl(get_stream_key_url));
 			});
 	}
+	connect(auto_preference_maximum_bitrate_, &QCheckBox::stateChanged,
+		[=](int /*state*/) {
+			SetApplyEnabled(true);
+			preference_maximum_bitrate_->setEnabled(
+				!auto_preference_maximum_bitrate_->isChecked());
+		});
+	connect(preference_maximum_bitrate_, &QSpinBox::valueChanged,
+		[=](int /*value*/) { SetApplyEnabled(true); });
+	connect(auto_preference_maximum_renditions_, &QCheckBox::stateChanged,
+		[=](int /*state*/) {
+			SetApplyEnabled(true);
+			preference_maximum_renditions_->setEnabled(
+				!auto_preference_maximum_renditions_
+					 ->isChecked());
+		});
+	connect(preference_maximum_renditions_, &QSpinBox::valueChanged,
+		[=](int /*value*/) { SetApplyEnabled(true); });
 	connect(telemetry_checkbox_, &QCheckBox::stateChanged,
 		[=](int /*state*/) { SetApplyEnabled(true); });
 #ifdef ENABLE_CUSTOM_TWITCH_CONFIG
@@ -173,6 +225,12 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 	connect(&dock_->Output(), &SimulcastOutput::StreamStopped, this,
 		[=] { stream_key_edit_->setEnabled(true); });
 
+	preference_maximum_bitrate_->setMinimum(200);
+	preference_maximum_bitrate_->setMaximum(100000000);
+	preference_maximum_bitrate_->setValue(6000);
+	preference_maximum_renditions_->setMinimum(1);
+	preference_maximum_renditions_->setValue(3);
+
 	ResetWindow();
 	ResetSettings();
 }
@@ -196,6 +254,16 @@ void SimulcastSettingsWindow::ButtonPressed(QAbstractButton *button)
 	if (rtmp_url_)
 		dock_->RTMPURL() = rtmp_url_->text();
 	dock_->StreamKey() = stream_key_edit_->text();
+	dock_->PreferenceMaximumBitrate() =
+		auto_preference_maximum_bitrate_->isChecked()
+			? std::nullopt
+			: std::optional(static_cast<uint64_t>(
+				  preference_maximum_bitrate_->value()));
+	dock_->PreferenceMaximumRenditions() =
+		auto_preference_maximum_renditions_->isChecked()
+			? std::nullopt
+			: std::optional(static_cast<uint32_t>(
+				  preference_maximum_renditions_->value()));
 	dock_->TelemetryEanbled() = telemetry_checkbox_->isChecked();
 #ifdef ENABLE_CUSTOM_TWITCH_CONFIG
 	dock_->UseServerConfig() = use_server_config_->isChecked();
@@ -235,6 +303,22 @@ void SimulcastSettingsWindow::ResetSettings()
 		rtmp_url_->setText(dock_->RTMPURL());
 
 	stream_key_edit_->setText(dock_->StreamKey());
+	const auto &preference_maximum_bitrate_value =
+		dock_->PreferenceMaximumBitrate();
+	auto_preference_maximum_bitrate_->setChecked(
+		!preference_maximum_bitrate_value.has_value());
+	if (preference_maximum_bitrate_value.has_value()) {
+		preference_maximum_bitrate_->setValue(static_cast<int>(
+			preference_maximum_bitrate_value.value()));
+	}
+	const auto &preference_maximum_renditions_value =
+		dock_->PreferenceMaximumRenditions();
+	auto_preference_maximum_renditions_->setChecked(
+		!preference_maximum_renditions_value.has_value());
+	if (preference_maximum_renditions_value.has_value()) {
+		preference_maximum_renditions_->setValue(static_cast<int>(
+			preference_maximum_renditions_value.value()));
+	}
 	telemetry_checkbox_->setChecked(dock_->TelemetryEanbled());
 #ifdef ENABLE_CUSTOM_TWITCH_CONFIG
 	use_server_config_->setChecked(dock_->UseServerConfig());
