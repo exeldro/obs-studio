@@ -73,7 +73,8 @@ static OBSServiceAutoRelease create_service(const QString &device_id,
 
 	OBSDataAutoRelease settings = obs_data_create();
 	obs_data_set_string(settings, "server", str->array);
-	obs_data_set_string(settings, "key", stream_key.toUtf8().constData());
+	obs_data_set_string(settings, "key",
+			    key_with_param.toUtf8().constData());
 
 	auto service = obs_service_create(
 		"simulcast_service", "simulcast service", settings, nullptr);
