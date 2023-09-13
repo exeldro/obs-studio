@@ -1,6 +1,7 @@
 
 #include "berryessa-submitter.hpp"
 #include "berryessa-every-minute.hpp"
+#include "immutable-date-time.h"
 #include "presentmon-csv-capture.hpp"
 
 #include <util/dstr.hpp>
@@ -136,6 +137,9 @@ void BerryessaEveryMinute::fire()
 	if (wmi_queries_.has_value())
 		wmi_queries_->SummarizeData(event);
 #endif
+
+	auto current_time = ImmutableDateTime::CurrentTimeUtc();
+	obs_data_set_string(event, "time_utc", current_time.CStr());
 
 	berryessa_->submit("ivs_obs_stream_minute", event);
 
