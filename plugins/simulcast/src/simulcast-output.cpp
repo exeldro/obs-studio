@@ -18,6 +18,8 @@
 #include <QScopeGuard>
 #include <QString>
 #include <QThreadPool>
+#include <QUrl>
+#include <QUrlQuery>
 
 #include "plugin-macros.generated.h"
 #include "qt-helpers.h"
@@ -68,8 +70,13 @@ static OBSServiceAutoRelease create_service(const QString &device_id,
 				    str->len - (found - str->array));
 	}
 
-	auto key_with_param = stream_key + "?deviceIdentifier=" + device_id +
-			      "&obsSessionId=" + obs_session_id;
+	QUrl parsed_url{url};
+	QUrlQuery parsed_query{parsed_url};
+
+	parsed_query.addQueryItem("deviceIdentifier", device_id);
+	parsed_query.addQueryItem("obsSessionId", obs_session_id);
+
+	auto key_with_param = stream_key + "?" + parsed_query.toString();
 
 	OBSDataAutoRelease settings = obs_data_create();
 	obs_data_set_string(settings, "server", str->array);
