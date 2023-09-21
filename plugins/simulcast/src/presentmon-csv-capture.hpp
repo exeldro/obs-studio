@@ -10,6 +10,7 @@
 #include <QProcess>
 
 #include <memory>
+#include <unordered_map>
 
 class PresentMonCapture_state {
 public:
