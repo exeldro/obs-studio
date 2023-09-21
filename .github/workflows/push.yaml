@@ -244,7 +244,7 @@ jobs:
               echo 'prerelease=false' >> $GITHUB_OUTPUT
               echo "version=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
               ;;
-            +([0-9]).+([0-9]).+([0-9])-@(staff-build|beta|rc)*([0-9]) )
+            +([0-9]).+([0-9]).+([0-9])-@(beta|rc|(twitch|ivs-alpha|beta))*([0-9]) )
               echo 'validTag=true' >> $GITHUB_OUTPUT
               echo 'prerelease=true' >> $GITHUB_OUTPUT
               echo "version=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
