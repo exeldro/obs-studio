@@ -4257,6 +4257,7 @@ RTMP_SendPacket(RTMP *r, RTMPPacket *packet, int queue)
         buffer += nChunkSize;
         hSize = 0;
 
+        // prepare to send off remaining data in Type 3 chunks
         if (nSize > 0)
         {
             header = buffer - 1;
@@ -4266,6 +4267,11 @@ RTMP_SendPacket(RTMP *r, RTMPPacket *packet, int queue)
                 header -= cSize;
                 hSize += cSize;
             }
+            if (t >= 0xffffff)
+            {
+                hSize += 4;
+                header -= 4;
+            }
             *header = (0xc0 | c);
             if (cSize)
             {
@@ -4274,6 +4280,8 @@ RTMP_SendPacket(RTMP *r, RTMPPacket *packet, int queue)
                 if (cSize == 2)
                     header[2] = tmp >> 8;
             }
+            if (t >= 0xffffff)
+                AMF_EncodeInt32(header+hSize-4, header+hSize, t);
         }
     }
     if (tbuf)
