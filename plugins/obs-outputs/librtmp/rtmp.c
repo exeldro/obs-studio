@@ -4257,6 +4257,7 @@ RTMP_SendPacket(RTMP *r, RTMPPacket *packet, int queue)
         buffer += nChunkSize;
         hSize = 0;
 
+        // prepare to send off remaining data in Type 3 chunks
         if (nSize > 0)
         {
             header = buffer - 1;
