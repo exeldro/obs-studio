@@ -28,7 +28,7 @@ jobs:
           if [[ "${RUNNER_DEBUG}" ]]; then set -x; fi
 
           case "${GITHUB_EVENT_NAME}" in
-            pull_request)
+            pull_request|merge_group)
               config_data=('codesign:false' 'notarize:false' 'package:false' 'config:RelWithDebInfo' 'dev:true')
               if gh pr view ${{ github.event.number }} --json labels \
                 | jq -e -r '.labels[] | select(.name == "Seeking Testers")' > /dev/null; then
