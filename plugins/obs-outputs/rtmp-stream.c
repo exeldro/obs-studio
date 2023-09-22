@@ -468,7 +468,7 @@ static int send_packet_ex(struct rtmp_stream *stream,
 			: &stream->additional_metadata
 				   .additional_video_media_data[idx];
 
-	if (media_data->active) {
+	if (!stream->ertmp_multitrack && media_data->active) {
 		if (is_header) {
 			flv_additional_packet_start_ex(packet, media_data,
 						       stream->video_codec[idx],
@@ -485,14 +485,14 @@ static int send_packet_ex(struct rtmp_stream *stream,
 	} else {
 		if (is_header) {
 			flv_packet_start(packet, stream->video_codec[idx],
-					 &data, &size);
+					 &data, &size, idx);
 		} else if (is_footer) {
 			flv_packet_end(packet, stream->video_codec[idx], &data,
-				       &size);
+				       &size, idx);
 		} else {
 			flv_packet_frames(packet, stream->video_codec[idx],
 					  stream->start_dts_offset, &data,
-					  &size);
+					  &size, idx);
 		}
 	}
 
@@ -703,7 +703,10 @@ static void *send_thread(void *data)
 
 		int sent;
 		if (packet.type == OBS_ENCODER_VIDEO &&
-		    stream->video_codec[packet.track_idx] != CODEC_H264) {
+		    (stream->video_codec[packet.track_idx] != CODEC_H264 ||
+		     (stream->ertmp_multitrack &&
+		      stream->video_codec[packet.track_idx] == CODEC_H264 &&
+		      packet.track_idx != 0))) {
 			sent = send_packet_ex(stream, &packet, false, false,
 					      packet.track_idx);
 		} else {
@@ -851,7 +854,13 @@ static bool send_video_header(struct rtmp_stream *stream, size_t idx,
 	switch (stream->video_codec[idx]) {
 	case CODEC_H264:
 		packet.size = obs_parse_avc_header(&packet.data, header, size);
-		return send_packet(stream, &packet, true, idx) >= 0;
+		// Always send H264 on track 0 as old style for compat
+		if (!stream->ertmp_multitrack || idx == 0) {
+			return send_packet(stream, &packet, true, idx) >= 0;
+		} else {
+			return send_packet_ex(stream, &packet, true, false,
+					      idx) >= 0;
+		}
 #ifdef ENABLE_HEVC
 	case CODEC_HEVC:
 		packet.size = obs_parse_hevc_header(&packet.data, header, size);
@@ -949,7 +958,7 @@ static bool send_video_metadata(struct rtmp_stream *stream, size_t idx)
 			max_luminance =
 				(int)obs_get_video_hdr_nominal_peak_level();
 
-		if (media_data->active) {
+		if (!stream->ertmp_multitrack && media_data->active) {
 			flv_additional_packet_metadata_ex(
 				media_data, stream->video_codec[idx], &data,
 				&size, bits_per_raw_sample, pri, trc, spc, 0,
@@ -957,7 +966,7 @@ static bool send_video_metadata(struct rtmp_stream *stream, size_t idx)
 		} else {
 			flv_packet_metadata(stream->video_codec[idx], &data,
 					    &size, bits_per_raw_sample, pri,
-					    trc, spc, 0, max_luminance);
+					    trc, spc, 0, max_luminance, idx);
 		}
 
 		int ret = RTMP_Write(&stream->rtmp, (char *)data, (int)size, 0);
@@ -1529,6 +1538,11 @@ static bool init_connect(struct rtmp_stream *stream)
 	stream->low_latency_mode = false;
 #endif
 
+	// Whether to enable multitrack ERTMP or use old-style
+	// additionalData method
+	stream->ertmp_multitrack =
+		obs_data_get_bool(settings, OPT_ERTMP_MULTITRACK);
+
 	obs_data_release(settings);
 	return true;
 }
@@ -1912,6 +1926,7 @@ static void rtmp_stream_defaults(obs_data_t *defaults)
 	obs_data_set_default_bool(defaults, OPT_NEWSOCKETLOOP_ENABLED, false);
 	obs_data_set_default_bool(defaults, OPT_LOWLATENCY_ENABLED, false);
 #endif
+	obs_data_set_default_bool(defaults, OPT_ERTMP_MULTITRACK, false);
 }
 
 static obs_properties_t *rtmp_stream_properties(void *unused)

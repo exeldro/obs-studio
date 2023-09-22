@@ -33,6 +33,8 @@
 #define AUDIODATA_AAC 10.0
 
 #define VIDEO_FRAMETYPE_OFFSET 4
+#define VIDEO_MULTITRACK_TYPE_OFFSET 4
+
 enum video_frametype_t {
 	FT_KEY = 1 << VIDEO_FRAMETYPE_OFFSET,
 	FT_INTER = 2 << VIDEO_FRAMETYPE_OFFSET,
@@ -47,7 +49,16 @@ enum packet_type_t {
 #ifdef ENABLE_HEVC
 	PACKETTYPE_FRAMESX = 3,
 #endif
-	PACKETTYPE_METADATA = 4
+	PACKETTYPE_METADATA = 4,
+	PACKETTYPE_MPEG2TS_SEQ_START = 5,
+	PACKETTYPE_MULTITRACK = 6
+};
+
+enum multitrack_type_t {
+	MULTITRACKTYPE_ONE_TRACK = 0 << VIDEO_MULTITRACK_TYPE_OFFSET,
+	MULTITRACKTYPE_MANY_TRACKS = 1 << VIDEO_MULTITRACK_TYPE_OFFSET,
+	MULTITRACKTYPE_MANY_TRACKS_MANY_CODECS = 2
+						 << VIDEO_MULTITRACK_TYPE_OFFSET
 };
 
 enum datatype_t {
@@ -75,7 +86,11 @@ static void s_w4cc(struct serializer *s, enum video_id_t id)
 		break;
 #endif
 	case CODEC_H264:
-		assert(0);
+		s_w8(s, 'a');
+		s_w8(s, 'v');
+		s_w8(s, 'c');
+		s_w8(s, '1');
+		break;
 	}
 }
 
@@ -103,8 +118,7 @@ static inline double encoder_bitrate(obs_encoder_t *encoder)
 
 static const double VIDEODATA_AVCVIDEOPACKET = 7.0;
 // Additional FLV onMetaData values for Enhanced RTMP/FLV
-static const double VIDEODATA_AV1VIDEOPACKET = 1635135537.0; // FourCC "av01"
-#ifdef ENABLE_HEVC
+static const double VIDEODATA_AV1VIDEOPACKET = 1635135537.0;  // FourCC "av01"
 static const double VIDEODATA_HEVCVIDEOPACKET = 1752589105.0; // FourCC "hvc1"
 #endif
 
@@ -352,7 +366,8 @@ void flv_packet_mux(struct encoder_packet *packet, int32_t dts_offset,
 
 // Y2023 spec
 void flv_packet_ex(struct encoder_packet *packet, enum video_id_t codec_id,
-		   int32_t dts_offset, uint8_t **output, size_t *size, int type)
+		   int32_t dts_offset, uint8_t **output, size_t *size, int type,
+		   size_t idx)
 {
 	struct array_output_data data;
 	struct serializer s;
@@ -362,23 +377,36 @@ void flv_packet_ex(struct encoder_packet *packet, enum video_id_t codec_id,
 
 	int32_t time_ms = get_ms_time(packet, packet->dts) - dts_offset;
 
+	bool is_multitrack = idx > 0;
+
 	// packet head
-	int header_metadata_size = 5;
+	int header_metadata_size = 5; // w8+w4cc
 #ifdef ENABLE_HEVC
 	// 3 extra bytes for composition time offset
 	if (codec_id == CODEC_HEVC && type == PACKETTYPE_FRAMES) {
-		header_metadata_size = 8;
+		header_metadata_size += 3; // w24
 	}
 #endif
+	if (is_multitrack)
+		header_metadata_size += 2; // w8+w8
+
 	s_w8(&s, RTMP_PACKET_TYPE_VIDEO);
 	s_wb24(&s, (uint32_t)packet->size + header_metadata_size);
 	s_wtimestamp(&s, time_ms);
 	s_wb24(&s, 0); // always 0
 
 	// packet ext header
-	s_w8(&s,
-	     FRAME_HEADER_EX | type | (packet->keyframe ? FT_KEY : FT_INTER));
+	s_w8(&s, FRAME_HEADER_EX |
+			 (is_multitrack ? PACKETTYPE_MULTITRACK : type) |
+			 (packet->keyframe ? FT_KEY : FT_INTER));
 	s_w4cc(&s, codec_id);
+
+	// We only add explicitly emit trackIds iff idx > 0
+	// The default trackId is 0
+	if (is_multitrack) {
+		s_w8(&s, MULTITRACKTYPE_ONE_TRACK | type);
+		s_w8(&s, (uint8_t)idx); // trackId
+	}
 
 #ifdef ENABLE_HEVC
 	// hevc composition time offset
@@ -398,13 +426,15 @@ void flv_packet_ex(struct encoder_packet *packet, enum video_id_t codec_id,
 }
 
 void flv_packet_start(struct encoder_packet *packet, enum video_id_t codec,
-		      uint8_t **output, size_t *size)
+		      uint8_t **output, size_t *size, size_t idx)
 {
-	flv_packet_ex(packet, codec, 0, output, size, PACKETTYPE_SEQ_START);
+	flv_packet_ex(packet, codec, 0, output, size, PACKETTYPE_SEQ_START,
+		      idx);
 }
 
 void flv_packet_frames(struct encoder_packet *packet, enum video_id_t codec,
-		       int32_t dts_offset, uint8_t **output, size_t *size)
+		       int32_t dts_offset, uint8_t **output, size_t *size,
+		       size_t idx)
 {
 	int packet_type = PACKETTYPE_FRAMES;
 #ifdef ENABLE_HEVC
@@ -413,19 +443,21 @@ void flv_packet_frames(struct encoder_packet *packet, enum video_id_t codec,
 	if (codec == CODEC_HEVC && packet->dts == packet->pts)
 		packet_type = PACKETTYPE_FRAMESX;
 #endif
-	flv_packet_ex(packet, codec, dts_offset, output, size, packet_type);
+	flv_packet_ex(packet, codec, dts_offset, output, size, packet_type,
+		      idx);
 }
 
 void flv_packet_end(struct encoder_packet *packet, enum video_id_t codec,
-		    uint8_t **output, size_t *size)
+		    uint8_t **output, size_t *size, size_t idx)
 {
-	flv_packet_ex(packet, codec, 0, output, size, PACKETTYPE_SEQ_END);
+	flv_packet_ex(packet, codec, 0, output, size, PACKETTYPE_SEQ_END, idx);
 }
 
 void flv_packet_metadata(enum video_id_t codec_id, uint8_t **output,
 			 size_t *size, int bits_per_raw_sample,
 			 uint8_t color_primaries, int color_trc,
-			 int color_space, int min_luminance, int max_luminance)
+			 int color_space, int min_luminance, int max_luminance,
+			 size_t idx)
 {
 	// metadata array
 	struct array_output_data data;
@@ -489,16 +521,31 @@ void flv_packet_metadata(enum video_id_t codec_id, uint8_t **output,
 		s_w8(&s, DATA_TYPE_OBJECT_END);
 	}
 
+	bool is_multitrack = idx > 0;
+
 	// packet head
+	int header_metadata_size = 5; // w8+w4cc
+	if (is_multitrack)
+		header_metadata_size += 2; // w8+w8
+
 	s_w8(&s, RTMP_PACKET_TYPE_VIDEO);
-	s_wb24(&s, (uint32_t)metadata.bytes.num + 5); // 5 = (w8+w4cc)
+	s_wb24(&s, (uint32_t)metadata.bytes.num + header_metadata_size);
 	s_wtimestamp(&s, 0);
 	s_wb24(&s, 0); // always 0
 
 	// packet ext header
 	// these are the 5 extra bytes mentioned above
-	s_w8(&s, FRAME_HEADER_EX | PACKETTYPE_METADATA);
+	s_w8(&s, FRAME_HEADER_EX | (is_multitrack ? PACKETTYPE_MULTITRACK
+						  : PACKETTYPE_METADATA));
 	s_w4cc(&s, codec_id);
+
+	// We only add explicitly emit trackIds iff idx > 0
+	// The default trackId is 0
+	if (is_multitrack) {
+		s_w8(&s, MULTITRACKTYPE_ONE_TRACK | PACKETTYPE_METADATA);
+		s_w8(&s, (uint8_t)idx); // trackId
+	}
+
 	// packet data
 	s_write(&s, metadata.bytes.array, metadata.bytes.num);
 	array_output_serializer_free(&metadata); // must be freed

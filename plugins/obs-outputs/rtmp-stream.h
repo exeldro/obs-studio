@@ -32,6 +32,7 @@
 #define OPT_NEWSOCKETLOOP_ENABLED "new_socket_loop_enabled"
 #define OPT_LOWLATENCY_ENABLED "low_latency_mode_enabled"
 #define OPT_METADATA_MULTITRACK "metadata_multitrack"
+#define OPT_ERTMP_MULTITRACK "ertmp_multitrack"
 
 //#define TEST_FRAMEDROPS
 //#define TEST_FRAMEDROPS_WITH_BITRATE_SHORTCUTS
@@ -133,6 +134,7 @@ struct rtmp_stream {
 	os_event_t *send_thread_signaled_exit;
 
 	flv_additional_meta_data_t additional_metadata;
+	bool ertmp_multitrack;
 };
 
 #ifdef _WIN32

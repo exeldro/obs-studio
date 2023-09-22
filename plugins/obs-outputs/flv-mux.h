@@ -23,7 +23,7 @@
 #define FLV_ADDITIONAL_MEDIA_DATA_CODEC_ID_H264 7
 
 enum video_id_t {
-	CODEC_H264 = 1, // legacy
+	CODEC_H264 = 1, // legacy & Y2023 spec
 	CODEC_AV1,      // Y2023 spec
 #ifdef ENABLE_HEVC
 	CODEC_HEVC,
@@ -210,17 +210,17 @@ flv_additional_meta_data_free(flv_additional_meta_data_t *meta_data)
 // Y2023 spec
 extern void flv_packet_start(struct encoder_packet *packet,
 			     enum video_id_t codec, uint8_t **output,
-			     size_t *size);
+			     size_t *size, size_t idx);
 extern void flv_packet_frames(struct encoder_packet *packet,
 			      enum video_id_t codec, int32_t dts_offset,
-			      uint8_t **output, size_t *size);
+			      uint8_t **output, size_t *size, size_t idx);
 extern void flv_packet_end(struct encoder_packet *packet, enum video_id_t codec,
-			   uint8_t **output, size_t *size);
+			   uint8_t **output, size_t *size, size_t idx);
 extern void flv_packet_metadata(enum video_id_t codec, uint8_t **output,
 				size_t *size, int bits_per_raw_sample,
 				uint8_t color_primaries, int color_trc,
 				int color_space, int min_luminance,
-				int max_luminance);
+				int max_luminance, size_t idx);
 
 extern void flv_additional_packet_start_ex(
 	struct encoder_packet *packet, flv_additional_media_data_t *media_data,
