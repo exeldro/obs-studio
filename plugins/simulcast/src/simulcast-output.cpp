@@ -76,6 +76,16 @@ static OBSServiceAutoRelease create_service(const QString &device_id,
 	parsed_query.addQueryItem("deviceIdentifier", device_id);
 	parsed_query.addQueryItem("obsSessionId", obs_session_id);
 
+	OBSDataAutoRelease go_live_meta =
+		obs_data_get_obj(go_live_config, "meta");
+	if (go_live_meta) {
+		const char *config_id =
+			obs_data_get_string(go_live_meta, "config_id");
+		if (config_id && *config_id) {
+			parsed_query.addQueryItem("configId", config_id);
+		}
+	}
+
 	auto key_with_param = stream_key + "?" + parsed_query.toString();
 
 	OBSDataAutoRelease settings = obs_data_create();
