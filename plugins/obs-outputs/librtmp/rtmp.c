@@ -315,36 +315,29 @@ RTMP_TLS_LoadCerts(RTMP *r) {
     CertFreeCertificateContext(pCertContext);
     CertCloseStore(hCertStore, 0);
 #elif defined(__APPLE__)
-    CFTypeRef keys[4] = {kSecClass, kSecMatchLimit, kSecReturnAttributes,
-                 kSecReturnData};
-
-    CFTypeRef values[4] = {kSecClassCertificate, kSecMatchLimitAll,
-                   kCFBooleanFalse, kCFBooleanTrue};
-    CFDictionaryRef query =
-        CFDictionaryCreate(kCFAllocatorDefault, keys, values, 4,
-                   &kCFTypeDictionaryKeyCallBacks,
-                   &kCFTypeDictionaryValueCallBacks);
-
-    CFTypeRef result;
-
-    OSStatus code = SecItemCopyMatching(query, &result);
+    CFArrayRef anchors;
+    OSStatus code = SecTrustCopyAnchorCertificates(&anchors);
 
     if (code != noErr) {
         goto error;
     }
 
-    for (CFIndex i = 0; i < CFArrayGetCount(result); i++) {
-        CFDataRef data_ref = CFArrayGetValueAtIndex(result, i);
+    for (CFIndex i = 0; i < CFArrayGetCount(anchors); i++) {
+        SecCertificateRef cert = (SecCertificateRef)CFArrayGetValueAtIndex(anchors, i);
 
-        const UInt8 *data = CFDataGetBytePtr(data_ref);
-        size_t length = CFDataGetLength(data_ref);
+        CFDataRef der_data = SecCertificateCopyData(cert);
+
+        const UInt8 *data = CFDataGetBytePtr(der_data);
+        size_t length = CFDataGetLength(der_data);
 
         if (data && length > 0) {
             mbedtls_x509_crt_parse_der(chain, data, length);
         }
+
+        CFRelease(der_data);
     }
 
-    CFRelease(result);
+    CFRelease(anchors);
 
 #elif defined(__linux__)
     if (mbedtls_x509_crt_parse_path(chain, "/etc/ssl/certs/") < 0) {

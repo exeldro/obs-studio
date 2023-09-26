@@ -16,10 +16,7 @@ local output_name=${3}
 
 log_group "Create macOS disk image"
 
-local _hdiutil_flags
-if (( _loglevel < 1 )) _hdiutil_flags='-quiet'
-
-trap "safe_hdiutil detach ${_hdiutil_flags} /Volumes/${output_name}; rm temp.dmg; log_group; return 2" ERR
+trap "safe_hdiutil detach /Volumes/${output_name}; rm temp.dmg; log_group; return 2" ERR
 
 safe_hdiutil() {
   local _status=0
@@ -30,6 +27,7 @@ safe_hdiutil() {
 
     if (( _status )) {
       log_warning "Unable to run 'hdiutil ${@}' (attempt #${i}). Retrying."
+      if (( ${+CI} )) sudo pkill -9 XProtect >/dev/null || true
       sleep ${_backoff[${i}]}
     } else {
       break
@@ -43,14 +41,14 @@ safe_hdiutil() {
   }
 }
 
-safe_hdiutil create ${_hdiutil_flags} \
+safe_hdiutil create \
   -volname "${volume_name}" \
   -srcfolder ${source} \
   -ov \
-  -fs APFS \
+  -fs HFS+ \
   -format UDRW \
   temp.dmg
-safe_hdiutil attach ${_hdiutil_flags} \
+safe_hdiutil attach \
   -noverify \
   -readwrite \
   -mountpoint /Volumes/${output_name} \
@@ -70,10 +68,10 @@ SetFile -a C /Volumes/${output_name}
 rm -rf -- /Volumes/${output_name}/.fseventsd(N)
 log_info "Converting disk image..."
 
-safe_hdiutil detach ${_hdiutil_flags} /Volumes/${output_name}
+safe_hdiutil detach /Volumes/${output_name}
 
-safe_hdiutil convert ${_hdiutil_flags} \
-  -format ULMO \
+safe_hdiutil convert \
+  -format ULFO \
   -ov \
   -o ${output_name}.dmg temp.dmg
 

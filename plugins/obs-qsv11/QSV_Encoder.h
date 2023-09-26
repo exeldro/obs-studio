@@ -56,10 +56,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include <mfxadapter.h>
+#include <vpl/mfxstructures.h>
+#include <vpl/mfxadapter.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include "common_utils.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -70,30 +72,26 @@ struct qsv_rate_control_info {
 	bool haswell_or_greater;
 };
 
-static const struct qsv_rate_control_info qsv_ratecontrols[] = {
-	{"CBR", false},   {"VBR", false}, {"VCM", true},    {"CQP", false},
-	{"AVBR", false},  {"ICQ", true},  {"LA_ICQ", true}, {"LA_CBR", true},
-	{"LA_VBR", true}, {0, false}};
-
-static const struct qsv_rate_control_info qsv_av1_ratecontrols[] =
-	{{"CBR", false}, {"VBR", false}, {"CQP", false}, {0, false}};
+static const struct qsv_rate_control_info qsv_ratecontrols[] = {{"CBR", false},
+								{"VBR", false},
+								{"CQP", false},
+								{"ICQ", true},
+								{0, false}};
 
 static const char *const qsv_profile_names[] = {"high", "main", "baseline", 0};
 static const char *const qsv_profile_names_av1[] = {"main", 0};
 static const char *const qsv_profile_names_hevc[] = {"main", "main10", 0};
-static const char *const qsv_usage_names[] = {"quality",  "balanced", "speed",
-					      "veryslow", "slower",   "slow",
-					      "medium",   "fast",     "faster",
-					      "veryfast", 0};
+static const char *const qsv_usage_names[] = {"TU1: Slowest (Best Quality)",
+					      "TU2: Slower",
+					      "TU3: Slow",
+					      "TU4: Balanced (Medium Quality)",
+					      "TU5: Fast",
+					      "TU6: Faster",
+					      "TU7: Fastest (Best Speed)",
+					      0};
 static const char *const qsv_latency_names[] = {"ultra-low", "low", "normal",
 						0};
 typedef struct qsv_t qsv_t;
-
-enum qsv_codec {
-	QSV_CODEC_AVC,
-	QSV_CODEC_AV1,
-	QSV_CODEC_HEVC,
-};
 
 typedef struct {
 	mfxU16 nTargetUsage; /* 1 through 7, 1 being best quality and 7
@@ -131,9 +129,9 @@ typedef struct {
 	mfxU32 MinDisplayMasteringLuminance;
 	mfxU16 MaxContentLightLevel;
 	mfxU16 MaxPicAverageLightLevel;
-	bool bMBBRC;
 	bool bCQM;
 	bool video_fmt_10bit;
+	bool bRepeatHeaders;
 } qsv_param_t;
 
 enum qsv_cpu_platform {

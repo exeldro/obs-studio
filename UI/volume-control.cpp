@@ -301,12 +301,15 @@ VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical)
 		controlLayout->setContentsMargins(0, 0, 0, 0);
 		controlLayout->setSpacing(0);
 
-		if (showConfig)
+		if (showConfig) {
 			controlLayout->addWidget(config);
+			controlLayout->setAlignment(config, Qt::AlignVCenter);
+		}
 
 		controlLayout->addItem(new QSpacerItem(3, 0));
 		// Add Headphone (audio monitoring) widget here
 		controlLayout->addWidget(mute);
+		controlLayout->setAlignment(mute, Qt::AlignVCenter);
 
 		meterLayout->setContentsMargins(0, 0, 0, 0);
 		meterLayout->setSpacing(0);
@@ -388,8 +391,8 @@ VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical)
 			       "audio_monitoring", OBSMixersOrMonitoringChanged,
 			       this);
 
-	QWidget::connect(slider, SIGNAL(valueChanged(int)), this,
-			 SLOT(SliderChanged(int)));
+	QWidget::connect(slider, &VolumeSlider::valueChanged, this,
+			 &VolControl::SliderChanged);
 	QWidget::connect(mute, &MuteCheckBox::clicked, this,
 			 &VolControl::SetMuted);
 
@@ -1163,11 +1166,6 @@ void VolumeMeter::paintVTicks(QPainter &painter, int x, int y, int height)
 
 #define CLIP_FLASH_DURATION_MS 1000
 
-void VolumeMeter::ClipEnding()
-{
-	clipping = false;
-}
-
 inline int VolumeMeter::convertToInt(float number)
 {
 	constexpr int min = std::numeric_limits<int>::min();
@@ -1264,7 +1262,7 @@ void VolumeMeter::paintHMeter(QPainter &painter, int x, int y, int width,
 	} else if (int(magnitude) != 0) {
 		if (!clipping) {
 			QTimer::singleShot(CLIP_FLASH_DURATION_MS, this,
-					   SLOT(ClipEnding()));
+					   [&]() { clipping = false; });
 			clipping = true;
 		}
 
@@ -1376,7 +1374,7 @@ void VolumeMeter::paintVMeter(QPainter &painter, int x, int y, int width,
 	} else {
 		if (!clipping) {
 			QTimer::singleShot(CLIP_FLASH_DURATION_MS, this,
-					   SLOT(ClipEnding()));
+					   [&]() { clipping = false; });
 			clipping = true;
 		}
 

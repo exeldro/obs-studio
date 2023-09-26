@@ -41,7 +41,7 @@ namespace std {
         }
     };
 
-}
+}  // namespace std
 
 #define TEXT_AVCAPTURE     obs_module_text("AVCapture")
 #define TEXT_DEVICE        obs_module_text("Device")
@@ -101,8 +101,7 @@ namespace {
     struct observer_handle : unique_ptr<remove_pointer<id>::type, decltype(remove_observer)> {
         using base = unique_ptr<remove_pointer<id>::type, decltype(remove_observer)>;
 
-        explicit observer_handle(id observer = nullptr) : base(observer, remove_observer)
-        {}
+        explicit observer_handle(id observer = nullptr) : base(observer, remove_observer) {}
     };
 
     struct av_video_info {
@@ -111,7 +110,7 @@ namespace {
         bool video_params_valid = false;
     };
 
-}
+}  // namespace
 
 struct av_capture {
     OBSAVCaptureDelegate *delegate;
@@ -303,7 +302,7 @@ namespace {
         }
     };
 
-}
+}  // namespace
 
 static av_capture_ref get_ref(obs_properties_t *props)
 {
@@ -636,6 +635,7 @@ static inline bool update_audio(obs_source_audio *audio, CMSampleBufferRef sampl
 }
 
 @implementation OBSAVCaptureDelegate
+
 - (void)captureOutput:(AVCaptureOutput *)out
     didDropSampleBuffer:(CMSampleBufferRef)sampleBuffer
          fromConnection:(AVCaptureConnection *)connection
@@ -688,6 +688,7 @@ static inline bool update_audio(obs_source_audio *audio, CMSampleBufferRef sampl
         obs_source_output_audio(capture->source, audio);
     }
 }
+
 @end
 
 static void av_capture_enable_buffering(av_capture *capture, bool enabled)
@@ -901,16 +902,6 @@ static bool init_preset(av_capture *capture, AVCaptureDevice *dev, obs_data_t *s
 
 static bool operator==(const CMVideoDimensions &a, const CMVideoDimensions &b);
 static CMVideoDimensions get_dimensions(AVCaptureDeviceFormat *format);
-
-static AVCaptureDeviceFormat *find_format(AVCaptureDevice *dev, CMVideoDimensions dims)
-{
-    for (AVCaptureDeviceFormat *format in dev.formats) {
-        if (get_dimensions(format) == dims)
-            return format;
-    }
-
-    return nullptr;
-}
 
 static CMTime convert(media_frames_per_second fps)
 {
@@ -1127,6 +1118,18 @@ static void capture_device(av_capture *capture, AVCaptureDevice *dev, obs_data_t
     obs_data_set_string(settings, "device_name", name);
     obs_data_set_string(settings, "device", dev.uniqueID.UTF8String);
     AVLOG(LOG_INFO, "Selected device '%s'", name);
+    if (@available(macOS 12.0, *)) {
+        if ([dev isPortraitEffectActive])
+            AVLOG(LOG_WARNING, "Portrait effect is active on selected device");
+    }
+    if (@available(macOS 12.3, *)) {
+        if ([dev isCenterStageActive])
+            AVLOG(LOG_WARNING, "Center Stage effect is active on selected device");
+    }
+    if (@available(macOS 13.0, *)) {
+        if ([dev isStudioLightActive])
+            AVLOG(LOG_WARNING, "Studio Light effect is active on selected device");
+    }
 
     if ((capture->use_preset = obs_data_get_bool(settings, "use_preset"))) {
         if (!init_preset(capture, dev, settings))
@@ -1579,6 +1582,7 @@ static media_frames_per_second convert(CMTime time_)
 }
 
 using frame_rates_t = vector<pair<media_frames_per_second, media_frames_per_second>>;
+
 static frame_rates_t enumerate_frame_rates(AVCaptureDevice *dev, const CMVideoDimensions *dims = nullptr)
 {
     frame_rates_t res;
@@ -2159,6 +2163,7 @@ static void av_capture_update(void *data, obs_data_t *settings)
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("mac-avcapture", "en-US")
+
 MODULE_EXPORT const char *obs_module_description(void)
 {
     return "MacOS AVFoundation Capture source";

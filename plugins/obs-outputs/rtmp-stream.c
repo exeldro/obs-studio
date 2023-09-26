@@ -227,13 +227,6 @@ static void rtmp_stream_stop(void *data, uint64_t ts)
 	}
 }
 
-static inline void set_rtmp_str(AVal *val, const char *str)
-{
-	bool valid = (str && *str);
-	val->av_val = valid ? (char *)str : NULL;
-	val->av_len = valid ? (int)strlen(str) : 0;
-}
-
 static inline void set_rtmp_dstr(AVal *val, struct dstr *str)
 {
 	bool valid = !dstr_is_empty(str);
@@ -1552,9 +1545,9 @@ static void *connect_thread(void *data)
 		return NULL;
 	}
 
-	// HDR streaming disabled for AV1
+	// HDR streaming disabled for AV1 and HEVC
 	for (size_t i = 0; i < MAX_OUTPUT_VIDEO_ENCODERS; i++) {
-		if (stream->video_codec[i] == CODEC_AV1) {
+		if (stream->video_codec[i] != CODEC_H264) {
 			video_t *video = obs_get_video();
 			const struct video_output_info *info =
 				video_output_get_info(video);

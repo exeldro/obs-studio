@@ -968,6 +968,7 @@ convert_video_format(enum video_format format, enum video_trc trc)
 		case VIDEO_FORMAT_P216:
 		case VIDEO_FORMAT_P416:
 		case VIDEO_FORMAT_V210:
+		case VIDEO_FORMAT_R10L:
 			return GS_RGBA16F;
 		default:
 			return GS_BGRX;
@@ -1119,7 +1120,6 @@ struct obs_output {
 
 	uint32_t starting_drawn_count;
 	uint32_t starting_lagged_count;
-	uint32_t starting_frame_count;
 
 	int total_frames;
 

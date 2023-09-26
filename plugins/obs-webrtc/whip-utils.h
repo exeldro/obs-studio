@@ -9,9 +9,6 @@
 #define do_log(level, format, ...)                              \
 	blog(level, "[obs-webrtc] [whip_output: '%s'] " format, \
 	     obs_output_get_name(output), ##__VA_ARGS__)
-#define do_log_s(level, format, ...)                            \
-	blog(level, "[obs-webrtc] [whip_output: '%s'] " format, \
-	     obs_output_get_name(whipOutput->output), ##__VA_ARGS__)
 
 static uint32_t generate_random_u32()
 {
@@ -45,7 +42,7 @@ static size_t curl_writefunction(char *data, size_t size, size_t nmemb,
 static size_t curl_header_location_function(char *data, size_t size,
 					    size_t nmemb, void *priv_data)
 {
-	auto header_buffer = static_cast<std::string *>(priv_data);
+	auto header_buffer = static_cast<std::vector<std::string> *>(priv_data);
 
 	size_t real_size = size * nmemb;
 
@@ -54,8 +51,11 @@ static size_t curl_header_location_function(char *data, size_t size,
 
 	if (!astrcmpi_n(data, "location: ", LOCATION_HEADER_LENGTH)) {
 		char *val = data + LOCATION_HEADER_LENGTH;
-		header_buffer->append(val, real_size - LOCATION_HEADER_LENGTH);
-		*header_buffer = trim_string(*header_buffer);
+		auto header_temp =
+			std::string(val, real_size - LOCATION_HEADER_LENGTH);
+
+		header_temp = trim_string(header_temp);
+		header_buffer->push_back(header_temp);
 	}
 
 	return real_size;

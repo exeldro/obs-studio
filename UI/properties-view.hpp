@@ -79,7 +79,6 @@ public slots:
 	void EditListEdit();
 	void EditListUp();
 	void EditListDown();
-	void EditListReordered();
 };
 
 /* ------------------------------------------------------------------------- */
@@ -108,9 +107,11 @@ private:
 	std::string lastFocused;
 	QWidget *lastWidget = nullptr;
 	bool deferUpdate;
+	bool enableDefer = true;
 
-	QWidget *NewWidget(obs_property_t *prop, QWidget *widget,
-			   const char *signal);
+	template<typename Sender, typename SenderParent, typename... Args>
+	QWidget *NewWidget(obs_property_t *prop, Sender *widget,
+			   void (SenderParent::*signal)(Args...));
 
 	QWidget *AddCheckbox(obs_property_t *prop);
 	QWidget *AddText(obs_property_t *prop, QFormLayout *layout,
@@ -196,6 +197,7 @@ public:
 			visUpdateCb(OBSGetStrongRef(weakObj), settings);
 	}
 	inline bool DeferUpdate() const { return deferUpdate; }
+	inline void SetDeferrable(bool deferrable) { enableDefer = deferrable; }
 
 	inline OBSObject GetObject() const { return OBSGetStrongRef(weakObj); }
 

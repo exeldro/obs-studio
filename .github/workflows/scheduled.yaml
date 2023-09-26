@@ -4,7 +4,8 @@ on:
   schedule:
     - cron: 17 0 * * *
 permissions:
-  contents: write
+  contents: read
+  checks: write
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.head_ref || github.ref }}'
   cancel-in-progress: true
@@ -15,6 +16,8 @@ jobs:
     runs-on: macos-13
     permissions:
       checks: write
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v3
         with:
@@ -79,10 +82,54 @@ jobs:
           echo '::endgroup::'
 
   build-project:
-    name: Build Project 🧱
+    name: Build 🧱
     uses: ./.github/workflows/build-project.yaml
     needs: cache-cleanup
     secrets: inherit
+    permissions:
+      contents: read
+      checks: write
+
+  upload-language-files:
+    name: Upload Language Files 🌐
+    if: github.repository_owner == 'obsproject' && github.ref_name == 'master'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Check Nightly Runs ☑️
+        id: nightly-checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          : Check Nightly Runs ☑️
+          if [[ "${RUNNER_DEBUG}" ]]; then set -x; fi
+
+          last_nightly=$(gh run list --workflow scheduled.yaml --limit 2 --json headSha --jq '.[1].headSha')
+
+          if [[ "${GITHUB_SHA}" == "${last_nightly}" ]]; then
+            echo "passed=false" >> $GITHUB_OUTPUT
+          else
+            echo "passed=true" >> $GITHUB_OUTPUT
+            echo "lastNightly=${last_nightly}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check for Changed Files ✅
+        uses: ./.github/actions/check-changes
+        id: checks
+        with:
+          baseRef: ${{ steps.nightly-checks.outputs.lastNightly }}
+          checkGlob: '**/en-US.ini'
+
+      - name: Upload US English Language Files 🇺🇸
+        if: fromJSON(steps.checks.outputs.hasChangedFiles) && fromJSON(steps.nightly-checks.outputs.passed)
+        uses: obsproject/obs-crowdin-sync/upload@30b5446e3b5eb19595aa68a81ddf896a857302cf
+        env:
+          CROWDIN_PAT: ${{ secrets.CROWDIN_SYNC_CROWDIN_PAT }}
+          GITHUB_EVENT_BEFORE: ${{ steps.nightly-checks.outputs.lastNightly }}
 
   steam-upload:
     name: Upload Steam Builds 🚂

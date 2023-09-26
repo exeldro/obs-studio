@@ -811,10 +811,10 @@ static void process_video_sync(obs_pipewire_stream *obs_pw_stream)
 
 	if (buffer->datas[0].type == SPA_DATA_DmaBuf) {
 		uint32_t planes = buffer->n_datas;
-		uint32_t offsets[planes];
-		uint32_t strides[planes];
-		uint64_t modifiers[planes];
-		int fds[planes];
+		uint32_t *offsets = alloca(sizeof(uint32_t) * planes);
+		uint32_t *strides = alloca(sizeof(uint32_t) * planes);
+		uint64_t *modifiers = alloca(sizeof(uint64_t) * planes);
+		int *fds = alloca(sizeof(int) * planes);
 		bool use_modifiers;
 		bool corrupt = false;
 

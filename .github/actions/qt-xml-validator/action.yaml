@@ -33,7 +33,7 @@ runs:
         echo ::endgroup::
 
     - name: Register Annotations 📝
-      uses: korelstar/xmllint-problem-matcher@v1
+      uses: korelstar/xmllint-problem-matcher@22352420d1d3e8f18d311d76284c4f5f71982222
 
     - name: Validate XML 💯
       shell: bash
@@ -46,7 +46,9 @@ runs:
         shopt -s extglob
         shopt -s globstar
 
-        if (( ! GITHUB_REF_BEFORE )); then GITHUB_REF_BEFORE='4b825dc642cb6eb9a060e54bf8d69288fbee4904'; fi
+        if ! git cat-file -e "${GITHUB_REF_BEFORE}" &> /dev/null; then
+          GITHUB_REF_BEFORE='4b825dc642cb6eb9a060e54bf8d69288fbee4904'
+        fi
 
         changes=($(git diff --name-only HEAD~1 HEAD -- UI/forms/**/*.ui))
         case "${GITHUB_EVENT_NAME}" in

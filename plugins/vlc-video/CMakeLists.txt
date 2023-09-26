@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16...3.25)
+cmake_minimum_required(VERSION 3.22...3.25)
 
 legacy_check()
 
@@ -31,6 +31,7 @@ add_library(vlc-video MODULE)
 add_library(OBS::vlc-video ALIAS vlc-video)
 
 target_sources(vlc-video PRIVATE vlc-video-plugin.c vlc-video-plugin.h vlc-video-source.c)
+target_compile_options(vlc-video PRIVATE $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang>:-Wno-shorten-64-to-32>)
 target_link_libraries(vlc-video PRIVATE OBS::libobs)
 
 check_vlc_path()

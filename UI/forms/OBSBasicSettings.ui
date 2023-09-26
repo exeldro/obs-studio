@@ -2256,22 +2256,6 @@
                      </widget>
                     </item>
                     <item>
-                     <layout class="QVBoxLayout" name="simpleOutInfoLayout">
-                      <property name="leftMargin">
-                       <number>10</number>
-                      </property>
-                      <property name="topMargin">
-                       <number>10</number>
-                      </property>
-                      <property name="rightMargin">
-                       <number>10</number>
-                      </property>
-                      <property name="bottomMargin">
-                       <number>10</number>
-                      </property>
-                     </layout>
-                    </item>
-                    <item>
                      <widget class="QFrame" name="simpleOutputContainer">
                       <property name="minimumSize">
                        <size>
@@ -2311,6 +2295,22 @@
                    </layout>
                   </widget>
                  </widget>
+                </item>
+                <item>
+                 <layout class="QVBoxLayout" name="simpleOutInfoLayout">
+                  <property name="leftMargin">
+                   <number>10</number>
+                  </property>
+                  <property name="topMargin">
+                   <number>10</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>10</number>
+                  </property>
+                  <property name="bottomMargin">
+                   <number>10</number>
+                  </property>
+                 </layout>
                 </item>
                </layout>
               </widget>
@@ -7563,19 +7563,6 @@
                     </widget>
                    </item>
                    <item row="1" column="0">
-                    <widget class="QLabel" name="bindToIPLabel">
-                     <property name="text">
-                      <string>Basic.Settings.Advanced.Network.BindToIP</string>
-                     </property>
-                     <property name="buddy">
-                      <cstring>bindToIP</cstring>
-                     </property>
-                    </widget>
-                   </item>
-                   <item row="1" column="1">
-                    <widget class="QComboBox" name="bindToIP"/>
-                   </item>
-                   <item row="2" column="0">
                     <widget class="QLabel" name="ipFamilyLabel">
                      <property name="text">
                       <string>Basic.Settings.Advanced.Network.IPFamily</string>
@@ -7585,8 +7572,21 @@
                      </property>
                     </widget>
                    </item>
-                   <item row="2" column="1">
+                   <item row="1" column="1">
                     <widget class="QComboBox" name="ipFamily"/>
+                   </item>
+                   <item row="2" column="0">
+                    <widget class="QLabel" name="bindToIPLabel">
+                     <property name="text">
+                      <string>Basic.Settings.Advanced.Network.BindToIP</string>
+                     </property>
+                     <property name="buddy">
+                      <cstring>bindToIP</cstring>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="2" column="1">
+                    <widget class="QComboBox" name="bindToIP"/>
                    </item>
                    <item row="4" column="1">
                     <widget class="QCheckBox" name="enableNewSocketLoop">

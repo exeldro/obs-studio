@@ -2459,12 +2459,13 @@ void OBSBasicPreview::DrawSpacingHelpers()
 	vec2 s;
 	SceneFindBoxData data(s, s);
 
-	obs_scene_enum_items(main->GetCurrentScene(), FindSelected, &data);
+	OBSScene scene = main->GetCurrentScene();
+	obs_scene_enum_items(scene, FindSelected, &data);
 
-	if (data.sceneItems.size() > 1)
+	if (data.sceneItems.size() != 1)
 		return;
 
-	OBSSceneItem item = main->GetCurrentSceneItem();
+	OBSSceneItem item = data.sceneItems[0];
 	if (!item)
 		return;
 
@@ -2475,9 +2476,7 @@ void OBSBasicPreview::DrawSpacingHelpers()
 	if (itemSize.x == 0.0f || itemSize.y == 0.0f)
 		return;
 
-	obs_sceneitem_t *parentGroup =
-		obs_sceneitem_get_group(main->GetCurrentScene(), item);
-
+	obs_sceneitem_t *parentGroup = obs_sceneitem_get_group(scene, item);
 	if (parentGroup && obs_sceneitem_locked(parentGroup))
 		return;
 

@@ -41,7 +41,7 @@ jobs:
           esac
 
   flatpak-publish:
-    name: Publish to Flathub 📦
+    name: Flathub 📦
     needs: check-tag
     if: github.repository_owner == 'obsproject' && fromJSON(needs.check-tag.outputs.validTag)
     runs-on: ubuntu-22.04
@@ -50,8 +50,16 @@ jobs:
         shell: bash
     env:
       FLATPAK_BUILD_PATH: flatpak_app/files/share
+      TWITCH_CLIENTID: ${{ secrets.TWITCH_CLIENT_ID }}
+      TWITCH_HASH: ${{ secrets.TWITCH_HASH }}
+      RESTREAM_CLIENTID: ${{ secrets.RESTREAM_CLIENTID }}
+      RESTREAM_HASH: ${{ secrets.RESTREAM_HASH }}
+      YOUTUBE_CLIENTID: ${{ secrets.YOUTUBE_CLIENTID }}
+      YOUTUBE_CLIENTID_HASH: ${{ secrets.YOUTUBE_CLIENTID_HASH }}
+      YOUTUBE_SECRET: ${{ secrets.YOUTUBE_SECRET }}
+      YOUTUBE_SECRET_HASH: ${{ secrets.YOUTUBE_SECRET_HASH }}
     container:
-      image: bilelmoussaoui/flatpak-github-actions:kde-6.4
+      image: bilelmoussaoui/flatpak-github-actions:kde-6.5
       options: --privileged
     strategy:
       matrix:
@@ -91,7 +99,7 @@ jobs:
           echo "commitHash=${GITHUB_SHA:0:9}" >> $GITHUB_OUTPUT
 
       - name: Build Flatpak Manifest
-        uses: flatpak/flatpak-github-actions/flatpak-builder@v6.1
+        uses: flatpak/flatpak-github-actions/flatpak-builder@1283416d7c0462e052ab0685d9444a7a48bfff3b
         with:
           bundle: obs-studio-${{ steps.setup.outputs.commitHash }}.flatpak
           manifest-path: ${{ github.workspace }}/build-aux/com.obsproject.Studio.json
@@ -119,7 +127,7 @@ jobs:
           ostree commit --repo=repo --canonical-permissions --branch=screenshots/x86_64 flatpak_app/screenshots
 
       - name: Publish to Flathub Beta
-        uses: flatpak/flatpak-github-actions/flat-manager@v6.1
+        uses: flatpak/flatpak-github-actions/flat-manager@1283416d7c0462e052ab0685d9444a7a48bfff3b
         if: ${{ matrix.branch == 'beta' }}
         with:
           flat-manager-url: https://hub.flathub.org/
@@ -127,7 +135,7 @@ jobs:
           token: ${{ secrets.FLATHUB_BETA_TOKEN }}
 
       - name: Publish to Flathub
-        uses: flatpak/flatpak-github-actions/flat-manager@v6.1
+        uses: flatpak/flatpak-github-actions/flat-manager@1283416d7c0462e052ab0685d9444a7a48bfff3b
         if: ${{ matrix.branch == 'stable' }}
         with:
           flat-manager-url: https://hub.flathub.org/
@@ -147,4 +155,5 @@ jobs:
           steamUser: ${{ secrets.STEAM_USER }}
           steamPassword: ${{ secrets.STEAM_PASSWORD }}
           workflowSecret: ${{ github.token }}
+          tagName: ${{ github.ref_name }}
           preview: false

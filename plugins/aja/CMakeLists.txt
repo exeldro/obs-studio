@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16...3.25)
+cmake_minimum_required(VERSION 3.22...3.25)
 
 legacy_check()
 
@@ -58,7 +58,7 @@ elseif(OS_MACOS)
   find_library(APPKIT AppKit)
 
   target_link_libraries(aja PRIVATE ${IOKIT} ${COREFOUNDATION} ${APPKIT})
-  target_compile_options(aja PRIVATE -Wno-error=deprecated-declarations)
+  target_compile_options(aja PRIVATE -Wno-error=deprecated-declarations -Wno-shorten-64-to-32)
 elseif(OS_LINUX OR OS_FREEBSD)
   target_compile_options(aja PRIVATE -Wno-error=deprecated-declarations)
 endif()

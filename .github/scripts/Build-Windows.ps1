@@ -3,11 +3,8 @@ param(
     [ValidateSet('x64')]
     [string] $Target = 'x64',
     [ValidateSet('Debug', 'RelWithDebInfo', 'Release', 'MinSizeRel')]
-    [string] $Configuration = 'RelWithDebInfo',
     [switch] $Dev,
-    [switch] $SkipAll,
-    [switch] $SkipBuild,
-    [switch] $SkipDeps
+    [string] $Configuration = 'RelWithDebInfo'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,6 +12,10 @@ $ErrorActionPreference = 'Stop'
 if ( $DebugPreference -eq 'Continue' ) {
     $VerbosePreference = 'Continue'
     $InformationPreference = 'Continue'
+}
+
+if ( $env:CI -eq $null ) {
+    throw "Build-Windows.ps1 requires CI environment"
 }
 
 if ( ! ( [System.Environment]::Is64BitOperatingSystem ) ) {
@@ -47,62 +48,45 @@ function Build {
 
     $BuildSpec = Get-Content -Path ${BuildSpecFile} -Raw | ConvertFrom-Json
 
-    if ( ! $SkipDeps ) {
-        Install-BuildDependencies -WingetFile "${ScriptHome}/.Wingetfile"
-    }
+    Install-BuildDependencies -WingetFile "${ScriptHome}/.Wingetfile"
 
     Push-Location -Stack BuildTemp
-    if ( ! ( ( $SkipAll ) -or ( $SkipBuild ) ) ) {
-        Ensure-Location $ProjectRoot
+    Ensure-Location $ProjectRoot
 
-        $Preset = "windows-$(if ( $env:CI -ne $null ) { 'ci-' })${Target}"
-        $CmakeArgs = @(
-            '--preset', $Preset
+    $CmakeArgs = @('--preset', "windows-ci-${Target}")
+    $CmakeBuildArgs = @('--build')
+    $CmakeInstallArgs = @()
+
+    if ( $Dev -eq $false ) {
+        $CmakeArgs += @(
+            "-DENABLE_CUSTOM_TWITCH_CONFIG:BOOL=FALSE"
         )
-
-        $CmakeBuildArgs = @('--build')
-        $CmakeInstallArgs = @()
-
-        if ( ( $env:CI -ne $null ) -and ( $env:CCACHE_CONFIGPATH -ne $null ) ) {
-            $CmakeArgs += @(
-                "-DENABLE_CCACHE:BOOL=TRUE"
-            )
-        }
-
-        if ( $Dev -eq $false ) {
-            $CmakeArgs += @(
-                "-DENABLE_CUSTOM_TWITCH_CONFIG:BOOL=FALSE"
-            )
-        }
-
-        if ( $VerbosePreference -eq 'Continue' ) {
-            $CmakeBuildArgs += ('--verbose')
-            $CmakeInstallArgs += ('--verbose')
-        }
-
-        if ( $DebugPreference -eq 'Continue' ) {
-            $CmakeArgs += ('--debug-output')
-        }
-
-        $CmakeBuildArgs += @(
-            '--preset', "windows-${Target}"
-            '--config', $Configuration
-            '--parallel'
-            '--', '/consoleLoggerParameters:Summary', '/noLogo'
-        )
-
-        $CmakeInstallArgs += @(
-            '--install', "build_${Target}"
-            '--prefix', "${ProjectRoot}/build_${Target}/install"
-            '--config', $Configuration
-        )
-
-        Log-Group "Configuring obs-studio..."
-        Invoke-External cmake @CmakeArgs
-
-        Log-Group "Building obs-studio..."
-        Invoke-External cmake @CmakeBuildArgs
     }
+
+    if ( $DebugPreference -eq 'Continue' ) {
+        $CmakeArgs += ('--debug-output')
+        $CmakeBuildArgs += ('--verbose')
+        $CmakeInstallArgs += ('--verbose')
+    }
+
+    $CmakeBuildArgs += @(
+        '--preset', "windows-${Target}"
+        '--config', $Configuration
+        '--parallel'
+        '--', '/consoleLoggerParameters:Summary', '/noLogo'
+    )
+
+    $CmakeInstallArgs += @(
+        '--install', "build_${Target}"
+        '--prefix', "${ProjectRoot}/build_${Target}/install"
+        '--config', $Configuration
+    )
+
+    Log-Group "Configuring obs-studio..."
+    Invoke-External cmake @CmakeArgs
+
+    Log-Group "Building obs-studio..."
+    Invoke-External cmake @CmakeBuildArgs
 
     Log-Group "Installing obs-studio..."
     Invoke-External cmake @CmakeInstallArgs

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16...3.25)
+cmake_minimum_required(VERSION 3.22...3.25)
 
 legacy_check()
 
@@ -273,6 +273,7 @@ set(public_headers
     media-io/audio-io.h
     media-io/frame-rate.h
     media-io/media-io-defs.h
+    media-io/video-frame.h
     media-io/video-io.h
     obs-audio-controls.h
     obs-config.h

@@ -36,6 +36,9 @@
 #include "window-missing-files.hpp"
 #include "window-projector.hpp"
 #include "window-basic-about.hpp"
+#ifdef YOUTUBE_ENABLED
+#include "window-dock-youtube-app.hpp"
+#endif
 #include "auth-base.hpp"
 #include "log-viewer.hpp"
 #include "undo-stack-obs.hpp"
@@ -264,6 +267,10 @@ private:
 	QPointer<OBSBasicAdvAudio> advAudioWindow;
 	QPointer<OBSBasicFilters> filters;
 	QPointer<QDockWidget> statsDock;
+#ifdef YOUTUBE_ENABLED
+	QPointer<YouTubeAppDock> youtubeAppDock;
+	uint64_t lastYouTubeAppDockCreationTime = 0;
+#endif
 	QPointer<OBSAbout> about;
 	QPointer<OBSMissingFiles> missDialog;
 	QPointer<OBSLogViewer> logView;
@@ -509,7 +516,7 @@ private:
 	bool sceneDuplicationMode = true;
 	bool swapScenesMode = true;
 	volatile bool previewProgramMode = false;
-	obs_hotkey_id togglePreviewProgramHotkey = 0;
+	obs_hotkey_pair_id togglePreviewProgramHotkeys = 0;
 	obs_hotkey_id transitionHotkey = 0;
 	obs_hotkey_id statsHotkey = 0;
 	obs_hotkey_id screenshotHotkey = 0;
@@ -568,6 +575,7 @@ private:
 	QPointer<QAction> extraBrowserMenuDocksSeparator;
 
 	QList<QSharedPointer<QDockWidget>> extraBrowserDocks;
+	QStringList extraBrowserDockNames;
 	QStringList extraBrowserDockTargets;
 
 	void ClearExtraBrowserDocks();
@@ -633,7 +641,8 @@ private:
 #ifdef YOUTUBE_ENABLED
 	void YoutubeStreamCheck(const std::string &key);
 	void ShowYouTubeAutoStartWarning();
-	void YouTubeActionDialogOk(const QString &id, const QString &key,
+	void YouTubeActionDialogOk(const QString &broadcast_id,
+				   const QString &stream_id, const QString &key,
 				   bool autostart, bool autostop,
 				   bool start_now);
 #endif
@@ -665,8 +674,6 @@ private:
 	void UpdatePreviewOverflowSettings();
 
 	bool restartingVCam = false;
-
-	void UpdateTransformShortcuts();
 
 public slots:
 	void DeferSaveBegin();
@@ -760,8 +767,8 @@ private slots:
 
 	void ProcessHotkey(obs_hotkey_id id, bool pressed);
 
-	void AddTransition();
-	void RenameTransition();
+	void AddTransition(const char *id);
+	void RenameTransition(OBSSource transition);
 	void TransitionClicked();
 	void TransitionStopped();
 	void TransitionFullyStopped();
@@ -808,13 +815,14 @@ private slots:
 	void EnablePreview();
 	void DisablePreview();
 
+	void EnablePreviewProgram();
+	void DisablePreviewProgram();
+
 	void SceneCopyFilters();
 	void ScenePasteFilters();
 
 	void CheckDiskSpaceRemaining();
 	void OpenSavedProjector(SavedProjectorInfo *info);
-
-	void ScenesReordered();
 
 	void ResetStatsHotkey();
 
@@ -988,8 +996,19 @@ public:
 	const char *GetCurrentOutputPath();
 
 	void DeleteProjector(OBSProjector *projector);
-	void AddProjectorMenuMonitors(QMenu *parent, QObject *target,
-				      const char *slot);
+
+	static QList<QString> GetProjectorMenuMonitorsFormatted();
+	template<typename Receiver, typename... Args>
+	static void AddProjectorMenuMonitors(QMenu *parent, Receiver *target,
+					     void (Receiver::*slot)(Args...))
+	{
+		auto projectors = GetProjectorMenuMonitorsFormatted();
+		for (int i = 0; i < projectors.size(); i++) {
+			QString str = projectors[i];
+			QAction *action = parent->addAction(str, target, slot);
+			action->setProperty("monitor", i);
+		}
+	}
 
 	QIcon GetSourceIcon(const char *id) const;
 	QIcon GetGroupIcon() const;
@@ -1119,6 +1138,7 @@ private slots:
 	void on_actionHelpPortal_triggered();
 	void on_actionWebsite_triggered();
 	void on_actionDiscord_triggered();
+	void on_actionReleaseNotes_triggered();
 
 	void on_preview_customContextMenuRequested();
 	void ProgramViewContextMenuRequested();
@@ -1180,8 +1200,6 @@ private slots:
 	void openLogDialog(const QString &text, const bool crash);
 
 	void updateCheckFinished();
-
-	void AddSourceFromAction();
 
 	void MoveSceneToTop();
 	void MoveSceneToBottom();
@@ -1250,7 +1268,14 @@ public:
 				   const char *file) const override;
 
 	static void InitBrowserPanelSafeBlock();
+#ifdef YOUTUBE_ENABLED
+	void NewYouTubeAppDock();
+	void DeleteYouTubeAppDock();
+	YouTubeAppDock *GetYouTubeAppDock();
+#endif
 };
+
+extern bool cef_js_avail;
 
 class SceneRenameDelegate : public QStyledItemDelegate {
 	Q_OBJECT
