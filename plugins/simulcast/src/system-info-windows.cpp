@@ -60,9 +60,9 @@ OBSDataArrayAutoRelease system_gpu_data()
 			const uint16_t bb = (version >> 32) & 0xffff;
 			const uint16_t ccccc = (version >> 16) & 0xffff;
 			const uint16_t ddddd = version & 0xffff;
-			sprintf(driver_version,
-				"%" PRIu16 ".%" PRIu16 ".%" PRIu16 ".%" PRIu16,
-				aa, bb, ccccc, ddddd);
+			snprintf(driver_version, sizeof(driver_version),
+				 "%" PRIu16 ".%" PRIu16 ".%" PRIu16 ".%" PRIu16,
+				 aa, bb, ccccc, ddddd);
 			obs_data_set_string(data, "driver_version",
 					    driver_version);
 		}
@@ -258,7 +258,7 @@ OBSDataAutoRelease system_info()
 	OBSDataAutoRelease system_data = obs_data_create();
 	obs_data_set_obj(data, "system", system_data);
 
-	sprintf(tmpstr, "%d.%d", ver.major, ver.minor);
+	snprintf(tmpstr, sizeof(tmpstr), "%d.%d", ver.major, ver.minor);
 
 	obs_data_set_string(system_data, "version", tmpstr);
 	obs_data_set_string(system_data, "name", "Windows");
