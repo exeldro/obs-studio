@@ -83,39 +83,25 @@ struct common_frame_rate {
 	media_frames_per_second fps;
 };
 
-}
+} // namespace
 
 Q_DECLARE_METATYPE(frame_rate_tag);
 Q_DECLARE_METATYPE(media_frames_per_second);
 
 void OBSPropertiesView::ReloadProperties()
 {
-	deferUpdate = false;
 	if (weakObj || rawObj) {
 		OBSObject strongObj = GetObject();
 		void *obj = strongObj ? strongObj.Get() : rawObj;
-		if (obj) {
+		if (obj)
 			properties.reset(reloadCallback(obj));
-
-			if (obs_obj_get_type(obj) == OBS_OBJ_TYPE_SOURCE) {
-				enum obs_source_type type = obs_source_get_type(
-					(obs_source_t *)obj);
-				if (type == OBS_SOURCE_TYPE_INPUT ||
-				    type == OBS_SOURCE_TYPE_TRANSITION) {
-					uint32_t flags =
-						obs_properties_get_flags(
-							properties.get());
-					deferUpdate =
-						(flags &
-						 OBS_PROPERTIES_DEFER_UPDATE) !=
-						0;
-				}
-			}
-		}
 	} else {
 		properties.reset(reloadCallback((void *)type.c_str()));
 		obs_properties_apply_settings(properties.get(), settings);
 	}
+
+	uint32_t flags = obs_properties_get_flags(properties.get());
+	deferUpdate = enableDefer && (flags & OBS_PROPERTIES_DEFER_UPDATE) != 0;
 
 	RefreshProperties();
 }
@@ -262,13 +248,14 @@ void OBSPropertiesView::resizeEvent(QResizeEvent *event)
 	VScrollArea::resizeEvent(event);
 }
 
-QWidget *OBSPropertiesView::NewWidget(obs_property_t *prop, QWidget *widget,
-				      const char *signal)
+template<typename Sender, typename SenderParent, typename... Args>
+QWidget *OBSPropertiesView::NewWidget(obs_property_t *prop, Sender *widget,
+				      void (SenderParent::*signal)(Args...))
 {
 	const char *long_desc = obs_property_long_description(prop);
 
 	WidgetInfo *info = new WidgetInfo(this, prop, widget);
-	connect(widget, signal, info, SLOT(ControlChanged()));
+	QObject::connect(widget, signal, info, &WidgetInfo::ControlChanged);
 	children.emplace_back(info);
 
 	widget->setToolTip(QT_UTF8(long_desc));
@@ -283,7 +270,7 @@ QWidget *OBSPropertiesView::AddCheckbox(obs_property_t *prop)
 
 	QCheckBox *checkbox = new QCheckBox(QT_UTF8(desc));
 	checkbox->setCheckState(val ? Qt::Checked : Qt::Unchecked);
-	return NewWidget(prop, checkbox, SIGNAL(stateChanged(int)));
+	return NewWidget(prop, checkbox, &QCheckBox::stateChanged);
 }
 
 QWidget *OBSPropertiesView::AddText(obs_property_t *prop, QFormLayout *layout,
@@ -298,7 +285,7 @@ QWidget *OBSPropertiesView::AddText(obs_property_t *prop, QFormLayout *layout,
 		OBSPlainTextEdit *edit = new OBSPlainTextEdit(this, monospace);
 		edit->setPlainText(QT_UTF8(val));
 		edit->setTabStopDistance(40);
-		return NewWidget(prop, edit, SIGNAL(textChanged()));
+		return NewWidget(prop, edit, &OBSPlainTextEdit::textChanged);
 
 	} else if (type == OBS_TEXT_PASSWORD) {
 		QLayout *subLayout = new QHBoxLayout();
@@ -326,8 +313,8 @@ QWidget *OBSPropertiesView::AddText(obs_property_t *prop, QFormLayout *layout,
 
 		edit->setToolTip(QT_UTF8(obs_property_long_description(prop)));
 
-		connect(edit, SIGNAL(textEdited(const QString &)), info,
-			SLOT(ControlChanged()));
+		connect(edit, &QLineEdit::textEdited, info,
+			&WidgetInfo::ControlChanged);
 		return nullptr;
 	} else if (type == OBS_TEXT_INFO) {
 		QString desc = QT_UTF8(obs_property_description(prop));
@@ -380,7 +367,7 @@ QWidget *OBSPropertiesView::AddText(obs_property_t *prop, QFormLayout *layout,
 	edit->setText(QT_UTF8(val));
 	edit->setToolTip(QT_UTF8(obs_property_long_description(prop)));
 
-	return NewWidget(prop, edit, SIGNAL(textEdited(const QString &)));
+	return NewWidget(prop, edit, &QLineEdit::textEdited);
 }
 
 void OBSPropertiesView::AddPath(obs_property_t *prop, QFormLayout *layout,
@@ -406,7 +393,8 @@ void OBSPropertiesView::AddPath(obs_property_t *prop, QFormLayout *layout,
 	subLayout->addWidget(button);
 
 	WidgetInfo *info = new WidgetInfo(this, prop, edit);
-	connect(button, SIGNAL(clicked()), info, SLOT(ControlChanged()));
+	connect(button, &QPushButton::clicked, info,
+		&WidgetInfo::ControlChanged);
 	children.emplace_back(info);
 
 	*label = new QLabel(QT_UTF8(obs_property_description(prop)));
@@ -450,13 +438,14 @@ void OBSPropertiesView::AddInt(obs_property_t *prop, QFormLayout *layout,
 		slider->setEnabled(obs_property_enabled(prop));
 		subLayout->addWidget(slider);
 
-		connect(slider, SIGNAL(valueChanged(int)), spin,
-			SLOT(setValue(int)));
-		connect(spin, SIGNAL(valueChanged(int)), slider,
-			SLOT(setValue(int)));
+		connect(slider, &QSlider::valueChanged, spin,
+			&QSpinBox::setValue);
+		connect(spin, &QSpinBox::valueChanged, slider,
+			&QSlider::setValue);
 	}
 
-	connect(spin, SIGNAL(valueChanged(int)), info, SLOT(ControlChanged()));
+	connect(spin, &QSpinBox::valueChanged, info,
+		&WidgetInfo::ControlChanged);
 
 	subLayout->addWidget(spin);
 
@@ -506,14 +495,14 @@ void OBSPropertiesView::AddFloat(obs_property_t *prop, QFormLayout *layout,
 		slider->setOrientation(Qt::Horizontal);
 		subLayout->addWidget(slider);
 
-		connect(slider, SIGNAL(doubleValChanged(double)), spin,
-			SLOT(setValue(double)));
-		connect(spin, SIGNAL(valueChanged(double)), slider,
-			SLOT(setDoubleVal(double)));
+		connect(slider, &DoubleSlider::doubleValChanged, spin,
+			&QDoubleSpinBox::setValue);
+		connect(spin, &QDoubleSpinBox::valueChanged, slider,
+			&DoubleSlider::setDoubleVal);
 	}
 
-	connect(spin, SIGNAL(valueChanged(double)), info,
-		SLOT(ControlChanged()));
+	connect(spin, &QDoubleSpinBox::valueChanged, info,
+		&WidgetInfo::ControlChanged);
 
 	subLayout->addWidget(spin);
 
@@ -637,9 +626,8 @@ QWidget *OBSPropertiesView::AddList(obs_property_t *prop, bool &warning)
 			WidgetInfo *info = new WidgetInfo(
 				this, prop, buttonGroup->buttons()[0]);
 			children.emplace_back(info);
-			connect(buttonGroup,
-				SIGNAL(buttonClicked(QAbstractButton *)), info,
-				SLOT(ControlChanged()));
+			connect(buttonGroup, &QButtonGroup::buttonClicked, info,
+				&WidgetInfo::ControlChanged);
 		}
 
 		QWidget *widget = new QWidget();
@@ -667,8 +655,7 @@ QWidget *OBSPropertiesView::AddList(obs_property_t *prop, bool &warning)
 	}
 
 	if (type == OBS_COMBO_TYPE_EDITABLE)
-		return NewWidget(prop, combo,
-				 SIGNAL(editTextChanged(const QString &)));
+		return NewWidget(prop, combo, &QComboBox::editTextChanged);
 
 	if (idx != -1)
 		combo->setCurrentIndex(idx);
@@ -693,8 +680,8 @@ QWidget *OBSPropertiesView::AddList(obs_property_t *prop, bool &warning)
 		  model->flags(model->index(idx, 0)) == Qt::NoItemFlags;
 
 	WidgetInfo *info = new WidgetInfo(this, prop, combo);
-	connect(combo, SIGNAL(currentIndexChanged(int)), info,
-		SLOT(ControlChanged()));
+	connect(combo, &QComboBox::currentIndexChanged, info,
+		&WidgetInfo::ControlChanged);
 	children.emplace_back(info);
 
 	/* trigger a settings update if the index was not found */
@@ -744,8 +731,8 @@ void OBSPropertiesView::AddEditableList(obs_property_t *prop,
 	WidgetInfo *info = new WidgetInfo(this, prop, list);
 
 	list->setDragDropMode(QAbstractItemView::InternalMove);
-	connect(list->model(), SIGNAL(rowsMoved()), info,
-		SLOT(EditListReordered()));
+	connect(list->model(), &QAbstractItemModel::rowsMoved,
+		[info]() { info->EditableListChanged(); });
 
 	QVBoxLayout *sideLayout = new QVBoxLayout();
 	NewButton(sideLayout, info, "addIconSmall", &WidgetInfo::EditListAdd);
@@ -776,7 +763,7 @@ QWidget *OBSPropertiesView::AddButton(obs_property_t *prop)
 	QPushButton *button = new QPushButton(QT_UTF8(desc));
 	button->setProperty("themeID", "settingsButtons");
 	button->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
-	return NewWidget(prop, button, SIGNAL(clicked()));
+	return NewWidget(prop, button, &QPushButton::clicked);
 }
 
 void OBSPropertiesView::AddColorInternal(obs_property_t *prop,
@@ -825,7 +812,8 @@ void OBSPropertiesView::AddColorInternal(obs_property_t *prop,
 	subLayout->addWidget(button);
 
 	WidgetInfo *info = new WidgetInfo(this, prop, colorLabel);
-	connect(button, SIGNAL(clicked()), info, SLOT(ControlChanged()));
+	connect(button, &QPushButton::clicked, info,
+		&WidgetInfo::ControlChanged);
 	children.emplace_back(info);
 
 	label = new QLabel(QT_UTF8(obs_property_description(prop)));
@@ -913,7 +901,8 @@ void OBSPropertiesView::AddFont(obs_property_t *prop, QFormLayout *layout,
 	subLayout->addWidget(button);
 
 	WidgetInfo *info = new WidgetInfo(this, prop, fontLabel);
-	connect(button, SIGNAL(clicked()), info, SLOT(ControlChanged()));
+	connect(button, &QPushButton::clicked, info,
+		&WidgetInfo::ControlChanged);
 	children.emplace_back(info);
 
 	label = new QLabel(QT_UTF8(obs_property_description(prop)));
@@ -930,7 +919,7 @@ template<> struct default_delete<obs_data_item_t> {
 	void operator()(obs_data_item_t *item) { obs_data_item_release(&item); }
 };
 
-}
+} // namespace std
 
 template<typename T> static double make_epsilon(T val)
 {
@@ -1007,9 +996,13 @@ static media_frames_per_second make_fps(uint32_t num, uint32_t den)
 }
 
 static const common_frame_rate common_fps[] = {
-	{"60", {60, 1}}, {"59.94", {60000, 1001}}, {"50", {50, 1}},
-	{"48", {48, 1}}, {"30", {30, 1}},          {"29.97", {30000, 1001}},
-	{"25", {25, 1}}, {"24", {24, 1}},          {"23.976", {24000, 1001}},
+	{"240", {240, 1}},         {"144", {144, 1}},
+	{"120", {120, 1}},         {"119.88", {120000, 1001}},
+	{"60", {60, 1}},           {"59.94", {60000, 1001}},
+	{"50", {50, 1}},           {"48", {48, 1}},
+	{"30", {30, 1}},           {"29.97", {30000, 1001}},
+	{"25", {25, 1}},           {"24", {24, 1}},
+	{"23.976", {24000, 1001}},
 };
 
 static void UpdateSimpleFPSSelection(OBSFrameRatePropertyWidget *fpsProps,
@@ -1522,7 +1515,8 @@ void OBSPropertiesView::AddGroup(obs_property_t *prop, QFormLayout *layout)
 	children.emplace_back(info);
 
 	// Signals
-	connect(groupBox, SIGNAL(toggled(bool)), info, SLOT(ControlChanged()));
+	connect(groupBox, &QGroupBox::toggled, info,
+		&WidgetInfo::ControlChanged);
 }
 
 void OBSPropertiesView::AddProperty(obs_property_t *property,
@@ -1998,11 +1992,6 @@ void WidgetInfo::GroupChanged(const char *setting)
 						  : true);
 }
 
-void WidgetInfo::EditListReordered()
-{
-	EditableListChanged();
-}
-
 void WidgetInfo::EditableListChanged()
 {
 	const char *setting = obs_property_name(property);
@@ -2226,8 +2215,10 @@ public:
 		setLayout(mainLayout);
 		resize(QSize(400, 80));
 
-		connect(buttonBox, SIGNAL(accepted()), this, SLOT(accept()));
-		connect(buttonBox, SIGNAL(rejected()), this, SLOT(reject()));
+		connect(buttonBox, &QDialogButtonBox::accepted, this,
+			&EditableItemDialog::accept);
+		connect(buttonBox, &QDialogButtonBox::rejected, this,
+			&EditableItemDialog::reject);
 	}
 
 	inline QString GetText() const { return edit->text(); }

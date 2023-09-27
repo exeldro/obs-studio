@@ -55,20 +55,27 @@ OBSBasicStatusBar::OBSBasicStatusBar(QWidget *parent)
 	statusWidget->ui->issuesFrame->hide();
 	statusWidget->ui->kbps->hide();
 
-	addPermanentWidget(statusWidget);
+	addPermanentWidget(statusWidget, 1);
 	setMinimumHeight(statusWidget->height());
 
 	UpdateIcons();
 	connect(App(), &OBSApp::StyleChanged, this,
 		&OBSBasicStatusBar::UpdateIcons);
+
+	messageTimer = new QTimer(this);
+	messageTimer->setSingleShot(true);
+	connect(messageTimer, &QTimer::timeout, this,
+		&OBSBasicStatusBar::clearMessage);
+
+	clearMessage();
 }
 
 void OBSBasicStatusBar::Activate()
 {
 	if (!active) {
 		refreshTimer = new QTimer(this);
-		connect(refreshTimer, SIGNAL(timeout()), this,
-			SLOT(UpdateStatusBar()));
+		connect(refreshTimer, &QTimer::timeout, this,
+			&OBSBasicStatusBar::UpdateStatusBar);
 
 		int skipped = video_output_get_skipped_frames(obs_get_video());
 		int total = video_output_get_total_frames(obs_get_video());
@@ -629,4 +636,19 @@ void OBSBasicStatusBar::UpdateIcons()
 	if (!recording)
 		statusWidget->ui->recordIcon->setPixmap(
 			recordingInactivePixmap);
+}
+
+void OBSBasicStatusBar::showMessage(const QString &message, int timeout)
+{
+	messageTimer->stop();
+
+	statusWidget->ui->message->setText(message);
+
+	if (timeout)
+		messageTimer->start(timeout);
+}
+
+void OBSBasicStatusBar::clearMessage()
+{
+	statusWidget->ui->message->setText("");
 }

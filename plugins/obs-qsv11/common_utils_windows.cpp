@@ -22,19 +22,41 @@
  * Windows implementation of OS-specific utility functions
  */
 
-mfxStatus Initialize(mfxIMPL impl, mfxVersion ver, MFXVideoSession *pSession,
+mfxStatus Initialize(mfxVersion ver, mfxSession *pSession,
 		     mfxFrameAllocator *pmfxAllocator, mfxHDL *deviceHandle,
-		     bool bCreateSharedHandles, bool dx9hack)
+		     bool bCreateSharedHandles, bool dx9hack,
+		     enum qsv_codec codec)
 {
-	bCreateSharedHandles; // (Lain) Currently unused
-	pmfxAllocator;        // (Lain) Currently unused
+	UNUSED_PARAMETER(codec);
 
 	mfxStatus sts = MFX_ERR_NONE;
+	mfxVariant impl;
 
 	// If mfxFrameAllocator is provided it means we need to setup DirectX device and memory allocator
 	if (pmfxAllocator && !dx9hack) {
-		// Initialize Intel Media SDK Session
-		sts = pSession->Init(impl, &ver);
+		// Initialize Intel VPL Session
+		mfxLoader loader = MFXLoad();
+		mfxConfig cfg = MFXCreateConfig(loader);
+
+		impl.Type = MFX_VARIANT_TYPE_U32;
+		impl.Data.U32 = MFX_IMPL_TYPE_HARDWARE;
+		MFXSetConfigFilterProperty(
+			cfg, (const mfxU8 *)"mfxImplDescription.Impl", impl);
+
+		impl.Type = MFX_VARIANT_TYPE_U32;
+		impl.Data.U32 = INTEL_VENDOR_ID;
+		MFXSetConfigFilterProperty(
+			cfg, (const mfxU8 *)"mfxImplDescription.VendorID",
+			impl);
+
+		impl.Type = MFX_VARIANT_TYPE_U32;
+		impl.Data.U32 = MFX_ACCEL_MODE_VIA_D3D11;
+		MFXSetConfigFilterProperty(
+			cfg,
+			(const mfxU8 *)"mfxImplDescription.AccelerationMode",
+			impl);
+
+		sts = MFXCreateSession(loader, 0, pSession);
 		MSDK_CHECK_RESULT(sts, MFX_ERR_NONE, sts);
 
 		// Create DirectX device context
@@ -47,25 +69,47 @@ mfxStatus Initialize(mfxIMPL impl, mfxVersion ver, MFXVideoSession *pSession,
 		if (deviceHandle == NULL || *deviceHandle == NULL)
 			return MFX_ERR_DEVICE_FAILED;
 
-		// Provide device manager to Media SDK
-		sts = pSession->SetHandle(DEVICE_MGR_TYPE, *deviceHandle);
+		// Provide device manager to VPL
+		sts = MFXVideoCORE_SetHandle(*pSession, DEVICE_MGR_TYPE,
+					     *deviceHandle);
 		MSDK_CHECK_RESULT(sts, MFX_ERR_NONE, sts);
 
 		pmfxAllocator->pthis =
-			*pSession; // We use Media SDK session ID as the allocation identifier
+			*pSession; // We use VPL session ID as the allocation identifier
 		pmfxAllocator->Alloc = simple_alloc;
 		pmfxAllocator->Free = simple_free;
 		pmfxAllocator->Lock = simple_lock;
 		pmfxAllocator->Unlock = simple_unlock;
 		pmfxAllocator->GetHDL = simple_gethdl;
 
-		// Since we are using video memory we must provide Media SDK with an external allocator
-		sts = pSession->SetFrameAllocator(pmfxAllocator);
+		// Since we are using video memory we must provide VPL with an external allocator
+		sts = MFXVideoCORE_SetFrameAllocator(*pSession, pmfxAllocator);
 		MSDK_CHECK_RESULT(sts, MFX_ERR_NONE, sts);
 
 	} else if (pmfxAllocator && dx9hack) {
-		// Initialize Intel Media SDK Session
-		sts = pSession->Init(impl, &ver);
+		// Initialize Intel VPL Session
+		mfxLoader loader = MFXLoad();
+		mfxConfig cfg = MFXCreateConfig(loader);
+
+		impl.Type = MFX_VARIANT_TYPE_U32;
+		impl.Data.U32 = MFX_IMPL_TYPE_HARDWARE;
+		MFXSetConfigFilterProperty(
+			cfg, (const mfxU8 *)"mfxImplDescription.Impl", impl);
+
+		impl.Type = MFX_VARIANT_TYPE_U32;
+		impl.Data.U32 = INTEL_VENDOR_ID;
+		MFXSetConfigFilterProperty(
+			cfg, (const mfxU8 *)"mfxImplDescription.VendorID",
+			impl);
+
+		impl.Type = MFX_VARIANT_TYPE_U32;
+		impl.Data.U32 = MFX_ACCEL_MODE_VIA_D3D9;
+		MFXSetConfigFilterProperty(
+			cfg,
+			(const mfxU8 *)"mfxImplDescription.AccelerationMode",
+			impl);
+
+		sts = MFXCreateSession(loader, 0, pSession);
 		MSDK_CHECK_RESULT(sts, MFX_ERR_NONE, sts);
 
 		// Create DirectX device context
@@ -77,26 +121,47 @@ mfxStatus Initialize(mfxIMPL impl, mfxVersion ver, MFXVideoSession *pSession,
 		if (*deviceHandle == NULL)
 			return MFX_ERR_DEVICE_FAILED;
 
-		// Provide device manager to Media SDK
-		sts = pSession->SetHandle(MFX_HANDLE_D3D9_DEVICE_MANAGER,
-					  *deviceHandle);
+		// Provide device manager to VPL
+		sts = MFXVideoCORE_SetHandle(*pSession, DEVICE_MGR_TYPE,
+					     *deviceHandle);
 		MSDK_CHECK_RESULT(sts, MFX_ERR_NONE, sts);
 
 		pmfxAllocator->pthis =
-			*pSession; // We use Media SDK session ID as the allocation identifier
+			*pSession; // We use VPL session ID as the allocation identifier
 		pmfxAllocator->Alloc = dx9_simple_alloc;
 		pmfxAllocator->Free = dx9_simple_free;
 		pmfxAllocator->Lock = dx9_simple_lock;
 		pmfxAllocator->Unlock = dx9_simple_unlock;
 		pmfxAllocator->GetHDL = dx9_simple_gethdl;
 
-		// Since we are using video memory we must provide Media SDK with an external allocator
-		sts = pSession->SetFrameAllocator(pmfxAllocator);
+		// Since we are using video memory we must provide VPL with an external allocator
+		sts = MFXVideoCORE_SetFrameAllocator(*pSession, pmfxAllocator);
 		MSDK_CHECK_RESULT(sts, MFX_ERR_NONE, sts);
 
 	} else {
-		// Initialize Intel Media SDK Session
-		sts = pSession->Init(impl, &ver);
+		// Initialize Intel VPL Session
+		mfxLoader loader = MFXLoad();
+		mfxConfig cfg = MFXCreateConfig(loader);
+
+		impl.Type = MFX_VARIANT_TYPE_U32;
+		impl.Data.U32 = MFX_IMPL_TYPE_HARDWARE;
+		MFXSetConfigFilterProperty(
+			cfg, (const mfxU8 *)"mfxImplDescription.Impl", impl);
+
+		impl.Type = MFX_VARIANT_TYPE_U32;
+		impl.Data.U32 = INTEL_VENDOR_ID;
+		MFXSetConfigFilterProperty(
+			cfg, (const mfxU8 *)"mfxImplDescription.VendorID",
+			impl);
+
+		impl.Type = MFX_VARIANT_TYPE_U32;
+		impl.Data.U32 = MFX_ACCEL_MODE_VIA_D3D9;
+		MFXSetConfigFilterProperty(
+			cfg,
+			(const mfxU8 *)"mfxImplDescription.AccelerationMode",
+			impl);
+
+		sts = MFXCreateSession(loader, 0, pSession);
 		MSDK_CHECK_RESULT(sts, MFX_ERR_NONE, sts);
 	}
 	return sts;
@@ -150,7 +215,10 @@ void check_adapters(struct adapter_info *adapters, size_t *adapter_count)
 	const char *error = nullptr;
 	size_t config_adapter_count;
 
-	dstr_copy(&cmd, test_exe);
+	dstr_init_move_array(&cmd, test_exe);
+	dstr_insert_ch(&cmd, 0, '\"');
+	dstr_cat(&cmd, "\"");
+
 	enum_graphics_device_luids(enum_luids, &cmd);
 
 	pp = os_process_pipe_create(cmd.array, "r");
@@ -211,7 +279,6 @@ fail:
 	dstr_free(&caps_str);
 	dstr_free(&cmd);
 	os_process_pipe_destroy(pp);
-	bfree(test_exe);
 }
 
 /* (Lain) Functions currently unused */

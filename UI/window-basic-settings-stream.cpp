@@ -84,10 +84,10 @@ void OBSBasicSettings::InitStreamPage()
 	ui->twitchAddonDropdown->addItem(
 		QTStr("Basic.Settings.Stream.TTVAddon.Both"));
 
-	connect(ui->ignoreRecommended, SIGNAL(clicked(bool)), this,
-		SLOT(DisplayEnforceWarning(bool)));
-	connect(ui->ignoreRecommended, SIGNAL(toggled(bool)), this,
-		SLOT(UpdateResFPSLimits()));
+	connect(ui->ignoreRecommended, &QCheckBox::clicked, this,
+		&OBSBasicSettings::DisplayEnforceWarning);
+	connect(ui->ignoreRecommended, &QCheckBox::toggled, this,
+		&OBSBasicSettings::UpdateResFPSLimits);
 }
 
 void OBSBasicSettings::LoadStream1Settings()
@@ -128,29 +128,6 @@ void OBSBasicSettings::LoadStream1Settings()
 		ui->authUsername->setText(QT_UTF8(username));
 		ui->authPw->setText(QT_UTF8(password));
 		ui->useAuth->setChecked(use_auth);
-
-		/* add tooltips for stream key, user, password fields */
-		QString file = !App()->IsThemeDark()
-				       ? ":/res/images/help.svg"
-				       : ":/res/images/help_light.svg";
-		QString lStr = "<html>%1 <img src='%2' style=' \
-				vertical-align: bottom;  \
-				' /></html>";
-
-		ui->streamKeyLabel->setText(
-			lStr.arg(ui->streamKeyLabel->text(), file));
-		ui->streamKeyLabel->setToolTip(
-			QTStr("Basic.AutoConfig.StreamPage.StreamKey.ToolTip"));
-
-		ui->authUsernameLabel->setText(
-			lStr.arg(ui->authUsernameLabel->text(), file));
-		ui->authUsernameLabel->setToolTip(
-			QTStr("Basic.Settings.Stream.Custom.Username.ToolTip"));
-
-		ui->authPwLabel->setText(
-			lStr.arg(ui->authPwLabel->text(), file));
-		ui->authPwLabel->setToolTip(
-			QTStr("Basic.Settings.Stream.Custom.Password.ToolTip"));
 	} else {
 		int idx = ui->service->findText(service);
 		if (idx == -1) {
@@ -185,7 +162,7 @@ void OBSBasicSettings::LoadStream1Settings()
 	else
 		ui->key->setText(key);
 
-	ServiceChanged();
+	ServiceChanged(true);
 
 	UpdateKeyLink();
 	UpdateMoreInfoLink();
@@ -341,12 +318,38 @@ void OBSBasicSettings::UpdateKeyLink()
 	if (serviceName == "Dacast") {
 		ui->streamKeyLabel->setText(
 			QTStr("Basic.AutoConfig.StreamPage.EncoderKey"));
+		ui->streamKeyLabel->setToolTip("");
 	} else if (IsWHIP()) {
 		ui->streamKeyLabel->setText(
 			QTStr("Basic.AutoConfig.StreamPage.BearerToken"));
+		ui->streamKeyLabel->setToolTip("");
 	} else if (!IsCustomService()) {
 		ui->streamKeyLabel->setText(
 			QTStr("Basic.AutoConfig.StreamPage.StreamKey"));
+		ui->streamKeyLabel->setToolTip("");
+	} else {
+		/* add tooltips for stream key, user, password fields */
+		QString file = !App()->IsThemeDark()
+				       ? ":/res/images/help.svg"
+				       : ":/res/images/help_light.svg";
+		QString lStr = "<html>%1 <img src='%2' style=' \
+				vertical-align: bottom;  \
+				' /></html>";
+
+		ui->streamKeyLabel->setText(lStr.arg(
+			QTStr("Basic.AutoConfig.StreamPage.StreamKey"), file));
+		ui->streamKeyLabel->setToolTip(
+			QTStr("Basic.AutoConfig.StreamPage.StreamKey.ToolTip"));
+
+		ui->authUsernameLabel->setText(lStr.arg(
+			QTStr("Basic.Settings.Stream.Custom.Username"), file));
+		ui->authUsernameLabel->setToolTip(
+			QTStr("Basic.Settings.Stream.Custom.Username.ToolTip"));
+
+		ui->authPwLabel->setText(lStr.arg(
+			QTStr("Basic.Settings.Stream.Custom.Password"), file));
+		ui->authPwLabel->setToolTip(
+			QTStr("Basic.Settings.Stream.Custom.Password.ToolTip"));
 	}
 
 	if (QString(streamKeyLink).isNull() ||
@@ -517,7 +520,7 @@ void OBSBasicSettings::on_customServer_textChanged(const QString &)
 		lastCustomServer = ui->customServer->text();
 }
 
-void OBSBasicSettings::ServiceChanged()
+void OBSBasicSettings::ServiceChanged(bool resetFields)
 {
 	std::string service = QT_TO_UTF8(ui->service->currentText());
 	bool custom = IsCustomService();
@@ -528,7 +531,7 @@ void OBSBasicSettings::ServiceChanged()
 	ui->twitchAddonDropdown->setVisible(false);
 	ui->twitchAddonLabel->setVisible(false);
 
-	if (lastService != service.c_str()) {
+	if (resetFields || lastService != service.c_str()) {
 		reset_service_ui_fields(ui.get(), service, loading);
 	}
 
@@ -770,6 +773,14 @@ void OBSBasicSettings::on_connectAccount_clicked()
 	auth = OAuthStreamKey::Login(this, service);
 	if (!!auth) {
 		OnAuthConnected();
+#ifdef YOUTUBE_ENABLED
+		if (cef_js_avail && IsYouTubeService(service)) {
+			if (!main->GetYouTubeAppDock()) {
+				main->NewYouTubeAppDock();
+			}
+			main->GetYouTubeAppDock()->AccountConnected();
+		}
+#endif
 
 		ui->useStreamKeyAdv->setVisible(false);
 	}
@@ -812,6 +823,16 @@ void OBSBasicSettings::on_disconnectAccount_clicked()
 
 	ui->connectedAccountLabel->setVisible(false);
 	ui->connectedAccountText->setVisible(false);
+
+#ifdef YOUTUBE_ENABLED
+	if (cef_js_avail && IsYouTubeService(service)) {
+		if (!main->GetYouTubeAppDock()) {
+			main->NewYouTubeAppDock();
+		}
+		main->GetYouTubeAppDock()->AccountDisconnected();
+		main->GetYouTubeAppDock()->Update();
+	}
+#endif
 }
 
 void OBSBasicSettings::on_useStreamKey_clicked()
@@ -870,10 +891,10 @@ void OBSBasicSettings::UpdateVodTrackSetting()
 						     &pos, nullptr);
 	ui->simpleStreamingLayout->insertRow(pos + 1, nullptr, simpleVodTrack);
 
-	HookWidget(simpleVodTrack, SIGNAL(clicked(bool)),
-		   SLOT(OutputsChanged()));
-	connect(ui->simpleOutAdvanced, SIGNAL(toggled(bool)),
-		simpleVodTrack.data(), SLOT(setVisible(bool)));
+	HookWidget(simpleVodTrack.data(), &QCheckBox::clicked,
+		   &OBSBasicSettings::OutputsChanged);
+	connect(ui->simpleOutAdvanced, &QCheckBox::toggled,
+		simpleVodTrack.data(), &QCheckBox::setVisible);
 
 	/* -------------------------------------- */
 	/* advanced output mode vod track widgets */
@@ -889,12 +910,12 @@ void OBSBasicSettings::UpdateVodTrackSetting()
 		vodTrack[i] = new QRadioButton(QString::number(i + 1));
 		vodTrackLayout->addWidget(vodTrack[i]);
 
-		HookWidget(vodTrack[i], SIGNAL(clicked(bool)),
-			   SLOT(OutputsChanged()));
+		HookWidget(vodTrack[i].data(), &QRadioButton::clicked,
+			   &OBSBasicSettings::OutputsChanged);
 	}
 
-	HookWidget(vodTrackCheckbox, SIGNAL(clicked(bool)),
-		   SLOT(OutputsChanged()));
+	HookWidget(vodTrackCheckbox.data(), &QCheckBox::clicked,
+		   &OBSBasicSettings::OutputsChanged);
 
 	vodTrackLayout->addStretch();
 	vodTrackLayout->setContentsMargins(0, 0, 0, 0);
@@ -908,8 +929,8 @@ void OBSBasicSettings::UpdateVodTrackSetting()
 	vodTrackCheckbox->setChecked(vodTrackEnabled);
 	vodTrackContainer->setEnabled(vodTrackEnabled);
 
-	connect(vodTrackCheckbox, SIGNAL(clicked(bool)), vodTrackContainer,
-		SLOT(setEnabled(bool)));
+	connect(vodTrackCheckbox, &QCheckBox::clicked, vodTrackContainer,
+		&QWidget::setEnabled);
 
 	int trackIndex =
 		config_get_int(main->Config(), "AdvOut", "VodTrackIndex");
@@ -1218,8 +1239,8 @@ bool OBSBasicSettings::UpdateResFPSLimits()
 		ui->outputResolution->clear();
 		ui->outputResolution->setEditable(false);
 		HookWidget(ui->outputResolution,
-			   SIGNAL(currentIndexChanged(int)),
-			   SLOT(VideoChangedResolution()));
+			   &QComboBox::currentIndexChanged,
+			   &OBSBasicSettings::VideoChangedResolution);
 
 		int new_res_index = -1;
 
@@ -1423,7 +1444,7 @@ static QString get_adv_audio_fallback(const QString &enc)
 {
 	const char *codec = obs_get_encoder_codec(QT_TO_UTF8(enc));
 
-	if (strcmp(codec, "aac") == 0)
+	if (codec && strcmp(codec, "aac") == 0)
 		return "ffmpeg_opus";
 
 	QString aac_default = "ffmpeg_aac";

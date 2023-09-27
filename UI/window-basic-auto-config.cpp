@@ -136,7 +136,7 @@ AutoConfigVideoPage::AutoConfigVideoPage(QWidget *parent)
 		(long double)ovi.fps_num / (long double)ovi.fps_den;
 
 	QString fpsStr = (ovi.fps_den > 1) ? QString::number(fpsVal, 'f', 2)
-					   : QString::number(fpsVal, 'g', 2);
+					   : QString::number(fpsVal, 'g');
 
 	ui->fps->addItem(QTStr(FPS_PREFER_HIGH_FPS),
 			 (int)AutoConfig::FPSType::PreferHighFPS);
@@ -283,38 +283,38 @@ AutoConfigStreamPage::AutoConfigStreamPage(QWidget *parent)
 
 	LoadServices(false);
 
-	connect(ui->service, SIGNAL(currentIndexChanged(int)), this,
-		SLOT(ServiceChanged()));
-	connect(ui->customServer, SIGNAL(textChanged(const QString &)), this,
-		SLOT(ServiceChanged()));
-	connect(ui->customServer, SIGNAL(textChanged(const QString &)), this,
-		SLOT(UpdateKeyLink()));
-	connect(ui->customServer, SIGNAL(editingFinished()), this,
-		SLOT(UpdateKeyLink()));
-	connect(ui->doBandwidthTest, SIGNAL(toggled(bool)), this,
-		SLOT(ServiceChanged()));
+	connect(ui->service, &QComboBox::currentIndexChanged, this,
+		&AutoConfigStreamPage::ServiceChanged);
+	connect(ui->customServer, &QLineEdit::textChanged, this,
+		&AutoConfigStreamPage::ServiceChanged);
+	connect(ui->customServer, &QLineEdit::textChanged, this,
+		&AutoConfigStreamPage::UpdateKeyLink);
+	connect(ui->customServer, &QLineEdit::editingFinished, this,
+		&AutoConfigStreamPage::UpdateKeyLink);
+	connect(ui->doBandwidthTest, &QCheckBox::toggled, this,
+		&AutoConfigStreamPage::ServiceChanged);
 
-	connect(ui->service, SIGNAL(currentIndexChanged(int)), this,
-		SLOT(UpdateServerList()));
+	connect(ui->service, &QComboBox::currentIndexChanged, this,
+		&AutoConfigStreamPage::UpdateServerList);
 
-	connect(ui->service, SIGNAL(currentIndexChanged(int)), this,
-		SLOT(UpdateKeyLink()));
-	connect(ui->service, SIGNAL(currentIndexChanged(int)), this,
-		SLOT(UpdateMoreInfoLink()));
+	connect(ui->service, &QComboBox::currentIndexChanged, this,
+		&AutoConfigStreamPage::UpdateKeyLink);
+	connect(ui->service, &QComboBox::currentIndexChanged, this,
+		&AutoConfigStreamPage::UpdateMoreInfoLink);
 
-	connect(ui->useStreamKeyAdv, &QPushButton::clicked, this,
+	connect(ui->useStreamKeyAdv, &QPushButton::clicked,
 		[&]() { ui->streamKeyWidget->setVisible(true); });
 
-	connect(ui->key, SIGNAL(textChanged(const QString &)), this,
-		SLOT(UpdateCompleted()));
-	connect(ui->regionUS, SIGNAL(toggled(bool)), this,
-		SLOT(UpdateCompleted()));
-	connect(ui->regionEU, SIGNAL(toggled(bool)), this,
-		SLOT(UpdateCompleted()));
-	connect(ui->regionAsia, SIGNAL(toggled(bool)), this,
-		SLOT(UpdateCompleted()));
-	connect(ui->regionOther, SIGNAL(toggled(bool)), this,
-		SLOT(UpdateCompleted()));
+	connect(ui->key, &QLineEdit::textChanged, this,
+		&AutoConfigStreamPage::UpdateCompleted);
+	connect(ui->regionUS, &QCheckBox::toggled, this,
+		&AutoConfigStreamPage::UpdateCompleted);
+	connect(ui->regionEU, &QCheckBox::toggled, this,
+		&AutoConfigStreamPage::UpdateCompleted);
+	connect(ui->regionAsia, &QCheckBox::toggled, this,
+		&AutoConfigStreamPage::UpdateCompleted);
+	connect(ui->regionOther, &QCheckBox::toggled, this,
+		&AutoConfigStreamPage::UpdateCompleted);
 }
 
 AutoConfigStreamPage::~AutoConfigStreamPage() {}
@@ -731,9 +731,24 @@ void AutoConfigStreamPage::UpdateKeyLink()
 	if (serviceName == "Dacast") {
 		ui->streamKeyLabel->setText(
 			QTStr("Basic.AutoConfig.StreamPage.EncoderKey"));
-	} else {
+		ui->streamKeyLabel->setToolTip("");
+	} else if (!IsCustomService()) {
 		ui->streamKeyLabel->setText(
 			QTStr("Basic.AutoConfig.StreamPage.StreamKey"));
+		ui->streamKeyLabel->setToolTip("");
+	} else {
+		/* add tooltips for stream key */
+		QString file = !App()->IsThemeDark()
+				       ? ":/res/images/help.svg"
+				       : ":/res/images/help_light.svg";
+		QString lStr = "<html>%1 <img src='%2' style=' \
+				vertical-align: bottom;  \
+				' /></html>";
+
+		ui->streamKeyLabel->setText(lStr.arg(
+			QTStr("Basic.AutoConfig.StreamPage.StreamKey"), file));
+		ui->streamKeyLabel->setToolTip(
+			QTStr("Basic.AutoConfig.StreamPage.StreamKey.ToolTip"));
 	}
 
 	if (QString(streamKeyLink).isNull() ||
@@ -1050,6 +1065,13 @@ void AutoConfig::done(int result)
 		if (type == Type::Streaming)
 			SaveStreamSettings();
 		SaveSettings();
+
+#ifdef YOUTUBE_ENABLED
+		if (YouTubeAppDock::IsYTServiceSelected()) {
+			OBSBasic *main = OBSBasic::Get();
+			main->NewYouTubeAppDock();
+		}
+#endif
 	}
 }
 
@@ -1087,7 +1109,7 @@ void AutoConfig::SaveStreamSettings()
 		obs_data_set_string(settings, "service", serviceName.c_str());
 	obs_data_set_string(settings, "server", server.c_str());
 #ifdef YOUTUBE_ENABLED
-	if (!IsYouTubeService(serviceName))
+	if (!streamPage->auth || !IsYouTubeService(serviceName))
 		obs_data_set_string(settings, "key", key.c_str());
 #else
 	obs_data_set_string(settings, "key", key.c_str());

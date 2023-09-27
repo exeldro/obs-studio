@@ -65,7 +65,7 @@
 #endif
 
 #if defined(_WIN32) || defined(ENABLE_SPARKLE_UPDATER)
-#include <json11.hpp>
+#include "update/models/branches.hpp"
 #endif
 
 #if !defined(_WIN32) && !defined(__APPLE__)
@@ -110,6 +110,7 @@ string opt_starting_scene;
 
 bool restart = false;
 bool restart_safe = false;
+QStringList arguments;
 
 QPointer<OBSLogViewer> obsLogViewer;
 
@@ -1289,28 +1290,31 @@ bool OBSApp::InitTheme()
 void ParseBranchesJson(const std::string &jsonString, vector<UpdateBranch> &out,
 		       std::string &error)
 {
-	json11::Json root;
-	root = json11::Json::parse(jsonString, error);
-	if (!error.empty() || !root.is_array())
-		return;
+	JsonBranches branches;
 
-	for (const json11::Json &item : root.array_items()) {
+	try {
+		nlohmann::json json = nlohmann::json::parse(jsonString);
+		branches = json.get<JsonBranches>();
+	} catch (nlohmann::json::exception &e) {
+		error = e.what();
+		return;
+	}
+
+	for (const JsonBranch &json_branch : branches) {
 #ifdef _WIN32
-		if (!item["windows"].bool_value())
+		if (!json_branch.windows)
 			continue;
 #elif defined(__APPLE__)
-		if (!item["macos"].bool_value())
+		if (!json_branch.macos)
 			continue;
 #endif
 
 		UpdateBranch branch = {
-			QString::fromStdString(item["name"].string_value()),
-			QString::fromStdString(
-				item["display_name"].string_value()),
-			QString::fromStdString(
-				item["description"].string_value()),
-			item["enabled"].bool_value(),
-			item["visible"].bool_value(),
+			QString::fromStdString(json_branch.name),
+			QString::fromStdString(json_branch.display_name),
+			QString::fromStdString(json_branch.description),
+			json_branch.enabled,
+			json_branch.visible,
 		};
 		out.push_back(branch);
 	}
@@ -1408,8 +1412,8 @@ OBSApp::OBSApp(int &argc, char **argv, profiler_name_store_t *store)
 	/* Handle SIGINT properly */
 	socketpair(AF_UNIX, SOCK_STREAM, 0, sigintFd);
 	snInt = new QSocketNotifier(sigintFd[1], QSocketNotifier::Read, this);
-	connect(snInt, SIGNAL(activated(QSocketDescriptor)), this,
-		SLOT(ProcessSigInt()));
+	connect(snInt, &QSocketNotifier::activated, this,
+		&OBSApp::ProcessSigInt);
 #endif
 
 	sleepInhibitor = os_inhibit_sleep_create("OBS Video/audio");
@@ -1731,7 +1735,7 @@ bool OBSApp::OBSInit()
 	mainWindow = new OBSBasic();
 
 	mainWindow->setAttribute(Qt::WA_DeleteOnClose, true);
-	connect(mainWindow, SIGNAL(destroyed()), this, SLOT(quit()));
+	connect(mainWindow, &OBSBasic::destroyed, this, &OBSApp::quit);
 
 	mainWindow->OBSInit();
 
@@ -2584,16 +2588,13 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 	}
 
 	if (restart || restart_safe) {
-		auto args = qApp->arguments();
-		auto executable = args[0];
+		arguments = qApp->arguments();
 
 		if (restart_safe) {
-			args.append("--safe-mode");
+			arguments.append("--safe-mode");
 		} else {
-			args.removeAll("--safe-mode");
+			arguments.removeAll("--safe-mode");
 		}
-
-		QProcess::startDetached(executable, args);
 	}
 
 	return ret;
@@ -2962,51 +2963,6 @@ static bool update_reconnect(ConfigFile &config)
 	}
 
 	return false;
-}
-
-static void convert_x264_settings(obs_data_t *data)
-{
-	bool use_bufsize = obs_data_get_bool(data, "use_bufsize");
-
-	if (use_bufsize) {
-		int buffer_size = (int)obs_data_get_int(data, "buffer_size");
-		if (buffer_size == 0)
-			obs_data_set_string(data, "rate_control", "CRF");
-	}
-}
-
-static void convert_14_2_encoder_setting(const char *encoder, const char *file)
-{
-	OBSDataAutoRelease data =
-		obs_data_create_from_json_file_safe(file, "bak");
-	obs_data_item_t *cbr_item = obs_data_item_byname(data, "cbr");
-	obs_data_item_t *rc_item = obs_data_item_byname(data, "rate_control");
-	bool modified = false;
-	bool cbr = true;
-
-	if (cbr_item) {
-		cbr = obs_data_item_get_bool(cbr_item);
-		obs_data_item_unset_user_value(cbr_item);
-
-		obs_data_set_string(data, "rate_control", cbr ? "CBR" : "VBR");
-
-		modified = true;
-	}
-
-	if (!rc_item && astrcmpi(encoder, "obs_x264") == 0) {
-		if (!cbr_item)
-			obs_data_set_string(data, "rate_control", "CBR");
-		else if (!cbr)
-			convert_x264_settings(data);
-
-		modified = true;
-	}
-
-	if (modified)
-		obs_data_save_json_safe(data, file, "tmp", "bak");
-
-	obs_data_item_release(&rc_item);
-	obs_data_item_release(&cbr_item);
 }
 
 static void convert_nvenc_h264_presets(obs_data_t *data)
@@ -3436,7 +3392,7 @@ int main(int argc, char *argv[])
 				"--portable, -p: Use portable mode.\n"
 #endif
 				"--multi, -m: Don't warn when launching multiple instances.\n\n"
-				"--safe-mode: Run in Safe Mode (disables third-party plugins, scripting, and websockets).\n"
+				"--safe-mode: Run in Safe Mode (disables third-party plugins, scripting, and WebSockets).\n"
 				"--only-bundled-plugins: Only load included (first-party) plugins\n"
 				"--disable-shutdown-check: Disable unclean shutdown detection.\n"
 				"--verbose: Make log more verbose.\n"
@@ -3508,5 +3464,11 @@ int main(int argc, char *argv[])
 	delete_safe_mode_sentinel();
 	blog(LOG_INFO, "Number of memory leaks: %ld", bnum_allocs());
 	base_set_log_handler(nullptr, nullptr);
+
+	if (restart || restart_safe) {
+		auto executable = arguments.takeFirst();
+		QProcess::startDetached(executable, arguments);
+	}
+
 	return ret;
 }

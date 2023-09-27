@@ -24,11 +24,10 @@
 #include <memory>
 #include <string>
 
-#include <libff/ff-util.h>
-
 #include <obs.hpp>
 
 #include "auth-base.hpp"
+#include "ffmpeg-utils.hpp"
 
 class OBSBasic;
 class QAbstractButton;
@@ -68,20 +67,6 @@ public slots:
 		blockSignals(blocked);
 	}
 };
-
-class OBSFFDeleter {
-public:
-	void operator()(const ff_format_desc *format)
-	{
-		ff_format_desc_free(format);
-	}
-	void operator()(const ff_codec_desc *codec)
-	{
-		ff_codec_desc_free(codec);
-	}
-};
-using OBSFFCodecDesc = std::unique_ptr<const ff_codec_desc, OBSFFDeleter>;
-using OBSFFFormatDesc = std::unique_ptr<const ff_format_desc, OBSFFDeleter>;
 
 class OBSBasicSettings : public QDialog {
 	Q_OBJECT
@@ -135,7 +120,7 @@ private:
 	static constexpr uint32_t ENCODER_HIDE_FLAGS =
 		(OBS_ENCODER_CAP_DEPRECATED | OBS_ENCODER_CAP_INTERNAL);
 
-	OBSFFFormatDesc formats;
+	std::vector<FFmpegFormat> formats;
 
 	OBSPropertiesView *streamProperties = nullptr;
 	OBSPropertiesView *streamEncoderProps = nullptr;
@@ -221,7 +206,15 @@ private:
 		EnableApplyButton(false);
 	}
 
-	void HookWidget(QWidget *widget, const char *signal, const char *slot);
+	template<typename Widget, typename WidgetParent, typename... SignalArgs,
+		 typename... SlotArgs>
+	void HookWidget(Widget *widget,
+			void (WidgetParent::*signal)(SignalArgs...),
+			void (OBSBasicSettings::*slot)(SlotArgs...))
+	{
+		QObject::connect(widget, signal, this, slot);
+		widget->setProperty("changed", QVariant(false));
+	}
 
 	bool QueryChanges();
 	bool QueryAllowedToClose();
@@ -231,7 +224,7 @@ private:
 	void LoadColorSpaces();
 	void LoadColorFormats();
 	void LoadFormats();
-	void ReloadCodecs(const ff_format_desc *formatDesc);
+	void ReloadCodecs(const FFmpegFormat &format);
 
 	void UpdateColorFormatSpaceWarning();
 
@@ -268,7 +261,7 @@ private:
 	int prevLangIndex;
 	bool prevBrowserAccel;
 
-	void ServiceChanged();
+	void ServiceChanged(bool resetFields = false);
 	QString FindProtocol();
 	void UpdateServerList();
 	void UpdateKeyLink();
@@ -301,7 +294,7 @@ private:
 	void LoadAdvOutputRecordingEncoderProperties();
 	void LoadAdvOutputFFmpegSettings();
 	void LoadAdvOutputAudioSettings();
-	void SetAdvOutputFFmpegEnablement(ff_codec_type encoderType,
+	void SetAdvOutputFFmpegEnablement(FFmpegCodecType encoderType,
 					  bool enabled,
 					  bool enableEncode = false);
 
@@ -356,6 +349,8 @@ private:
 	void RecalcOutputResPixels(const char *resText);
 
 	bool AskIfCanCloseSettings();
+
+	void UpdateYouTubeAppDockSettings();
 
 	QIcon generalIcon;
 	QIcon streamIcon;
