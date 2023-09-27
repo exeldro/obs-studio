@@ -23,7 +23,7 @@ jobs:
       - name: Check Event Data ☑️
         id: setup
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           : Check Event Data ☑️
           if [[ "${RUNNER_DEBUG}" ]]; then set -x; fi
