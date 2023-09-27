@@ -82,7 +82,7 @@ static OBSServiceAutoRelease create_service(const QString &device_id,
 		const char *config_id =
 			obs_data_get_string(go_live_meta, "config_id");
 		if (config_id && *config_id) {
-			parsed_query.addQueryItem("configId", config_id);
+			parsed_query.addQueryItem("obsConfigId", config_id);
 		}
 	}
 
