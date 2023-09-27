@@ -31,12 +31,6 @@ jobs:
           case "${GITHUB_EVENT_NAME}" in
             pull_request|merge_group)
               config_data=('codesign:false' 'notarize:false' 'package:false' 'config:RelWithDebInfo' 'annotate:false' 'dev:true')
-              label_data=$(gh pr view ${{ github.event.number }} --json labels)
-              if echo "${label_data}" \
-                | jq -e -r '.labels[] | select(.name == "Seeking Testers")' > /dev/null; then
-                config_data[0]='codesign:true'
-                config_data[2]='package:true'
-              fi
               ;;
             push)
               config_data=('codesign:true' 'notarize:false' 'package:true' 'config:RelWithDebInfo' 'annotate:false' 'dev:true')
