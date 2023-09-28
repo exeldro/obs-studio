@@ -4,7 +4,10 @@ param(
     [string] $Target = 'x64',
     [ValidateSet('Debug', 'RelWithDebInfo', 'Release', 'MinSizeRel')]
     [string] $Configuration = 'RelWithDebInfo',
-    [switch] $Dev
+    [ValidateSet('ivs', 'twitch')]
+    [string] $Customer,
+    [ValidateSet('alpha', 'dev')]
+    [string] $Type
 )
 
 $ErrorActionPreference = 'Stop'
@@ -53,11 +56,11 @@ function Build {
     Push-Location -Stack BuildTemp
     Ensure-Location $ProjectRoot
 
-    $CmakeArgs = @('--preset', "windows-ci-${Target}")
+    $CmakeArgs = @('--preset', "windows-ci-${Target}", "-DIVS_CUSTOMER:STRING=${Customer}", "-DIVS_BUILD_TYPE:STRING=${Type}")
     $CmakeBuildArgs = @('--build')
     $CmakeInstallArgs = @()
 
-    if ( $Dev -eq $false ) {
+    if ( $Type -eq 'alpha' ) {
         $CmakeArgs += @(
             "-DENABLE_CUSTOM_TWITCH_CONFIG:BOOL=FALSE"
         )

@@ -8,6 +8,14 @@ inputs:
     description: Build configuration
     required: false
     default: Release
+  customer:
+    description: IVS/Twitch
+    required: true
+    default: twitch
+  type:
+    description: alpha or dev build
+    required: true
+    default: dev
   codesign:
     description: Enable codesigning (macOS only)
     required: false
@@ -53,6 +61,8 @@ runs:
         local -a package_args=(
           --target macos-${{ inputs.target }}
           --config ${{ inputs.config }}
+          --customer ${{ inputs.customer }}
+          --type ${{ inputs.type }}
         )
         if (( ${+RUNNER_DEBUG} )) build_args+=(--debug)
 
@@ -83,6 +93,8 @@ runs:
         local -a package_args=(
           --target linux-${{ inputs.target }}
           --config ${{ inputs.config }}
+          --customer ${{ inputs.customer }}
+          --type ${{ inputs.type }}
         )
         if (( ${+RUNNER_DEBUG} )) build_args+=(--debug)
 
@@ -99,6 +111,8 @@ runs:
         $PackageArgs = @{
           Target = '${{ inputs.target }}'
           Configuration = '${{ inputs.config }}'
+          Customer = '${{ inputs.customer }}'
+          Type = '${{ inputs.type }}'
         }
 
         if ( $Env:RUNNER_DEBUG -ne $null ) {
