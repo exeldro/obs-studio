@@ -34,9 +34,7 @@ void PresentMonCapture_accumulator::frame(const ParsedCsvRow &row)
 
 void PresentMonCapture_accumulator::summarizeAndReset(obs_data_t *dest)
 {
-	OBSDataAutoRelease data = obs_data_create();
-	OBSDataArrayAutoRelease array = obs_data_array_create();
-	obs_data_set_array(data, "games", array);
+	std::multimap<float, std::string, std::greater<float>> apps_fps_order;
 
 	{
 		QMutexLocker locked(&mutex);
@@ -47,7 +45,9 @@ void PresentMonCapture_accumulator::summarizeAndReset(obs_data_t *dest)
 				      app_rows.second[0].TimeInSeconds))
 				continue;
 
+			// before calculating, throw away extraneous rows
 			trimRows(app_rows.second, locked);
+
 			const size_t n = app_rows.second.size();
 			double allButFirstBetweenPresents =
 				-app_rows.second[0].msBetweenPresents;
@@ -67,15 +67,35 @@ void PresentMonCapture_accumulator::summarizeAndReset(obs_data_t *dest)
 				   (app_rows.second[n - 1].TimeInSeconds -
 				    app_rows.second[0].TimeInSeconds);
 
-			OBSDataAutoRelease game = obs_data_create();
-			obs_data_set_string(game, "game",
-					    app_rows.first.c_str());
-			obs_data_set_double(game, "fps", fps);
-			obs_data_array_push_back(array, game);
+			apps_fps_order.insert(
+				std::make_pair(fps, app_rows.first));
 		}
 	}
 
+	// all games get serialized into this array
+	OBSDataAutoRelease data = obs_data_create();
+	OBSDataArrayAutoRelease array = obs_data_array_create();
+	obs_data_set_array(data, "games", array);
+	for (auto &p : apps_fps_order) {
+		OBSDataAutoRelease game = obs_data_create();
+		obs_data_set_string(game, "game", p.second.c_str());
+		obs_data_set_double(game, "fps", p.first);
+		obs_data_array_push_back(array, game);
+	}
 	obs_data_set_string(dest, "games", obs_data_get_json(data));
+
+	// we report up to two highest-fps games separately
+	auto p = apps_fps_order.cbegin();
+	if (p != apps_fps_order.cend()) {
+		obs_data_set_string(dest, "game0_name", p->second.c_str());
+		obs_data_set_double(dest, "game0_fps", p->first);
+		++p;
+	}
+	if (p != apps_fps_order.cend()) {
+		obs_data_set_string(dest, "game1_name", p->second.c_str());
+		obs_data_set_double(dest, "game1_fps", p->first);
+		++p;
+	}
 }
 
 // You need to hold the mutex before calling this
