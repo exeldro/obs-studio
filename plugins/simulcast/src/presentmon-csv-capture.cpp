@@ -67,6 +67,13 @@ void PresentMonCapture_accumulator::summarizeAndReset(obs_data_t *dest)
 				   (app_rows.second[n - 1].TimeInSeconds -
 				    app_rows.second[0].TimeInSeconds);
 
+			// after calculating, throw away all but the last row
+			if (n > 1) {
+				app_rows.second.erase(app_rows.second.begin(),
+						      app_rows.second.begin() +
+							      n - 1);
+			}
+
 			apps_fps_order.insert(
 				std::make_pair(fps, app_rows.first));
 		}
