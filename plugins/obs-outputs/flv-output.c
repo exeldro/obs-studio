@@ -36,6 +36,7 @@
 #define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)
 #define info(format, ...) do_log(LOG_INFO, format, ##__VA_ARGS__)
 
+#define OPT_ERTMP_MULTITRACK "ertmp_multitrack"
 struct flv_output {
 	obs_output_t *output;
 	struct dstr path;
@@ -54,6 +55,8 @@ struct flv_output {
 
 	bool got_first_video;
 	int32_t start_dts_offset;
+
+	bool ertmp_multitrack;
 };
 
 /* Adapted from FFmpeg's libavutil/pixfmt.h
@@ -196,7 +199,11 @@ static void *flv_output_create(obs_data_t *settings, obs_output_t *output)
 	stream->output = output;
 	pthread_mutex_init(&stream->mutex, NULL);
 
-	UNUSED_PARAMETER(settings);
+	// Whether to enable multitrack ERTMP or use old-style
+	// additionalData method
+	stream->ertmp_multitrack =
+		obs_data_get_bool(settings, OPT_ERTMP_MULTITRACK);
+
 	return stream;
 }
 
@@ -246,7 +253,7 @@ static int write_packet_ex(struct flv_output *stream,
 			: &stream->additional_metadata
 				   .additional_video_media_data[idx];
 
-	if (media_data->active) {
+	if (!stream->ertmp_multitrack && media_data->active) {
 		if (is_header) {
 			flv_additional_packet_start_ex(packet, media_data,
 						       stream->video_codec[idx],
@@ -263,14 +270,14 @@ static int write_packet_ex(struct flv_output *stream,
 	} else {
 		if (is_header) {
 			flv_packet_start(packet, stream->video_codec[idx],
-					 &data, &size);
+					 &data, &size, idx);
 		} else if (is_footer) {
 			flv_packet_end(packet, stream->video_codec[idx], &data,
-				       &size);
+				       &size, idx);
 		} else {
 			flv_packet_frames(packet, stream->video_codec[idx],
 					  stream->start_dts_offset, &data,
-					  &size);
+					  &size, idx);
 		}
 	}
 
@@ -346,7 +353,12 @@ static bool write_video_header(struct flv_output *stream, size_t idx)
 	switch (stream->video_codec[idx]) {
 	case CODEC_H264:
 		packet.size = obs_parse_avc_header(&packet.data, header, size);
-		write_packet(stream, &packet, true, idx);
+		// Always send H264 on track 0 as old style for compat
+		if (!stream->ertmp_multitrack || idx == 0) {
+			write_packet(stream, &packet, true, idx);
+		} else {
+			write_packet_ex(stream, &packet, true, false, idx);
+		}
 		return true;
 #ifdef ENABLE_HEVC
 	case CODEC_HEVC:
@@ -445,14 +457,14 @@ static bool write_video_metadata(struct flv_output *stream, size_t idx)
 	else if (trc == OBSCOL_TRC_SMPTE2084)
 		max_luminance = (int)obs_get_video_hdr_nominal_peak_level();
 
-	if (media_data->active) {
+	if (!stream->ertmp_multitrack && media_data->active) {
 		flv_additional_packet_metadata_ex(
 			media_data, stream->video_codec[idx], &data, &size,
 			bits_per_raw_sample, pri, trc, spc, 0, max_luminance);
 	} else {
 		flv_packet_metadata(stream->video_codec[idx], &data, &size,
 				    bits_per_raw_sample, pri, trc, spc, 0,
-				    max_luminance);
+				    max_luminance, idx);
 	}
 
 	fwrite(data, 1, size, stream->file);
@@ -730,7 +742,10 @@ static void flv_output_data(void *data, struct encoder_packet *packet)
 			break;
 		}
 
-		if (stream->video_codec[packet->track_idx] != CODEC_H264) {
+		if (stream->video_codec[packet->track_idx] != CODEC_H264 ||
+		    (stream->ertmp_multitrack &&
+		     stream->video_codec[packet->track_idx] == CODEC_H264 &&
+		     packet->track_idx != 0)) {
 			write_packet_ex(stream, &parsed_packet, false, false,
 					packet->track_idx);
 		} else {
@@ -755,7 +770,16 @@ static obs_properties_t *flv_output_properties(void *unused)
 	obs_properties_add_text(props, "path",
 				obs_module_text("FLVOutput.FilePath"),
 				OBS_TEXT_DEFAULT);
+
+	obs_properties_add_bool(props, "ertmp_multitrack",
+				obs_module_text("FLVOutput.ERTMPMultitrack"));
+
 	return props;
+}
+
+static void flv_output_defaults(obs_data_t *defaults)
+{
+	obs_data_set_default_bool(defaults, OPT_ERTMP_MULTITRACK, false);
 }
 
 struct obs_output_info flv_output_info = {
@@ -774,4 +798,4 @@ struct obs_output_info flv_output_info = {
 	.stop = flv_output_stop,
 	.encoded_packet = flv_output_data,
 	.get_properties = flv_output_properties,
-};
+	.get_defaults = flv_output_defaults};
