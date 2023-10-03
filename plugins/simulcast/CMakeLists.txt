@@ -54,7 +54,7 @@ if(OS_WINDOWS)
                                    src/system-info-windows.cpp src/wmi-data-provider.cpp src/wmi-data-provider.h)
 elseif(OS_MACOS)
   target_sources(simulcast PRIVATE # cmake-format: sortable
-                                   src/system-info-macos.cpp)
+                                   src/system-info-macos.mm)
 elseif(OS_LINUX)
   target_sources(simulcast PRIVATE # cmake-format: sortable
                                    src/system-info-posix.cpp)

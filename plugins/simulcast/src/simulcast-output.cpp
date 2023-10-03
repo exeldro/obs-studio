@@ -23,6 +23,7 @@
 #include <QUrlQuery>
 
 #include "plugin-macros.generated.h"
+#include "system-info.h"
 #include "qt-helpers.h"
 
 static OBSServiceAutoRelease create_service(const QString &device_id,
@@ -118,7 +119,7 @@ static void ensure_directory_exists(std::string &path)
 	os_mkdirs(directory.c_str());
 }
 
-std::string GetOutputFilename(const char *path, const char *format)
+std::string GetOutputFilename(const std::string &path, const char *format)
 {
 	std::string strPath;
 	strPath += path;
@@ -152,7 +153,7 @@ static OBSOutputAutoRelease create_recording_output()
 {
 	OBSDataAutoRelease settings = obs_data_create();
 	obs_data_set_string(settings, "path",
-			    GetOutputFilename("C:/Users/haruwenz/Videos/",
+			    GetOutputFilename(system_video_save_path(),
 					      "%CCYY-%MM-%DD_%hh-%mm-%ss")
 				    .c_str());
 
