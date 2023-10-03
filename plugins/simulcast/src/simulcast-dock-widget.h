@@ -53,6 +53,7 @@ public:
 		return preference_maximum_renditions_;
 	}
 	bool &TelemetryEanbled() { return telemetry_enabled_; }
+	bool &UseERTMPMultitrack() { return use_ertmp_multitrack_; }
 	bool &UseServerConfig() { return use_server_config_; }
 	QString &CustomConfig() { return custom_config_; }
 	const QString &DeviceId() { return device_id_; }
@@ -86,6 +87,7 @@ private:
 	std::optional<uint64_t> preference_maximum_bitrate_;
 	std::optional<uint32_t> preference_maximum_renditions_;
 	bool telemetry_enabled_;
+	bool use_ertmp_multitrack_;
 	bool use_server_config_;
 	QString custom_config_;
 	QString device_id_;

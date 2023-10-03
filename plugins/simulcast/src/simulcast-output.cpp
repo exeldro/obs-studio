@@ -135,10 +135,13 @@ std::string GetOutputFilename(const std::string &path, const char *format)
 	return strPath;
 }
 
-static OBSOutputAutoRelease create_output()
+static OBSOutputAutoRelease create_output(bool use_ertmp_multitrack)
 {
+	OBSDataAutoRelease settings = obs_data_create();
+	obs_data_set_bool(settings, "ertmp_multitrack", use_ertmp_multitrack);
+
 	OBSOutputAutoRelease output = obs_output_create(
-		"rtmp_output", "rtmp simulcast", nullptr, nullptr);
+		"rtmp_output", "rtmp simulcast", settings, nullptr);
 
 	if (!output) {
 		blog(LOG_ERROR, "failed to create simulcast rtmp output");
@@ -149,13 +152,14 @@ static OBSOutputAutoRelease create_output()
 	return output;
 }
 
-static OBSOutputAutoRelease create_recording_output()
+static OBSOutputAutoRelease create_recording_output(bool use_ertmp_multitrack)
 {
 	OBSDataAutoRelease settings = obs_data_create();
 	obs_data_set_string(settings, "path",
 			    GetOutputFilename(system_video_save_path(),
 					      "%CCYY-%MM-%DD_%hh-%mm-%ss")
 				    .c_str());
+	obs_data_set_bool(settings, "ertmp_multitrack", use_ertmp_multitrack);
 
 	OBSOutputAutoRelease output = obs_output_create(
 		"flv_output", "flv simulcast", settings, nullptr);
@@ -475,7 +479,7 @@ static OBSDataAutoRelease load_simulcast_config()
 static OBSOutputAutoRelease
 SetupOBSOutput(bool recording, obs_data_t *go_live_config,
 	       std::vector<OBSEncoderAutoRelease> &video_encoders,
-	       OBSEncoderAutoRelease &audio_encoder);
+	       OBSEncoderAutoRelease &audio_encoder, bool use_ertmp_multitrack);
 static void SetupSignalHandlers(bool recording, SimulcastOutput *self,
 				obs_output_t *output);
 
@@ -490,6 +494,7 @@ QFuture<bool> SimulcastOutput::StartStreaming(const QString &device_id,
 					      const QString &obs_session_id,
 					      const QString &rtmp_url,
 					      const QString &stream_key,
+					      bool use_ertmp_multitrack,
 					      obs_data_t *go_live_config_)
 {
 	OBSData go_live_config_data = go_live_config_;
@@ -498,7 +503,8 @@ QFuture<bool> SimulcastOutput::StartStreaming(const QString &device_id,
 		.then(QThreadPool::globalInstance(),
 		      [=, device_id = device_id,
 		       obs_session_id = obs_session_id, rtmp_url = rtmp_url,
-		       stream_key = stream_key, self = this,
+		       stream_key = stream_key,
+		       use_ertmp_multitrack = use_ertmp_multitrack, self = this,
 		       video_encoders = std::move(video_encoders_)]() mutable
 		      -> std::optional<OutputObjects> {
 			      auto config = go_live_config_data
@@ -514,10 +520,9 @@ QFuture<bool> SimulcastOutput::StartStreaming(const QString &device_id,
 
 			      video_encoders.clear();
 			      OBSEncoderAutoRelease audio_encoder = nullptr;
-			      auto output = SetupOBSOutput(false,
-							   go_live_config,
-							   video_encoders,
-							   audio_encoder);
+			      auto output = SetupOBSOutput(
+				      false, go_live_config, video_encoders,
+				      audio_encoder, use_ertmp_multitrack);
 			      if (!output)
 				      return std::nullopt;
 
@@ -594,7 +599,8 @@ std::optional<int> SimulcastOutput::ConnectTimeMs() const
 	return obs_output_get_connect_time_ms(output_);
 }
 
-bool SimulcastOutput::StartRecording(obs_data_t *go_live_config)
+bool SimulcastOutput::StartRecording(obs_data_t *go_live_config,
+				     bool use_ertmp_multitrack)
 {
 	if (streaming_)
 		return false;
@@ -604,7 +610,8 @@ bool SimulcastOutput::StartRecording(obs_data_t *go_live_config)
 
 	video_encoders_.clear();
 	recording_output_ = SetupOBSOutput(true, go_live_config,
-					   video_encoders_, audio_encoder_);
+					   video_encoders_, audio_encoder_,
+					   use_ertmp_multitrack);
 	if (!recording_output_)
 		return false;
 
@@ -644,10 +651,12 @@ const std::vector<OBSEncoderAutoRelease> &SimulcastOutput::VideoEncoders() const
 static OBSOutputAutoRelease
 SetupOBSOutput(bool recording, obs_data_t *go_live_config,
 	       std::vector<OBSEncoderAutoRelease> &video_encoders,
-	       OBSEncoderAutoRelease &audio_encoder)
+	       OBSEncoderAutoRelease &audio_encoder, bool use_ermtp_multitrack)
 {
 
-	auto output = !recording ? create_output() : create_recording_output();
+	auto output = !recording
+			      ? create_output(use_ermtp_multitrack)
+			      : create_recording_output(use_ermtp_multitrack);
 
 	OBSDataArrayAutoRelease encoder_configs =
 		obs_data_get_array(go_live_config, "encoder_configurations");

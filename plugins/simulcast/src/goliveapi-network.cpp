@@ -76,6 +76,8 @@ QFuture<OBSDataAutoRelease> DownloadGoLiveConfig(QWidget *parent, QString url,
 #endif
 				encodeConfigObsData = obs_data_create_from_json(
 					vals.encodeConfigText.c_str());
+				blog(LOG_INFO, "Go live Response data: %s",
+				     obs_data_get_json(encodeConfigObsData));
 			}
 
 			if (!encodeConfigError.isEmpty()) {

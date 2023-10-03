@@ -42,6 +42,7 @@ private:
 	QSpinBox *preference_maximum_renditions_;
 
 	QCheckBox *telemetry_checkbox_;
+	QCheckBox *ertmp_multitrack_checkbox_;
 
 #ifdef ENABLE_CUSTOM_TWITCH_CONFIG
 	QCheckBox *use_server_config_;

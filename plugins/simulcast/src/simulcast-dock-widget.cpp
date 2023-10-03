@@ -146,10 +146,10 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 						   : OBSData{goLiveConfig};
 
 			self->Output()
-				.StartStreaming(self->DeviceId(),
-						self->OBSSessionId(),
-						self->RTMPURL(),
-						self->StreamKey(), config_used)
+				.StartStreaming(
+					self->DeviceId(), self->OBSSessionId(),
+					self->RTMPURL(), self->StreamKey(),
+					self->UseERTMPMultitrack(), config_used)
 				.then(self,
 				      [=](bool started) {
 					      if (!started) {
@@ -317,7 +317,8 @@ static void SetupSignalsAndSlots(
 						    obs_data_create_from_json(
 							    self->CustomConfig()
 								    .toUtf8()
-								    .constData())}))
+								    .constData())},
+					    self->UseERTMPMultitrack()))
 					return;
 			}
 			recordingButton->setDisabled(true);
@@ -405,6 +406,7 @@ static OBSDataAutoRelease load_or_create_obj(obs_data_t *data, const char *name)
 #define DATA_KEY_TELEMETRY_ENABLED "telemetry"
 #define DATA_KEY_USE_TWITCH_CONFIG "use_twitch_config"
 #define DATA_KEY_USE_SERVER_CONFIG "use_server_config"
+#define DATA_KEY_USE_ERTMP_MULTITRACK "use_ertmp_multitrack"
 
 static void write_config(obs_data_t *config)
 {
@@ -445,6 +447,8 @@ void SimulcastDockWidget::SaveConfig()
 	}
 	obs_data_set_bool(profile_, DATA_KEY_TELEMETRY_ENABLED,
 			  telemetry_enabled_);
+	obs_data_set_bool(profile_, DATA_KEY_USE_ERTMP_MULTITRACK,
+			  use_ertmp_multitrack_);
 	obs_data_set_bool(profile_, DATA_KEY_USE_SERVER_CONFIG,
 			  use_server_config_);
 	obs_data_set_string(profile_, DATA_KEY_CUSTOM_CONFIG,
@@ -478,6 +482,8 @@ void SimulcastDockWidget::LoadConfig()
 
 	obs_data_set_default_bool(profile_, DATA_KEY_TELEMETRY_ENABLED, true);
 	obs_data_set_default_bool(profile_, DATA_KEY_USE_SERVER_CONFIG, true);
+	obs_data_set_default_bool(profile_, DATA_KEY_USE_ERTMP_MULTITRACK,
+				  false);
 
 	// Migrate old config values if necessary
 	if (obs_data_has_user_value(profile_, DATA_KEY_USE_TWITCH_CONFIG) &&
@@ -514,6 +520,8 @@ void SimulcastDockWidget::LoadConfig()
 		obs_data_get_bool(profile_, DATA_KEY_TELEMETRY_ENABLED);
 	use_server_config_ =
 		obs_data_get_bool(profile_, DATA_KEY_USE_SERVER_CONFIG);
+	use_ertmp_multitrack_ =
+		obs_data_get_bool(profile_, DATA_KEY_USE_ERTMP_MULTITRACK);
 	custom_config_ = obs_data_get_string(profile_, DATA_KEY_CUSTOM_CONFIG);
 	settings_window_geometry_ = QByteArray::fromBase64(obs_data_get_string(
 		config_, DATA_KEY_SETTINGS_WINDOW_GEOMETRY));

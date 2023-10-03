@@ -22,16 +22,16 @@ class SimulcastOutput : public QObject {
 	Q_OBJECT;
 
 public:
-	QFuture<bool> StartStreaming(const QString &device_id,
-				     const QString &obs_session_id,
-				     const QString &rtmp_url,
-				     const QString &stream_key,
-				     obs_data_t *go_live_config);
+	QFuture<bool>
+	StartStreaming(const QString &device_id, const QString &obs_session_id,
+		       const QString &rtmp_url, const QString &stream_key,
+		       bool use_ertmp_multitrack, obs_data_t *go_live_config);
 	void StopStreaming();
 	bool IsStreaming() const;
 	std::optional<int> ConnectTimeMs() const;
 
-	bool StartRecording(obs_data_t *go_live_config);
+	bool StartRecording(obs_data_t *go_live_config,
+			    bool use_ertmp_multitrack);
 	void StopRecording();
 	bool IsRecording() const { return recording_; }
 
