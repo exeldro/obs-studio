@@ -81,8 +81,10 @@ QFuture<OBSDataAutoRelease> DownloadGoLiveConfig(QWidget *parent, QString url,
 			if (!encodeConfigError.isEmpty()) {
 				int carryOn = QMessageBox::warning(
 					parent,
-					obs_module_text(
-						"ConfigDownloadError.Title"),
+					QString::asprintf(
+						obs_module_text(
+							"ConfigDownloadError.Title"),
+						SIMULCAST_DOCK_TITLE),
 					encodeConfigError, QMessageBox::Yes,
 					QMessageBox::No);
 

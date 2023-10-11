@@ -28,7 +28,9 @@ void register_settings_window(SimulcastDockWidget *dock)
 {
 	auto action =
 		static_cast<QAction *>(obs_frontend_add_tools_menu_qaction(
-			obs_module_text("Settings.MenuName")));
+			QString::asprintf(obs_module_text("Settings.MenuName"),
+					  SIMULCAST_DOCK_TITLE)
+				.toUtf8()));
 
 	QMainWindow *window = (QMainWindow *)obs_frontend_get_main_window();
 
@@ -57,7 +59,10 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 	: QDialog(parent),
 	  dock_(dock)
 {
-	setWindowTitle(obs_module_text("Settings.WindowTitle"));
+	setWindowTitle(
+		QString::asprintf(obs_module_text("Settings.WindowTitle"),
+				  SIMULCAST_DOCK_TITLE)
+			.toUtf8());
 
 	QString get_stream_key_url = SIMULCAST_GET_STREAM_KEY_URL;
 
@@ -93,8 +98,9 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 		new QCheckBox(obs_module_text("Settings.EnableTelemetry"));
 
 #ifdef ENABLE_CUSTOM_TWITCH_CONFIG
-	use_server_config_ =
-		new QCheckBox(obs_module_text("Settings.UseServerConfig"));
+	use_server_config_ = new QCheckBox(
+		QString::asprintf(obs_module_text("Settings.UseServerConfig"),
+				  SIMULCAST_DOCK_TITLE));
 	custom_config_ = new QPlainTextEdit;
 	auto custom_config_label =
 		new QLabel(obs_module_text("Settings.CustomConfig"));

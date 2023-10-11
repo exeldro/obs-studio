@@ -56,10 +56,16 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 		auto message_box = QMessageBox(
 			QMessageBox::Icon::Critical,
 			obs_module_text("FailedToStartStream.Title"),
-			obs_module_text("FailedToStartStream.NoStreamKey"),
+			QString::asprintf(
+				obs_module_text(
+					"FailedToStartStream.NoStreamKey"),
+				SIMULCAST_DOCK_TITLE),
 			QMessageBox::StandardButton::Ok, self);
 		auto open_settings_button = new QPushButton(
-			obs_module_text("FailedToStartStream.OpenSettings"),
+			QString::asprintf(
+				obs_module_text(
+					"FailedToStartStream.OpenSettings"),
+				SIMULCAST_DOCK_TITLE),
 			&message_box);
 		message_box.addButton(open_settings_button,
 				      QMessageBox::ButtonRole::AcceptRole);
@@ -544,10 +550,13 @@ void SimulcastDockWidget::CheckPromptToMakeDockVisible()
 			return;
 	}
 
-	auto prompt = QMessageBox(QMessageBox::Icon::Question,
-				  obs_module_text("VisibilityPrompt.Title"),
-				  obs_module_text("VisibilityPrompt.Text"),
-				  QMessageBox::Yes | QMessageBox::No, this);
+	auto prompt = QMessageBox(
+		QMessageBox::Icon::Question,
+		QString::asprintf(obs_module_text("VisibilityPrompt.Title"),
+				  SIMULCAST_DOCK_TITLE),
+		QString::asprintf(obs_module_text("VisibilityPrompt.Text"),
+				  SIMULCAST_DOCK_TITLE),
+		QMessageBox::Yes | QMessageBox::No, this);
 	auto remind_button = prompt.addButton(
 		obs_module_text("VisibilityPrompt.RemindOneWeek"),
 		QMessageBox::ButtonRole::DestructiveRole);
