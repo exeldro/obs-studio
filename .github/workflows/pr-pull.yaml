@@ -11,9 +11,9 @@ on:
     types: [checks_requested]
 permissions:
   contents: read
-concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
-  cancel-in-progress: true
+#concurrency:
+#  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+#  cancel-in-progress: true
 jobs:
   check-format:
     name: Format 🔍

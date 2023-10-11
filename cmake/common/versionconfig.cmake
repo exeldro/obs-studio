@@ -11,12 +11,17 @@ set(_obs_version_canonical ${_obs_default_version})
 
 # Attempt to automatically discover expected OBS version
 if(NOT DEFINED OBS_VERSION_OVERRIDE AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")
+  set(_tag_pattern "")
+  if(DEFINED IVS_CUSTOMER AND DEFINED IVS_BUILD_TYPE)
+    set(_tag_pattern "--match=*${IVS_CUSTOMER}-${IVS_BUILD_TYPE}*")
+  endif()
   execute_process(
-    COMMAND git describe --always --tags --dirty=-modified
+    COMMAND git describe --always --tags --dirty=-modified ${_tag_pattern}
     OUTPUT_VARIABLE _obs_version
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     RESULT_VARIABLE _obs_version_result
     OUTPUT_STRIP_TRAILING_WHITESPACE)
+  unset(_tag_pattern)
 
   if(_obs_version_result EQUAL 0)
     string(REGEX REPLACE "([0-9]+)\\.([0-9]+)\\.([0-9]+).*" "\\1;\\2;\\3" _obs_version_canonical ${_obs_version})

@@ -30,27 +30,26 @@ jobs:
 
           case "${GITHUB_EVENT_NAME}" in
             pull_request|merge_group)
-              config_data=('codesign:false' 'notarize:false' 'package:false' 'config:RelWithDebInfo' 'annotate:false' 'dev:true')
+              config_data=('codesign:false' 'notarize:false' 'package:false' 'config:RelWithDebInfo' 'annotate:false')
               ;;
             push)
-              config_data=('codesign:true' 'notarize:false' 'package:true' 'config:RelWithDebInfo' 'annotate:false' 'dev:true')
+              config_data=('codesign:true' 'notarize:false' 'package:true' 'config:RelWithDebInfo' 'annotate:false')
               if [[ ${GITHUB_REF_NAME} =~ [0-9]+.[0-9]+.[0-9]+(-(rc|beta).+)? ]]; then
                 config_data[1]='notarize:true'
                 config_data[3]='config:Release'
               fi
-              if [[ ${GITHUB_REF_NAME} =~ [0-9]+.[0-9]+.[0-9]+-(twitch|ivs-alpha).+ ]]; then
+              if [[ ${GITHUB_REF_NAME} =~ [0-9]+.[0-9]+.[0-9]+-v[0-9]+ ]]; then
                 config_data[0]='codesign:false'
                 config_data[1]='notarize:false'
                 config_data[2]='package:false'
                 config_data[3]='config:RelWithDebInfo'
-                config_data[5]='dev:false'
               fi
               ;;
             workflow_dispatch)
-              config_data=('codesign:true' 'notarize:false' 'package:false' 'config:RelWithDebInfo' 'annotate:false' 'dev:true')
+              config_data=('codesign:true' 'notarize:false' 'package:false' 'config:RelWithDebInfo' 'annotate:false')
               ;;
             schedule)
-              config_data=('codesign:true' 'notarize:false' 'package:true' 'config:RelWithDebInfo' 'annotate:true' 'dev:true')
+              config_data=('codesign:true' 'notarize:false' 'package:true' 'config:RelWithDebInfo' 'annotate:true')
               ;;
             *) ;;
           esac
@@ -69,6 +68,8 @@ jobs:
       fail-fast: false
       matrix:
         target: [arm64, x86_64]
+        customer: [ivs, twitch]
+        type: [alpha, dev]
     defaults:
       run:
         shell: zsh --no-rcs --errexit --pipefail {0}
@@ -109,9 +110,9 @@ jobs:
         id: ccache-cache
         with:
           path: ${{ github.workspace }}/.ccache
-          key: ${{ runner.os }}-ccache-${{ matrix.target }}-${{ needs.check-event.outputs.config }}
+          key: ${{ runner.os }}-ccache-${{ matrix.target }}-${{ matrix.customer }}-${{ matrix.type }}-${{ needs.check-event.outputs.config }}
           restore-keys: |
-            ${{ runner.os }}-ccache-${{ matrix.target }}-
+            ${{ runner.os }}-ccache-${{ matrix.target }}-${{ matrix.customer }}-${{ matrix.type }}-
 
       - name: Set Up Code Signing 🔑
         uses: ./.github/actions/setup-macos-codesigning
@@ -140,7 +141,8 @@ jobs:
         with:
           target: ${{ matrix.target }}
           config: ${{ needs.check-event.outputs.config }}
-          dev: ${{ needs.check-event.outputs.dev }}
+          type: ${{ matrix.type }}
+          customer: ${{ matrix.customer }}
           codesign: ${{ fromJSON(needs.check-event.outputs.codesign) }}
           codesignIdent: ${{ steps.codesign.outputs.codesignIdent }}
           codesignTeam: ${{ steps.codesign.outputs.codesignTeam }}
@@ -151,6 +153,8 @@ jobs:
         with:
           target: ${{ matrix.target }}
           config: ${{ needs.check-event.outputs.config }}
+          type: ${{ matrix.type }}
+          customer: ${{ matrix.customer }}
           package: ${{ fromJSON(needs.check-event.outputs.package) }}
           codesign: ${{ fromJSON(needs.check-event.outputs.codesign) && fromJSON(steps.codesign.outputs.haveCodesignIdent) }}
           codesignIdent: ${{ steps.codesign.outputs.codesignIdent }}
@@ -183,12 +187,17 @@ jobs:
         if: github.event_name != 'pull_request' && steps.ccache-cache.outputs.cache-hit != 'true'
         with:
           path: ${{ github.workspace }}/.ccache
-          key: ${{ runner.os }}-ccache-${{ matrix.target }}-${{ needs.check-event.outputs.config }}
+          key: ${{ runner.os }}-ccache-${{ matrix.target }}-${{ matrix.customer }}-${{ matrix.type }}-${{ needs.check-event.outputs.config }}
 
   ubuntu-build:
     name: Ubuntu 🐧
     runs-on: ubuntu-22.04
     needs: check-event
+    strategy:
+      fail-fast: false
+      matrix:
+        customer: [ivs, twitch]
+        type: [alpha, dev]
     defaults:
       run:
         shell: bash
@@ -202,9 +211,9 @@ jobs:
         id: ccache-cache
         with:
           path: ${{ github.workspace }}/.ccache
-          key: ${{ runner.os }}-ccache-x86_64-${{ needs.check-event.outputs.config }}
+          key: ${{ runner.os }}-ccache-x86_64-${{ matrix.customer }}-${{ matrix.type }}-${{ needs.check-event.outputs.config }}
           restore-keys: |
-            ${{ runner.os }}-ccache-x86_64-
+            ${{ runner.os }}-ccache-x86_64-${{ matrix.customer }}-${{ matrix.type }}-
 
       - name: Build OBS Studio 🧱
         uses: ./.github/actions/build-obs
@@ -220,13 +229,16 @@ jobs:
         with:
           target: x86_64
           config: ${{ needs.check-event.outputs.config }}
-          dev: ${{ needs.check-event.outputs.dev }}
+          type: ${{ matrix.type }}
+          customer: ${{ matrix.customer }}
 
       - name: Package OBS Studio 📀
         uses: ./.github/actions/package-obs
         with:
           target: x86_64
           config: ${{ needs.check-event.outputs.config }}
+          type: ${{ matrix.type }}
+          customer: ${{ matrix.customer }}
           package: ${{ fromJSON(needs.check-event.outputs.package) }}
 
       - name: Upload Source Tarball 🗜️
@@ -253,7 +265,7 @@ jobs:
         if: github.event_name != 'pull_request' && steps.ccache-cache.outputs.cache-hit != 'true'
         with:
           path: ${{ github.workspace }}/.ccache
-          key: ${{ runner.os }}-ccache-x86_64-${{ needs.check-event.outputs.config }}
+          key: ${{ runner.os }}-ccache-x86_64-${{ matrix.customer }}-${{ matrix.type }}-${{ needs.check-event.outputs.config }}
 
   #flatpak-build:
   #  name: Flatpak 📦
@@ -314,6 +326,11 @@ jobs:
     name: Windows 🪟
     runs-on: windows-2022
     needs: check-event
+    strategy:
+      fail-fast: false
+      matrix:
+        customer: [ivs, twitch]
+        type: [alpha, dev]
     defaults:
       run:
         shell: pwsh
@@ -347,13 +364,16 @@ jobs:
         with:
           target: x64
           config: ${{ needs.check-event.outputs.config }}
-          dev: ${{ needs.check-event.outputs.dev }}
+          type: ${{ matrix.type }}
+          customer: ${{ matrix.customer }}
 
       - name: Package OBS Studio 📀
         uses: ./.github/actions/package-obs
         with:
           target: x64
           config: ${{ needs.check-event.outputs.config }}
+          type: ${{ matrix.type }}
+          customer: ${{ matrix.customer }}
           package: ${{ fromJSON(needs.check-event.outputs.package) }}
 
       - name: Upload Artifacts 📡
