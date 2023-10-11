@@ -18,8 +18,7 @@ class SimulcastSettingsWindow : public QDialog {
 	Q_OBJECT
 
 public:
-	SimulcastSettingsWindow(SimulcastDockWidget *widget, QWidget *parent,
-				obs_data_t *settings_config);
+	SimulcastSettingsWindow(SimulcastDockWidget *widget, QWidget *parent);
 
 private:
 	void ButtonPressed(QAbstractButton *button);

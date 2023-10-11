@@ -70,6 +70,18 @@ if(ENABLE_CUSTOM_TWITCH_CONFIG)
   add_compile_definitions(ENABLE_CUSTOM_TWITCH_CONFIG)
 endif()
 
+if(NOT DEFINED IVS_CUSTOMER OR IVS_CUSTOMER STREQUAL "twitch")
+  add_compile_definitions(
+    # cmake-format: sortable
+    SIMULCAST_DOCK_ID="twitch-go-live" SIMULCAST_DOCK_STYLE_BACKGROUND_COLOR_HEX="644186"
+    SIMULCAST_DOCK_STYLE_COLOR="white" SIMULCAST_DOCK_TITLE="Twitch"
+    SIMULCAST_GET_STREAM_KEY_URL="https://dashboard.twitch.tv/settings/stream")
+elseif(IVS_CUSTOMER STREQUAL "ivs")
+  add_compile_definitions(
+    # cmake-format: sortable
+    SIMULCAST_DOCK_ID="amazon-ivs-go-live" SIMULCAST_DOCK_TITLE="Amazon IVS" SIMULCAST_OVERRIDE_RTMP_URL=true)
+endif()
+
 set_target_properties(
   simulcast
   PROPERTIES FOLDER plugins

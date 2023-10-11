@@ -1,9 +1,0 @@
-{
-	"dock": {
-        "id": "amazon-ivs-go-live",
-		"title": "Amazon IVS"
-	},
-    "settings": {
-        "override_rtmp_url": true
-    }
-}

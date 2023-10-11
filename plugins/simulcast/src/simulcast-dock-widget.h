@@ -15,11 +15,15 @@
 
 #include <util/dstr.hpp>
 
+#ifndef SIMULCAST_OVERRIDE_RTMP_URL
+#define SIMULCAST_OVERRIDE_RTMP_URL false
+#endif
+
 class SimulcastDockWidget : public QWidget {
 	Q_OBJECT;
 
 public:
-	SimulcastDockWidget(obs_data_t *settings_config, QWidget *parent = 0);
+	SimulcastDockWidget(QWidget *parent = 0);
 
 	void SaveConfig();
 	void LoadConfig();
@@ -60,7 +64,7 @@ public:
 	const ImmutableDateTime &GenerateStreamAttemptStartTime();
 	const std::optional<ImmutableDateTime> &StreamAttemptStartTime() const;
 
-	void SetParentStyleSheet(obs_data_t *dock_config);
+	void SetParentStyleSheet();
 
 signals:
 	void ProfileChanged();
@@ -72,7 +76,7 @@ private:
 
 	QPointer<QAction> open_settings_action_;
 
-	const bool override_rtmp_url_;
+	const bool override_rtmp_url_ = SIMULCAST_OVERRIDE_RTMP_URL;
 
 	QString obs_session_id_;
 

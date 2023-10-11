@@ -28,6 +28,14 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <obs-frontend-api.h>
 #include <util/util.hpp>
 
+#ifndef SIMULCAST_DOCK_ID
+#define SIMULCAST_DOCK_ID "twitch-go-live"
+#endif
+
+#ifndef SIMULCAST_DOCK_TITLE
+#define SIMULCAST_DOCK_TITLE "Twitch"
+#endif
+
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("simulcast", "en-US")
 OBS_MODULE_AUTHOR("John R. Bradley")
@@ -41,8 +49,7 @@ const char *obs_module_description(void)
 }
 
 void register_service();
-void register_settings_window(SimulcastDockWidget *dock,
-			      obs_data_t *plugin_config);
+void register_settings_window(SimulcastDockWidget *dock);
 
 static void obs_event_handler(obs_frontend_event event,
 			      SimulcastDockWidget *simulcastWidget)
@@ -80,40 +87,19 @@ bool obs_module_load(void)
 	if (mainWindow == nullptr)
 		return false;
 
-	auto plugin_config_file = BPtr<char>{obs_module_file("plugin.json")};
-	if (!plugin_config_file) {
-		blog(LOG_WARNING, "Could not find 'plugin.json'");
-		return false;
-	}
-
-	OBSDataAutoRelease plugin_config =
-		obs_data_create_from_json_file(plugin_config_file);
-
-	OBSDataAutoRelease dock_config =
-		obs_data_get_obj(plugin_config, "dock");
-	if (!dock_config || !obs_data_has_user_value(dock_config, "id") ||
-	    !obs_data_has_user_value(dock_config, "title")) {
-		blog(LOG_ERROR, "Invalid dock config");
-		return false;
-	}
-
 	QMetaObject::invokeMethod(mainWindow, []() {
 		GetGlobalService().setCurrentThreadAsDefault();
 	});
 
-	OBSDataAutoRelease settings_config =
-		obs_data_get_obj(plugin_config, "settings");
+	auto dock = new SimulcastDockWidget(mainWindow);
 
-	auto dock = new SimulcastDockWidget(settings_config, mainWindow);
+	register_settings_window(dock);
 
-	register_settings_window(dock, settings_config);
-
-	obs_frontend_add_dock_by_id(obs_data_get_string(dock_config, "id"),
-				    obs_data_get_string(dock_config, "title"),
+	obs_frontend_add_dock_by_id(SIMULCAST_DOCK_ID, SIMULCAST_DOCK_TITLE,
 				    dock);
 
 	// Parent is set by `obs_frontend_add_dock_by_id`, so we need to call this externally/later
-	dock->SetParentStyleSheet(dock_config);
+	dock->SetParentStyleSheet();
 
 	obs_frontend_add_event_callback(
 		[](enum obs_frontend_event event, void *private_data) {

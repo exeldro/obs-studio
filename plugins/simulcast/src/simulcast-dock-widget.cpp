@@ -295,11 +295,8 @@ static void SetupSignalsAndSlots(
 		Qt::QueuedConnection);
 }
 
-SimulcastDockWidget::SimulcastDockWidget(obs_data_t *settings_config,
-					 QWidget * /*parent*/)
-	: berryessa_(this, "https://data.stats.live-video.net/"),
-	  override_rtmp_url_(
-		  obs_data_get_bool(settings_config, "override_rtmp_url"))
+SimulcastDockWidget::SimulcastDockWidget(QWidget * /*parent*/)
+	: berryessa_(this, "https://data.stats.live-video.net/")
 {
 	//berryessa_ = new BerryessaSubmitter(this, "http://127.0.0.1:8787/");
 
@@ -588,19 +585,23 @@ SimulcastDockWidget::StreamAttemptStartTime() const
 	return stream_attempt_start_time_;
 }
 
-void SimulcastDockWidget::SetParentStyleSheet(obs_data_t *dock_config)
+void SimulcastDockWidget::SetParentStyleSheet()
 {
 	QString styles;
-	if (obs_data_has_user_value(dock_config, "color")) {
-		styles += QString::asprintf("color: %s;",
-					    obs_data_get_string(dock_config,
-								"color"));
-	}
-	if (obs_data_has_user_value(dock_config, "background_color")) {
-		styles += QString::asprintf(
-			"background-color: %s;",
-			obs_data_get_string(dock_config, "background_color"));
-	}
+#ifdef SIMULCAST_DOCK_STYLE_COLOR
+	styles += QString::asprintf("color: %s;", SIMULCAST_DOCK_STYLE_COLOR);
+#endif
+
+#ifdef SIMULCAST_DOCK_STYLE_BACKGROUND_COLOR
+	styles += QString::asprintf("background-color: %s;",
+				    SIMULCAST_DOCK_STYLE_BACKGROUND_COLOR);
+#endif
+
+#ifdef SIMULCAST_DOCK_STYLE_BACKGROUND_COLOR_HEX
+	styles += QString::asprintf(
+		"background-color: %s;",
+		"#" SIMULCAST_DOCK_STYLE_BACKGROUND_COLOR_HEX);
+#endif
 
 	if (styles.isEmpty())
 		return;

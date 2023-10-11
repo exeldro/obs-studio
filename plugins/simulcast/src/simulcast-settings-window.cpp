@@ -20,8 +20,11 @@
 #include <obs-frontend-api.h>
 #include <obs-module.h>
 
-void register_settings_window(SimulcastDockWidget *dock,
-			      obs_data_t *settings_config)
+#ifndef SIMULCAST_GET_STREAM_KEY_URL
+#define SIMULCAST_GET_STREAM_KEY_URL ""
+#endif
+
+void register_settings_window(SimulcastDockWidget *dock)
 {
 	auto action =
 		static_cast<QAction *>(obs_frontend_add_tools_menu_qaction(
@@ -30,8 +33,7 @@ void register_settings_window(SimulcastDockWidget *dock,
 	QMainWindow *window = (QMainWindow *)obs_frontend_get_main_window();
 
 	obs_frontend_push_ui_translation(obs_module_get_string);
-	auto settings =
-		new SimulcastSettingsWindow(dock, window, settings_config);
+	auto settings = new SimulcastSettingsWindow(dock, window);
 	obs_frontend_pop_ui_translation();
 
 	auto cb = [dock, settings]() {
@@ -51,24 +53,20 @@ void register_settings_window(SimulcastDockWidget *dock,
 }
 
 SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
-						 QWidget *parent,
-						 obs_data_t *settings_config)
+						 QWidget *parent)
 	: QDialog(parent),
 	  dock_(dock)
 {
 	setWindowTitle(obs_module_text("Settings.WindowTitle"));
 
-	auto get_stream_key_url =
-		obs_data_has_user_value(settings_config, "get_stream_key_url")
-			? QString{obs_data_get_string(settings_config,
-						      "get_stream_key_url")}
-			: QString{};
+	QString get_stream_key_url = SIMULCAST_GET_STREAM_KEY_URL;
 
 	auto window_layout = new QVBoxLayout(this);
 	auto form_layout = new QFormLayout;
 
-	if (obs_data_get_bool(settings_config, "override_rtmp_url"))
-		rtmp_url_ = new QLineEdit;
+#ifdef SIMULCAST_OVERRIDE_RTMP_URL
+	rtmp_url_ = new QLineEdit;
+#endif
 
 	auto stream_key_edit_layout = new QHBoxLayout;
 	stream_key_edit_ = new QLineEdit;
