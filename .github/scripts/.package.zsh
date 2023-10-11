@@ -140,13 +140,6 @@ package() {
 
     pushd build_macos/OBS.app/Contents/PlugIns/simulcast.plugin/Contents/Resources
     rm -f PresentMon-1.8.0-x64.exe
-    if [[ ${customer} == ivs ]] {
-      mv -f plugin-ivs.json plugin.json
-      mv -f locale/en-US-ivs.ini locale/en-US.ini
-    } else {
-      rm -f plugin-ivs.json
-      rm -f locale/en-US-ivs.ini
-    }
     popd
 
     local -A arch_names=(x86_64 Intel arm64 Apple)
