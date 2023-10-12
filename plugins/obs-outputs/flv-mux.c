@@ -375,7 +375,8 @@ void flv_packet_ex(struct encoder_packet *packet, enum video_id_t codec_id,
 	// packet head
 	int header_metadata_size = 5; // w8+w4cc
 	// 3 extra bytes for composition time offset
-	if (codec_id == CODEC_HEVC && type == PACKETTYPE_FRAMES) {
+	if ((codec_id == CODEC_H264 || codec_id == CODEC_HEVC) &&
+	    type == PACKETTYPE_FRAMES) {
 		header_metadata_size += 3; // w24
 	}
 	if (is_multitrack)
@@ -399,8 +400,9 @@ void flv_packet_ex(struct encoder_packet *packet, enum video_id_t codec_id,
 		s_w8(&s, (uint8_t)idx); // trackId
 	}
 
-	// hevc composition time offset
-	if (codec_id == CODEC_HEVC && type == PACKETTYPE_FRAMES) {
+	// h264/hevc composition time offset
+	if ((codec_id == CODEC_H264 || codec_id == CODEC_HEVC) &&
+	    type == PACKETTYPE_FRAMES) {
 		s_wb24(&s, get_ms_time(packet, packet->pts - packet->dts));
 	}
 
@@ -428,7 +430,8 @@ void flv_packet_frames(struct encoder_packet *packet, enum video_id_t codec,
 	int packet_type = PACKETTYPE_FRAMES;
 	// PACKETTYPE_FRAMESX is an optimization to avoid sending composition
 	// time offsets of 0. See Enhanced RTMP spec.
-	if (codec == CODEC_HEVC && packet->dts == packet->pts)
+	if ((codec == CODEC_H264 || codec == CODEC_HEVC) &&
+	    packet->dts == packet->pts)
 		packet_type = PACKETTYPE_FRAMESX;
 	flv_packet_ex(packet, codec, dts_offset, output, size, packet_type,
 		      idx);
@@ -893,7 +896,8 @@ flv_build_additional_media_data_ex(uint8_t **data, size_t *size,
 
 		int header_metadata_size = 5;
 		// 3 extra bytes for composition time offset
-		if (codec_id == CODEC_HEVC && type == PACKETTYPE_FRAMES) {
+		if ((codec_id == CODEC_H264 || codec_id == CODEC_HEVC) &&
+		    type == PACKETTYPE_FRAMES) {
 			header_metadata_size = 8;
 		}
 
@@ -909,8 +913,9 @@ flv_build_additional_media_data_ex(uint8_t **data, size_t *size,
 				 (packet->keyframe ? FT_KEY : FT_INTER));
 		s_w4cc(&s, codec_id);
 
-		// hevc composition time offset
-		if (codec_id == CODEC_HEVC && type == PACKETTYPE_FRAMES) {
+		// h264/hevc composition time offset
+		if ((codec_id == CODEC_H264 || codec_id == CODEC_HEVC) &&
+		    type == PACKETTYPE_FRAMES) {
 			s_wb24(&s,
 			       get_ms_time(packet, packet->pts - packet->dts));
 		}
@@ -995,7 +1000,8 @@ void flv_additional_packet_frames_ex(struct encoder_packet *packet,
 	int packet_type = PACKETTYPE_FRAMES;
 	// PACKETTYPE_FRAMESX is an optimization to avoid sending composition
 	// time offsets of 0. See Enhanced RTMP spec.
-	if (codec == CODEC_HEVC && packet->dts == packet->pts)
+	if ((codec == CODEC_H264 || codec == CODEC_HEVC) &&
+	    packet->dts == packet->pts)
 		packet_type = PACKETTYPE_FRAMESX;
 	flv_additional_packet_mux_ex(packet, dts_offset, output, size,
 				     media_data, packet_type, codec);
