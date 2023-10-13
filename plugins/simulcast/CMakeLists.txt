@@ -65,9 +65,9 @@ target_sources(simulcast PRIVATE plugin-macros.generated.h)
 
 target_include_directories(simulcast PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
-option(ENABLE_CUSTOM_TWITCH_CONFIG "Enable custom Twitch simulcast config" ON)
-if(ENABLE_CUSTOM_TWITCH_CONFIG)
-  add_compile_definitions(ENABLE_CUSTOM_TWITCH_CONFIG)
+option(ENABLE_IVS_DEV_FEATURES "Enable custom Twitch simulcast config" ON)
+if(ENABLE_IVS_DEV_FEATURES)
+  add_compile_definitions(ENABLE_IVS_DEV_FEATURES)
 endif()
 
 if(NOT DEFINED IVS_CUSTOMER OR IVS_CUSTOMER STREQUAL "twitch")

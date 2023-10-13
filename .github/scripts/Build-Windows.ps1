@@ -62,7 +62,7 @@ function Build {
 
     if ( $Type -eq 'alpha' ) {
         $CmakeArgs += @(
-            "-DENABLE_CUSTOM_TWITCH_CONFIG:BOOL=FALSE"
+            "-DENABLE_IVS_DEV_FEATURES:BOOL=FALSE"
         )
     }
 

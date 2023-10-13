@@ -100,7 +100,7 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 	ertmp_multitrack_checkbox_ = new QCheckBox(
 		obs_module_text("Settings.EnableERTMPMultitrack"));
 
-#ifdef ENABLE_CUSTOM_TWITCH_CONFIG
+#ifdef ENABLE_IVS_DEV_FEATURES
 	use_server_config_ = new QCheckBox(
 		QString::asprintf(obs_module_text("Settings.UseServerConfig"),
 				  SIMULCAST_DOCK_TITLE));
@@ -155,7 +155,7 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 		preference_maximum_renditions_layout);
 	form_layout->addRow("", telemetry_checkbox_);
 	form_layout->addRow("", ertmp_multitrack_checkbox_);
-#ifdef ENABLE_CUSTOM_TWITCH_CONFIG
+#ifdef ENABLE_IVS_DEV_FEATURES
 	form_layout->addRow("", use_server_config_);
 	form_layout->addRow(custom_config_label, custom_config_);
 #endif
@@ -211,7 +211,7 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 		[=](int /*state*/) { SetApplyEnabled(true); });
 	connect(ertmp_multitrack_checkbox_, &QCheckBox::stateChanged,
 		[=](int /*state*/) { SetApplyEnabled(true); });
-#ifdef ENABLE_CUSTOM_TWITCH_CONFIG
+#ifdef ENABLE_IVS_DEV_FEATURES
 	connect(use_server_config_, &QCheckBox::stateChanged,
 		[=](int /*state*/) {
 			SetApplyEnabled(true);
@@ -276,7 +276,7 @@ void SimulcastSettingsWindow::ButtonPressed(QAbstractButton *button)
 				  preference_maximum_renditions_->value()));
 	dock_->TelemetryEanbled() = telemetry_checkbox_->isChecked();
 	dock_->UseERTMPMultitrack() = ertmp_multitrack_checkbox_->isChecked();
-#ifdef ENABLE_CUSTOM_TWITCH_CONFIG
+#ifdef ENABLE_IVS_DEV_FEATURES
 	dock_->UseServerConfig() = use_server_config_->isChecked();
 	dock_->CustomConfig() = custom_config_->toPlainText();
 #endif
@@ -332,7 +332,7 @@ void SimulcastSettingsWindow::ResetSettings()
 	}
 	telemetry_checkbox_->setChecked(dock_->TelemetryEanbled());
 	ertmp_multitrack_checkbox_->setChecked(dock_->UseERTMPMultitrack());
-#ifdef ENABLE_CUSTOM_TWITCH_CONFIG
+#ifdef ENABLE_IVS_DEV_FEATURES
 	use_server_config_->setChecked(dock_->UseServerConfig());
 	custom_config_->setPlainText(dock_->CustomConfig());
 #endif

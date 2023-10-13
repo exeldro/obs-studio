@@ -86,7 +86,7 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 
 	QString url = GO_LIVE_API_URL;
 	OBSDataAutoRelease custom_config_data;
-#ifdef ENABLE_CUSTOM_TWITCH_CONFIG
+#ifdef ENABLE_IVS_DEV_FEATURES
 	if (!self->UseServerConfig()) {
 		const auto &custom_config = self->CustomConfig();
 		if (custom_config.startsWith("http")) {

@@ -66,9 +66,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE OBS::libobs OBS::frontend-api Qt::
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
-option(ENABLE_CUSTOM_TWITCH_CONFIG "Enable custom Twitch simulcast config" ON)
-if(ENABLE_CUSTOM_TWITCH_CONFIG)
-  add_compile_definitions(ENABLE_CUSTOM_TWITCH_CONFIG)
+option(ENABLE_IVS_DEV_FEATURES "Enable custom Twitch simulcast config" ON)
+if(ENABLE_IVS_DEV_FEATURES)
+  add_compile_definitions(ENABLE_IVS_DEV_FEATURES)
 endif()
 
 if(NOT DEFINED SIMULCAST_CUSTOMER OR SIMULCAST_CUSTOMER STREQUAL "twitch")

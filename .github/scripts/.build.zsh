@@ -124,8 +124,8 @@ build() {
   if (( debug )) cmake_args+=(--debug-output)
 
   case ${build_type} {
-    dev) cmake_args+=(-DENABLE_CUSTOM_TWITCH_CONFIG:BOOL=TRUE) ;;
-    alpha|*) cmake_args+=(-DENABLE_CUSTOM_TWITCH_CONFIG:BOOL=FALSE) ;;
+    dev) cmake_args+=(-DENABLE_IVS_DEV_FEATURES:BOOL=TRUE) ;;
+    alpha|*) cmake_args+=(-DENABLE_IVS_DEV_FEATURES:BOOL=FALSE) ;;
   }
 
   case ${target} {

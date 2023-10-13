@@ -44,7 +44,7 @@ private:
 	QCheckBox *telemetry_checkbox_;
 	QCheckBox *ertmp_multitrack_checkbox_;
 
-#ifdef ENABLE_CUSTOM_TWITCH_CONFIG
+#ifdef ENABLE_IVS_DEV_FEATURES
 	QCheckBox *use_server_config_;
 	QPlainTextEdit *custom_config_;
 #endif
