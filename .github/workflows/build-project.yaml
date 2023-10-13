@@ -33,17 +33,7 @@ jobs:
               config_data=('codesign:false' 'notarize:false' 'package:false' 'config:RelWithDebInfo' 'annotate:false')
               ;;
             push)
-              config_data=('codesign:true' 'notarize:false' 'package:true' 'config:RelWithDebInfo' 'annotate:false')
-              if [[ ${GITHUB_REF_NAME} =~ [0-9]+.[0-9]+.[0-9]+(-(rc|beta).+)? ]]; then
-                config_data[1]='notarize:true'
-                config_data[3]='config:Release'
-              fi
-              if [[ ${GITHUB_REF_NAME} =~ [0-9]+.[0-9]+.[0-9]+-v[0-9]+ ]]; then
-                config_data[0]='codesign:false'
-                config_data[1]='notarize:false'
-                config_data[2]='package:false'
-                config_data[3]='config:RelWithDebInfo'
-              fi
+              config_data=('codesign:false' 'notarize:false' 'package:false' 'config:RelWithDebInfo' 'annotate:false')
               ;;
             workflow_dispatch)
               config_data=('codesign:true' 'notarize:false' 'package:false' 'config:RelWithDebInfo' 'annotate:false')
