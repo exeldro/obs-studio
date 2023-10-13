@@ -42,7 +42,7 @@ private:
 	QSpinBox *preference_maximum_renditions_;
 
 	QCheckBox *telemetry_checkbox_;
-	QCheckBox *ertmp_multitrack_checkbox_;
+	QCheckBox *ertmp_multitrack_checkbox_ = nullptr;
 
 #ifdef ENABLE_IVS_DEV_FEATURES
 	QCheckBox *use_server_config_;

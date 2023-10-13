@@ -146,10 +146,16 @@ handle_stream_start(SimulcastDockWidget *self, QPushButton *streamingButton,
 						   : OBSData{goLiveConfig};
 
 			self->Output()
-				.StartStreaming(
-					self->DeviceId(), self->OBSSessionId(),
-					self->RTMPURL(), self->StreamKey(),
-					self->UseERTMPMultitrack(), config_used)
+				.StartStreaming(self->DeviceId(),
+						self->OBSSessionId(),
+						self->RTMPURL(),
+						self->StreamKey(),
+#ifdef ENABLE_IVS_DEV_FEATURES
+						self->UseERTMPMultitrack(),
+#else
+						false,
+#endif
+						config_used)
 				.then(self,
 				      [=](bool started) {
 					      if (!started) {
@@ -301,6 +307,7 @@ static void SetupSignalsAndSlots(
 		},
 		Qt::QueuedConnection);
 
+#ifdef ENABLE_IVS_DEV_FEATURES
 	QObject::connect(
 		recordingButton, &QPushButton::clicked,
 		[self, recordingButton]() {
@@ -341,6 +348,9 @@ static void SetupSignalsAndSlots(
 			recordingButton->setEnabled(true);
 		},
 		Qt::QueuedConnection);
+#else
+	UNUSED_PARAMETER(recordingButton);
+#endif
 }
 
 SimulcastDockWidget::SimulcastDockWidget(QWidget * /*parent*/)
@@ -359,10 +369,17 @@ SimulcastDockWidget::SimulcastDockWidget(QWidget * /*parent*/)
 	auto buttonLayout = new QVBoxLayout();
 	auto streamingButton = new QPushButton(
 		obs_frontend_get_locale_string("Basic.Main.StartStreaming"));
+#ifdef ENABLE_IVS_DEV_FEATURES
 	auto recordingButton = new QPushButton(
 		obs_frontend_get_locale_string("Basic.Main.StartRecording"));
+#else
+	QPushButton *recordingButton = nullptr;
+#endif
+
 	buttonLayout->addWidget(streamingButton);
+#ifdef ENABLE_IVS_DEV_FEATURES
 	buttonLayout->addWidget(recordingButton);
+#endif
 	buttonContainer->setLayout(buttonLayout);
 	dockLayout->addWidget(buttonContainer);
 

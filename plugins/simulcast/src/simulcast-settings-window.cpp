@@ -97,10 +97,10 @@ SimulcastSettingsWindow::SimulcastSettingsWindow(SimulcastDockWidget *dock,
 	telemetry_checkbox_ =
 		new QCheckBox(obs_module_text("Settings.EnableTelemetry"));
 
+#ifdef ENABLE_IVS_DEV_FEATURES
 	ertmp_multitrack_checkbox_ = new QCheckBox(
 		obs_module_text("Settings.EnableERTMPMultitrack"));
 
-#ifdef ENABLE_IVS_DEV_FEATURES
 	use_server_config_ = new QCheckBox(
 		QString::asprintf(obs_module_text("Settings.UseServerConfig"),
 				  SIMULCAST_DOCK_TITLE));
