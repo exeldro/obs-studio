@@ -297,7 +297,8 @@ static void write_additional_meta_data(struct flv_output *stream)
 	uint8_t *meta_data;
 	size_t meta_data_size;
 
-	if (stream->additional_metadata.processing_intents.num <= 0)
+	if (stream->additional_metadata.processing_intents.num <= 0 ||
+	    stream->ertmp_multitrack)
 		return;
 
 	flv_additional_meta_data(stream->output, &stream->additional_metadata,

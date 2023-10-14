@@ -1151,7 +1151,8 @@ static int init_send(struct rtmp_stream *stream)
 	}
 
 	bool has_additional_media =
-		stream->additional_metadata.processing_intents.num > 0;
+		stream->additional_metadata.processing_intents.num > 0 &&
+		!stream->ertmp_multitrack;
 	if (has_additional_media && !send_additional_meta_data(stream)) {
 		warn("Disconnected while attempting to send additional "
 		     "metadata");
