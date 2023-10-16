@@ -391,13 +391,15 @@ void flv_packet_ex(struct encoder_packet *packet, enum video_id_t codec_id,
 	s_w8(&s, FRAME_HEADER_EX |
 			 (is_multitrack ? PACKETTYPE_MULTITRACK : type) |
 			 (packet->keyframe ? FT_KEY : FT_INTER));
-	s_w4cc(&s, codec_id);
 
 	// We only add explicitly emit trackIds iff idx > 0
 	// The default trackId is 0
 	if (is_multitrack) {
 		s_w8(&s, MULTITRACKTYPE_ONE_TRACK | type);
+		s_w4cc(&s, codec_id);
 		s_w8(&s, (uint8_t)idx); // trackId
+	} else {
+		s_w4cc(&s, codec_id);
 	}
 
 	// h264/hevc composition time offset
@@ -527,13 +529,15 @@ void flv_packet_metadata(enum video_id_t codec_id, uint8_t **output,
 	// these are the 5 extra bytes mentioned above
 	s_w8(&s, FRAME_HEADER_EX | (is_multitrack ? PACKETTYPE_MULTITRACK
 						  : PACKETTYPE_METADATA));
-	s_w4cc(&s, codec_id);
 
 	// We only add explicitly emit trackIds iff idx > 0
 	// The default trackId is 0
 	if (is_multitrack) {
 		s_w8(&s, MULTITRACKTYPE_ONE_TRACK | PACKETTYPE_METADATA);
+		s_w4cc(&s, codec_id);
 		s_w8(&s, (uint8_t)idx); // trackId
+	} else {
+		s_w4cc(&s, codec_id);
 	}
 
 	// packet data
