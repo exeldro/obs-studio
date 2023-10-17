@@ -7386,10 +7386,12 @@ void OBSBasic::StreamDelayStopping(int sec)
 
 void OBSBasic::StreamingStart()
 {
+	OBSOutputAutoRelease output = obs_frontend_get_streaming_output();
+
 	ui->streamButton->setText(QTStr("Basic.Main.StopStreaming"));
 	ui->streamButton->setEnabled(true);
 	ui->streamButton->setChecked(true);
-	ui->statusbar->StreamStarted(outputHandler->streamOutput);
+	ui->statusbar->StreamStarted(output);
 
 	if (sysTrayStream) {
 		sysTrayStream->setText(ui->streamButton->text());

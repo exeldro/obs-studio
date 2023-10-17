@@ -508,8 +508,8 @@ void OBSBasicStatusBar::StreamDelayStarting(int sec)
 	if (!main || !main->outputHandler)
 		return;
 
-	streamOutput =
-		obs_output_get_weak_output(main->outputHandler->streamOutput);
+	OBSOutputAutoRelease output = obs_frontend_get_streaming_output();
+	streamOutput = obs_output_get_weak_output(output);
 
 	delaySecTotal = delaySecStarting = sec;
 	UpdateDelayMsg();
