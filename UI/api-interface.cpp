@@ -467,6 +467,14 @@ struct OBSStudioAPI : obs_frontend_callbacks {
 
 	obs_output_t *obs_frontend_get_streaming_output(void) override
 	{
+		auto simulcast = main->outputHandler->simulcast;
+		auto simOutput = simulcast
+					 ? obs_output_get_ref(
+						   simulcast->StreamingOutput())
+					 : nullptr;
+		if (simOutput)
+			return simOutput;
+
 		OBSOutput output = main->outputHandler->streamOutput.Get();
 		return obs_output_get_ref(output);
 	}
