@@ -52,7 +52,7 @@ class OBSBasicStats : public QFrame {
 		int first_total = 0;
 		int first_dropped = 0;
 
-		bool Update();
+		bool Update(obs_output_t *output = nullptr);
 		void Reset(obs_output_t *output);
 		bool ResetCounters();
 

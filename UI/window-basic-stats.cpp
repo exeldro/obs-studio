@@ -461,12 +461,8 @@ void OBSBasicStats::Update()
 	/* ------------------------------------------- */
 	/* recording/streaming stats                   */
 
-	if (!outputLabels[0].Update())
-		outputLabels[0].Reset(OBSOutputAutoRelease{
-			obs_frontend_get_streaming_output()});
-	if (!outputLabels[1].Update())
-		outputLabels[0].Reset(OBSOutputAutoRelease{
-			obs_frontend_get_recording_output()});
+	outputLabels[0].Update(strOutput);
+	outputLabels[1].Update(recOutput);
 
 	for (auto it = outputLabels.begin() + 2; it != outputLabels.end();) {
 		if (!it->Update()) {
@@ -566,8 +562,11 @@ void OBSBasicStats::Reset()
 	Update();
 }
 
-bool OBSBasicStats::OutputLabels::Update()
+bool OBSBasicStats::OutputLabels::Update(obs_output_t *output_)
 {
+	if (output_ && !obs_weak_output_references_output(weakOutput, output_))
+		Reset(output_);
+
 	OBSOutputAutoRelease output = obs_weak_output_get_output(weakOutput);
 
 	uint64_t totalBytes = output ? obs_output_get_total_bytes(output) : 0;
