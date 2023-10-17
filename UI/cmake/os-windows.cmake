@@ -17,6 +17,7 @@ target_sources(
   PRIVATE obs.rc
           platform-windows.cpp
           win-dll-blocklist.c
+          system-info-windows.cpp
           cmake/windows/obs.manifest
           update/crypto-helpers-mbedtls.cpp
           update/crypto-helpers.hpp
@@ -31,6 +32,8 @@ target_sources(
           update/models/branches.hpp
           update/models/whatsnew.hpp
           win-update/updater/manifest.hpp)
+
+target_sources(obs-studio PRIVATE system-info-windows.cpp)
 
 target_link_libraries(obs-studio PRIVATE crypt32 OBS::blake2 OBS::w32-pthreads MbedTLS::MbedTLS
                                          nlohmann_json::nlohmann_json Detours::Detours)

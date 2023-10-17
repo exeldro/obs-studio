@@ -299,6 +299,8 @@ inline BasicOutputHandler::BasicOutputHandler(OBSBasic *main_) : main(main_)
 		deactivateVirtualCam.Connect(signal, "deactivate",
 					     OBSDeactivateVirtualCam, this);
 	}
+
+	simulcast = new SimulcastOutput;
 }
 
 bool BasicOutputHandler::StartVirtualCam()
@@ -1102,6 +1104,32 @@ bool SimpleOutput::SetupStreaming(obs_service_t *service)
 	if (!type)
 		return false;
 
+	if (simulcast) {
+		streamDelayStarting.Disconnect();
+		streamStopping.Disconnect();
+		startStreaming.Disconnect();
+		stopStreaming.Disconnect();
+
+		OBSDataAutoRelease settings = obs_service_get_settings(service);
+		auto key = obs_data_get_string(settings, "key");
+
+		if (!simulcast->PrepareStreaming(main, "", "", "", key, false))
+			return false;
+
+		auto signal_handler = simulcast->StreamingSignalHandler();
+
+		streamDelayStarting.Connect(signal_handler, "starting",
+					    OBSStreamStarting, this);
+		streamStopping.Connect(signal_handler, "stopping",
+				       OBSStreamStopping, this);
+
+		startStreaming.Connect(signal_handler, "start",
+				       OBSStartStreaming, this);
+		stopStreaming.Connect(signal_handler, "stop", OBSStopStreaming,
+				      this);
+		return true;
+	}
+
 	/* XXX: this is messy and disgusting and should be refactored */
 	if (outputType != type) {
 		streamDelayStarting.Disconnect();
@@ -1220,6 +1248,10 @@ bool SimpleOutput::StartStreaming(obs_service_t *service)
 			  enableLowLatencyMode);
 #endif
 	obs_data_set_bool(settings, "dyn_bitrate", enableDynBitrate);
+
+	auto streamOutput =
+		StreamingOutput(); // shadowing is sort of bad, but also convenient
+
 	obs_output_update(streamOutput, settings);
 
 	if (!reconnect)
@@ -1230,7 +1262,8 @@ bool SimpleOutput::StartStreaming(obs_service_t *service)
 
 	obs_output_set_reconnect_settings(streamOutput, maxRetries, retryDelay);
 
-	SetupVodTrack(service);
+	if (!simulcast)
+		SetupVodTrack(service);
 
 	if (obs_output_start(streamOutput)) {
 		return true;
@@ -1424,10 +1457,14 @@ bool SimpleOutput::StartReplayBuffer()
 
 void SimpleOutput::StopStreaming(bool force)
 {
-	if (force)
-		obs_output_force_stop(streamOutput);
+	auto output = StreamingOutput();
+	if (force && output)
+		/* FIXME: this will probably not work with simulcast since the strong ref is released immediately when trying to stop */
+		obs_output_force_stop(output);
+	else if (simulcast)
+		simulcast->StopStreaming();
 	else
-		obs_output_stop(streamOutput);
+		obs_output_stop(output);
 }
 
 void SimpleOutput::StopRecording(bool force)
@@ -1448,7 +1485,7 @@ void SimpleOutput::StopReplayBuffer(bool force)
 
 bool SimpleOutput::StreamingActive() const
 {
-	return obs_output_active(streamOutput);
+	return obs_output_active(StreamingOutput());
 }
 
 bool SimpleOutput::RecordingActive() const
@@ -2105,6 +2142,32 @@ bool AdvancedOutput::SetupStreaming(obs_service_t *service)
 	if (!type)
 		return false;
 
+	if (simulcast) {
+		streamDelayStarting.Disconnect();
+		streamStopping.Disconnect();
+		startStreaming.Disconnect();
+		stopStreaming.Disconnect();
+
+		OBSDataAutoRelease settings = obs_service_get_settings(service);
+		auto key = obs_data_get_string(settings, "key");
+
+		if (!simulcast->PrepareStreaming(main, "", "", "", key, false))
+			return false;
+
+		auto signal_handler = simulcast->StreamingSignalHandler();
+
+		streamDelayStarting.Connect(signal_handler, "starting",
+					    OBSStreamStarting, this);
+		streamStopping.Connect(signal_handler, "stopping",
+				       OBSStreamStopping, this);
+
+		startStreaming.Connect(signal_handler, "start",
+				       OBSStartStreaming, this);
+		stopStreaming.Connect(signal_handler, "stop", OBSStopStreaming,
+				      this);
+		return true;
+	}
+
 	/* XXX: this is messy and disgusting and should be refactored */
 	if (outputType != type) {
 		streamDelayStarting.Disconnect();
@@ -2180,6 +2243,10 @@ bool AdvancedOutput::StartStreaming(obs_service_t *service)
 			  enableLowLatencyMode);
 #endif
 	obs_data_set_bool(settings, "dyn_bitrate", enableDynBitrate);
+
+	auto streamOutput =
+		StreamingOutput(); // shadowing is sort of bad, but also convenient
+
 	obs_output_update(streamOutput, settings);
 
 	if (!reconnect)
@@ -2388,10 +2455,14 @@ bool AdvancedOutput::StartReplayBuffer()
 
 void AdvancedOutput::StopStreaming(bool force)
 {
-	if (force)
-		obs_output_force_stop(streamOutput);
+	auto output = StreamingOutput();
+	if (force && output)
+		/* FIXME: this will probably not work with simulcast since the strong ref is released immediately when trying to stop */
+		obs_output_force_stop(output);
+	else if (simulcast)
+		simulcast->StopStreaming();
 	else
-		obs_output_stop(streamOutput);
+		obs_output_stop(output);
 }
 
 void AdvancedOutput::StopRecording(bool force)

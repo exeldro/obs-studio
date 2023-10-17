@@ -2,6 +2,8 @@
 
 #include <string>
 
+#include "simulcast-output.h"
+
 class OBSBasic;
 
 struct BasicOutputHandler {
@@ -15,6 +17,14 @@ struct BasicOutputHandler {
 	bool replayBufferActive = false;
 	bool virtualCamActive = false;
 	OBSBasic *main;
+
+	SimulcastOutput *simulcast = nullptr;
+
+	obs_output_t *StreamingOutput() const
+	{
+		return simulcast ? simulcast->StreamingOutput()
+				 : static_cast<obs_output_t *>(streamOutput);
+	}
 
 	obs_view_t *virtualCamView = nullptr;
 	video_t *virtualCamVideo = nullptr;

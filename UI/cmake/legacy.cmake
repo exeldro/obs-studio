@@ -283,6 +283,19 @@ target_sources(
           window-remux.cpp
           window-remux.hpp)
 
+target_sources(
+  obs
+  PRIVATE # cmake-format: sortable
+          goliveapi-network.cpp
+          goliveapi-network.hpp
+          goliveapi-postdata.cpp
+          goliveapi-postdata.hpp
+          immutable-date-time.cpp
+          immutable-date-time.h
+          simulcast-output.cpp
+          simulcast-output.h
+          system-info.h)
+
 target_sources(obs PRIVATE importers/importers.cpp importers/importers.hpp importers/classic.cpp importers/sl.cpp
                            importers/studio.cpp importers/xsplit.cpp)
 
@@ -327,6 +340,23 @@ if(TARGET OBS::browser-panels)
   endif()
 endif()
 
+option(ENABLE_IVS_DEV_FEATURES "Enable custom Twitch simulcast config" ON)
+if(ENABLE_IVS_DEV_FEATURES)
+  add_compile_definitions(ENABLE_IVS_DEV_FEATURES)
+endif()
+
+if(NOT DEFINED IVS_CUSTOMER OR IVS_CUSTOMER STREQUAL "twitch")
+  add_compile_definitions(
+    # cmake-format: sortable
+    SIMULCAST_DOCK_ID="twitch-go-live" SIMULCAST_DOCK_STYLE_BACKGROUND_COLOR_HEX="644186"
+    SIMULCAST_DOCK_STYLE_COLOR="white" SIMULCAST_DOCK_TITLE="Twitch"
+    SIMULCAST_GET_STREAM_KEY_URL="https://dashboard.twitch.tv/settings/stream")
+elseif(IVS_CUSTOMER STREQUAL "ivs")
+  add_compile_definitions(
+    # cmake-format: sortable
+    SIMULCAST_DOCK_ID="amazon-ivs-go-live" SIMULCAST_DOCK_TITLE="Amazon IVS" SIMULCAST_OVERRIDE_RTMP_URL=true)
+endif()
+
 if(YOUTUBE_ENABLED)
   target_compile_definitions(obs PRIVATE YOUTUBE_ENABLED)
   target_sources(
@@ -368,6 +398,8 @@ if(OS_WINDOWS)
             update/models/whatsnew.hpp
             win-update/updater/manifest.hpp
             ${CMAKE_BINARY_DIR}/obs.rc)
+
+  target_sources(obs PRIVATE system-info-windows.cpp)
 
   find_package(MbedTLS)
   target_link_libraries(obs PRIVATE Mbedtls::Mbedtls nlohmann_json::nlohmann_json OBS::blake2 Detours::Detours)
@@ -429,6 +461,8 @@ elseif(OS_MACOS)
   target_sources(obs PRIVATE platform-osx.mm)
   target_sources(obs PRIVATE forms/OBSPermissions.ui window-permissions.cpp window-permissions.hpp)
 
+  target_sources(obs PRIVATE system-info-macos.mm)
+
   if(ENABLE_WHATSNEW)
     find_library(SECURITY Security)
     find_package(nlohmann_json REQUIRED)
@@ -464,6 +498,8 @@ elseif(OS_MACOS)
 elseif(OS_POSIX)
   target_sources(obs PRIVATE platform-x11.cpp)
   target_link_libraries(obs PRIVATE Qt::GuiPrivate)
+
+  target_sources(obs PRIVATE system-info-posix.cpp)
 
   target_compile_definitions(obs PRIVATE OBS_INSTALL_PREFIX="${OBS_INSTALL_PREFIX}"
                                          "$<$<BOOL:${LINUX_PORTABLE}>:LINUX_PORTABLE>")

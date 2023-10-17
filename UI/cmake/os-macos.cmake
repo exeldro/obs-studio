@@ -7,6 +7,8 @@ target_compile_options(
   obs-studio PRIVATE -Wno-error=float-conversion -Wno-error=implicit-int-conversion -Wno-error=shorten-64-to-32
                      -Wno-quoted-include-in-framework-header -Wno-comma)
 
+target_sources(obs-studio PRIVATE system-info-macos.mm)
+
 set_source_files_properties(platform-osx.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
 
 if(CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 14.0.3)
