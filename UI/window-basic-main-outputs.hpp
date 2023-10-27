@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 
 #include "simulcast-output.h"
@@ -18,7 +19,7 @@ struct BasicOutputHandler {
 	bool virtualCamActive = false;
 	OBSBasic *main;
 
-	SimulcastOutput *simulcast = nullptr;
+	std::unique_ptr<SimulcastOutput> simulcast;
 
 	obs_output_t *StreamingOutput() const
 	{

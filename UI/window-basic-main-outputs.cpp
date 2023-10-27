@@ -300,7 +300,7 @@ inline BasicOutputHandler::BasicOutputHandler(OBSBasic *main_) : main(main_)
 					     OBSDeactivateVirtualCam, this);
 	}
 
-	simulcast = new SimulcastOutput;
+	simulcast = make_unique<SimulcastOutput>();
 }
 
 bool BasicOutputHandler::StartVirtualCam()

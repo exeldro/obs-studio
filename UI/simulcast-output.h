@@ -11,7 +11,6 @@
 
 #include "immutable-date-time.h"
 
-class SimulcastOutput;
 class QString;
 
 void StreamStartHandler(void *arg, calldata_t *data);
@@ -20,8 +19,7 @@ void StreamStopHandler(void *arg, calldata_t *data);
 void RecordingStartHandler(void *arg, calldata_t *data);
 void RecordingStopHandler(void *arg, calldata_t *data);
 
-class SimulcastOutput : public QObject {
-	Q_OBJECT;
+struct SimulcastOutput {
 
 public:
 	bool PrepareStreaming(QWidget *parent, const QString &device_id,
@@ -43,13 +41,6 @@ public:
 	const std::vector<OBSEncoderAutoRelease> &VideoEncoders() const;
 
 	obs_output_t *StreamingOutput() { return output_; }
-
-signals:
-	void StreamStarted();
-	void StreamStopped();
-
-	void RecordingStarted();
-	void RecordingStopped();
 
 private:
 	const ImmutableDateTime &GenerateStreamAttemptStartTime();

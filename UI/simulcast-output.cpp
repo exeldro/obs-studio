@@ -663,8 +663,6 @@ void StreamStartHandler(void *arg, calldata_t * /* data */)
 {
 	auto self = static_cast<SimulcastOutput *>(arg);
 	self->streaming_ = true;
-
-	emit self->StreamStarted();
 }
 
 void StreamStopHandler(void *arg, calldata_t * /* data */)
@@ -672,16 +670,12 @@ void StreamStopHandler(void *arg, calldata_t * /* data */)
 	auto self = static_cast<SimulcastOutput *>(arg);
 	self->streaming_ = false;
 	self->weak_output_ = nullptr;
-
-	emit self->StreamStopped();
 }
 
 void RecordingStartHandler(void *arg, calldata_t * /* data */)
 {
 	auto self = static_cast<SimulcastOutput *>(arg);
 	self->recording_ = true;
-
-	emit self->RecordingStarted();
 }
 
 void RecordingStopHandler(void *arg, calldata_t * /* data */)
@@ -689,8 +683,6 @@ void RecordingStopHandler(void *arg, calldata_t * /* data */)
 	auto self = static_cast<SimulcastOutput *>(arg);
 	self->recording_ = false;
 	self->weak_recording_output_ = nullptr;
-
-	emit self->RecordingStopped();
 }
 
 const ImmutableDateTime &SimulcastOutput::GenerateStreamAttemptStartTime()
