@@ -416,6 +416,7 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	HookWidget(ui->authUsername,         EDIT_CHANGED,   STREAM1_CHANGED);
 	HookWidget(ui->authPw,               EDIT_CHANGED,   STREAM1_CHANGED);
 	HookWidget(ui->ignoreRecommended,    CHECK_CHANGED,  STREAM1_CHANGED);
+	HookWidget(ui->enableSimulcast,      CHECK_CHANGED,  STREAM1_CHANGED);
 	HookWidget(ui->outputMode,           COMBO_CHANGED,  OUTPUTS_CHANGED);
 	HookWidget(ui->simpleOutputPath,     EDIT_CHANGED,   OUTPUTS_CHANGED);
 	HookWidget(ui->simpleNoSpace,        CHECK_CHANGED,  OUTPUTS_CHANGED);
@@ -6172,6 +6173,22 @@ void OBSBasicSettings::UpdateAdvNetworkGroup()
 	ui->enableNewSocketLoop->setVisible(enabled);
 	ui->enableLowLatencyMode->setVisible(enabled);
 #endif
+}
+
+void OBSBasicSettings::UpdateSimulcasting()
+{
+	// FIXME: protocol is not updated properly for WHIP; what do?
+	auto available = protocol.startsWith("RTMP");
+
+	ui->enableSimulcast->setVisible(available);
+	if (!available)
+		ui->enableSimulcast->setEnabled(false);
+
+	if (available) {
+		ui->enableSimulcast->setText(
+			QTStr("Basic.Settings.Stream.EnableSimulcast")
+				.arg(ui->service->currentText()));
+	}
 }
 
 void OBSBasicSettings::SimpleStreamAudioEncoderChanged()

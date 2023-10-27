@@ -145,6 +145,9 @@ void OBSBasicSettings::LoadStream1Settings()
 		ui->twitchAddonDropdown->setCurrentIndex(idx);
 	}
 
+	ui->enableSimulcast->setChecked(
+		config_get_bool(main->Config(), "Stream1", "EnableSimulcast"));
+
 	UpdateServerList();
 
 	if (is_rtmp_common) {
@@ -168,6 +171,7 @@ void OBSBasicSettings::LoadStream1Settings()
 	UpdateMoreInfoLink();
 	UpdateVodTrackSetting();
 	UpdateServiceRecommendations();
+	UpdateSimulcasting();
 
 	bool streamActive = obs_frontend_streaming_active();
 	ui->streamPage->setEnabled(!streamActive);
@@ -264,6 +268,12 @@ void OBSBasicSettings::SaveStream1Settings()
 	}
 
 	SaveCheckBox(ui->ignoreRecommended, "Stream1", "IgnoreRecommended");
+
+	auto oldSimulcastSetting =
+		config_get_bool(main->Config(), "Stream1", "EnableSimulcast");
+	SaveCheckBox(ui->enableSimulcast, "Stream1", "EnableSimulcast");
+	if (oldSimulcastSetting != ui->enableSimulcast->isChecked())
+		main->ResetOutputs();
 }
 
 void OBSBasicSettings::UpdateMoreInfoLink()
@@ -501,6 +511,7 @@ void OBSBasicSettings::on_service_currentIndexChanged(int idx)
 
 	protocol = FindProtocol();
 	UpdateAdvNetworkGroup();
+	UpdateSimulcasting();
 
 	if (ServiceSupportsCodecCheck() && UpdateResFPSLimits()) {
 		lastServiceIdx = idx;
@@ -515,6 +526,7 @@ void OBSBasicSettings::on_customServer_textChanged(const QString &)
 
 	protocol = FindProtocol();
 	UpdateAdvNetworkGroup();
+	UpdateSimulcasting();
 
 	if (ServiceSupportsCodecCheck())
 		lastCustomServer = ui->customServer->text();

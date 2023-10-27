@@ -269,6 +269,7 @@ private:
 	void UpdateServiceRecommendations();
 	void UpdateMoreInfoLink();
 	void UpdateAdvNetworkGroup();
+	void UpdateSimulcasting();
 
 private slots:
 	void RecreateOutputResolutionWidget();
