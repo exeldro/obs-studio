@@ -20,11 +20,13 @@ struct BasicOutputHandler {
 	OBSBasic *main;
 
 	std::unique_ptr<SimulcastOutput> simulcast;
+	bool simulcastActive = false;
 
 	obs_output_t *StreamingOutput() const
 	{
-		return simulcast ? simulcast->StreamingOutput()
-				 : static_cast<obs_output_t *>(streamOutput);
+		return (simulcast && simulcastActive)
+			       ? simulcast->StreamingOutput()
+			       : static_cast<obs_output_t *>(streamOutput);
 	}
 
 	obs_view_t *virtualCamView = nullptr;

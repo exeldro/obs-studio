@@ -1106,6 +1106,8 @@ bool SimpleOutput::SetupStreaming(obs_service_t *service)
 		return false;
 
 	if (simulcast) {
+		simulcastActive = false;
+
 		streamDelayStarting.Disconnect();
 		streamStopping.Disconnect();
 		startStreaming.Disconnect();
@@ -1114,21 +1116,33 @@ bool SimpleOutput::SetupStreaming(obs_service_t *service)
 		OBSDataAutoRelease settings = obs_service_get_settings(service);
 		auto key = obs_data_get_string(settings, "key");
 
-		if (!simulcast->PrepareStreaming(main, "", "", "", key, false))
+		if (simulcast->PrepareStreaming(main, "", "", "", key, false)) {
+			simulcastActive = true;
+
+			auto signal_handler =
+				simulcast->StreamingSignalHandler();
+
+			streamDelayStarting.Connect(signal_handler, "starting",
+						    OBSStreamStarting, this);
+			streamStopping.Connect(signal_handler, "stopping",
+					       OBSStreamStopping, this);
+
+			startStreaming.Connect(signal_handler, "start",
+					       OBSStartStreaming, this);
+			stopStreaming.Connect(signal_handler, "stop",
+					      OBSStopStreaming, this);
+			return true;
+		}
+
+		auto res = QMessageBox::critical(
+			main, QTStr("Output.StartStreamFailed"),
+			QTStr("FailedToStartStream.FallbackToDefault"),
+			QMessageBox::StandardButton::Retry |
+				QMessageBox::StandardButton::Cancel);
+		if (res == QMessageBox::StandardButton::Cancel)
 			return false;
 
-		auto signal_handler = simulcast->StreamingSignalHandler();
-
-		streamDelayStarting.Connect(signal_handler, "starting",
-					    OBSStreamStarting, this);
-		streamStopping.Connect(signal_handler, "stopping",
-				       OBSStreamStopping, this);
-
-		startStreaming.Connect(signal_handler, "start",
-				       OBSStartStreaming, this);
-		stopStreaming.Connect(signal_handler, "stop", OBSStopStreaming,
-				      this);
-		return true;
+		simulcastActive = false;
 	}
 
 	/* XXX: this is messy and disgusting and should be refactored */
@@ -1263,7 +1277,7 @@ bool SimpleOutput::StartStreaming(obs_service_t *service)
 
 	obs_output_set_reconnect_settings(streamOutput, maxRetries, retryDelay);
 
-	if (!simulcast)
+	if (!simulcast || !simulcastActive)
 		SetupVodTrack(service);
 
 	if (obs_output_start(streamOutput)) {
@@ -1462,7 +1476,7 @@ void SimpleOutput::StopStreaming(bool force)
 	if (force && output)
 		/* FIXME: this will probably not work with simulcast since the strong ref is released immediately when trying to stop */
 		obs_output_force_stop(output);
-	else if (simulcast)
+	else if (simulcast && simulcastActive)
 		simulcast->StopStreaming();
 	else
 		obs_output_stop(output);
@@ -2144,6 +2158,8 @@ bool AdvancedOutput::SetupStreaming(obs_service_t *service)
 		return false;
 
 	if (simulcast) {
+		simulcastActive = false;
+
 		streamDelayStarting.Disconnect();
 		streamStopping.Disconnect();
 		startStreaming.Disconnect();
@@ -2152,21 +2168,33 @@ bool AdvancedOutput::SetupStreaming(obs_service_t *service)
 		OBSDataAutoRelease settings = obs_service_get_settings(service);
 		auto key = obs_data_get_string(settings, "key");
 
-		if (!simulcast->PrepareStreaming(main, "", "", "", key, false))
+		if (simulcast->PrepareStreaming(main, "", "", "", key, false)) {
+			simulcastActive = true;
+
+			auto signal_handler =
+				simulcast->StreamingSignalHandler();
+
+			streamDelayStarting.Connect(signal_handler, "starting",
+						    OBSStreamStarting, this);
+			streamStopping.Connect(signal_handler, "stopping",
+					       OBSStreamStopping, this);
+
+			startStreaming.Connect(signal_handler, "start",
+					       OBSStartStreaming, this);
+			stopStreaming.Connect(signal_handler, "stop",
+					      OBSStopStreaming, this);
+			return true;
+		}
+
+		auto res = QMessageBox::critical(
+			main, QTStr("Output.StartStreamFailed"),
+			QTStr("FailedToStartStream.FallbackToDefault"),
+			QMessageBox::StandardButton::Retry |
+				QMessageBox::StandardButton::Cancel);
+		if (res == QMessageBox::StandardButton::Cancel)
 			return false;
 
-		auto signal_handler = simulcast->StreamingSignalHandler();
-
-		streamDelayStarting.Connect(signal_handler, "starting",
-					    OBSStreamStarting, this);
-		streamStopping.Connect(signal_handler, "stopping",
-				       OBSStreamStopping, this);
-
-		startStreaming.Connect(signal_handler, "start",
-				       OBSStartStreaming, this);
-		stopStreaming.Connect(signal_handler, "stop", OBSStopStreaming,
-				      this);
-		return true;
+		simulcastActive = false;
 	}
 
 	/* XXX: this is messy and disgusting and should be refactored */
@@ -2460,7 +2488,7 @@ void AdvancedOutput::StopStreaming(bool force)
 	if (force && output)
 		/* FIXME: this will probably not work with simulcast since the strong ref is released immediately when trying to stop */
 		obs_output_force_stop(output);
-	else if (simulcast)
+	else if (simulcast && simulcastActive)
 		simulcast->StopStreaming();
 	else
 		obs_output_stop(output);
