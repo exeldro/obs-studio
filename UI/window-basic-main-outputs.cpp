@@ -1281,8 +1281,13 @@ bool SimpleOutput::StartStreaming(obs_service_t *service)
 		SetupVodTrack(service);
 
 	if (obs_output_start(streamOutput)) {
+		if (simulcast && simulcastActive)
+			simulcast->StartedStreaming(main, true);
 		return true;
 	}
+
+	if (simulcast && simulcastActive)
+		simulcast->StartedStreaming(main, false);
 
 	const char *error = obs_output_get_last_error(streamOutput);
 	bool hasLastError = error && *error;
@@ -2289,8 +2294,13 @@ bool AdvancedOutput::StartStreaming(obs_service_t *service)
 	SetupVodTrack(service);
 
 	if (obs_output_start(streamOutput)) {
+		if (simulcast && simulcastActive)
+			simulcast->StartedStreaming(main, true);
 		return true;
 	}
+
+	if (simulcast && simulcastActive)
+		simulcast->StartedStreaming(main, false);
 
 	const char *error = obs_output_get_last_error(streamOutput);
 	bool hasLastError = error && *error;

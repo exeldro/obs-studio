@@ -25,8 +25,27 @@
 #include "system-info.h"
 #include "goliveapi-postdata.hpp"
 #include "goliveapi-network.hpp"
+#include "ivs-events.h"
 
 #define GO_LIVE_API_URL "https://ingest.twitch.tv/api/v3/GetClientConfiguration"
+
+static void submit_event(BerryessaSubmitter *berryessa, const char *event_name,
+			 obs_data_t *data)
+{
+	if (!berryessa)
+		return;
+
+	berryessa->submit(event_name, data);
+}
+
+static void add_always_string(BerryessaSubmitter *berryessa, const char *name,
+			      const char *data)
+{
+	if (!berryessa)
+		return;
+
+	berryessa->setAlwaysString(name, data);
+}
 
 static OBSServiceAutoRelease create_service(const QString &device_id,
 					    const QString &obs_session_id,
@@ -480,6 +499,10 @@ bool SimulcastOutput::PrepareStreaming(QWidget *parent,
 				       const QString &stream_key,
 				       bool use_ertmp_multitrack)
 {
+	if (!berryessa_)
+		berryessa_ = std::make_unique<BerryessaSubmitter>(
+			parent, "https://data.stats.live-video.net/");
+
 	auto attempt_start_time = GenerateStreamAttemptStartTime();
 
 	auto go_live_post = constructGoLivePost(attempt_start_time,
@@ -488,32 +511,96 @@ bool SimulcastOutput::PrepareStreaming(QWidget *parent,
 	auto go_live_config =
 		DownloadGoLiveConfig(parent, GO_LIVE_API_URL, go_live_post);
 
-	if (!go_live_config)
-		return false;
+	auto download_time_elapsed = attempt_start_time.MSecsElapsed();
 
-	video_encoders_.clear();
-	OBSEncoderAutoRelease audio_encoder = nullptr;
-	auto output = SetupOBSOutput(false, go_live_config, video_encoders_,
-				     audio_encoder, use_ertmp_multitrack);
-	if (!output)
-		return false;
+	auto result = [&] {
+		if (!go_live_config)
+			return false;
 
-	auto simulcast_service = create_service(device_id, obs_session_id,
-						go_live_config, rtmp_url,
-						stream_key);
-	if (!simulcast_service)
-		return false;
+		video_encoders_.clear();
+		OBSEncoderAutoRelease audio_encoder = nullptr;
+		auto output = SetupOBSOutput(false, go_live_config,
+					     video_encoders_, audio_encoder,
+					     use_ertmp_multitrack);
+		if (!output)
+			return false;
 
-	obs_output_set_service(output, simulcast_service);
+		auto simulcast_service =
+			create_service(device_id, obs_session_id,
+				       go_live_config, rtmp_url, stream_key);
+		if (!simulcast_service)
+			return false;
 
-	SetupSignalHandlers(false, this, output);
+		obs_output_set_service(output, simulcast_service);
 
-	output_ = std::move(output);
-	weak_output_ = obs_output_get_weak_output(output_);
-	audio_encoder_ = std::move(audio_encoder);
-	simulcast_service_ = std::move(simulcast_service);
+		SetupSignalHandlers(false, this, output);
 
-	return true;
+		output_ = std::move(output);
+		weak_output_ = obs_output_get_weak_output(output_);
+		audio_encoder_ = std::move(audio_encoder);
+		simulcast_service_ = std::move(simulcast_service);
+
+		return true;
+	}();
+
+	if (!result) {
+		auto start_streaming_returned =
+			attempt_start_time.MSecsElapsed();
+		auto event = MakeEvent_ivs_obs_stream_start_failed(
+			go_live_post, go_live_config, attempt_start_time,
+			download_time_elapsed, start_streaming_returned);
+		submit_event(berryessa_.get(), "ivs_obs_stream_start_failed",
+			     event);
+	} else if (berryessa_) {
+		send_start_event = [berryessa = berryessa_.get(),
+				    attempt_start_time, download_time_elapsed,
+				    go_live_post = OBSData{go_live_post},
+				    go_live_config = OBSData{go_live_config}](
+					   bool success,
+					   std::optional<int> connect_time_ms) {
+			auto start_streaming_returned =
+				attempt_start_time.MSecsElapsed();
+			if (!success) {
+
+				auto event =
+					MakeEvent_ivs_obs_stream_start_failed(
+						go_live_post, go_live_config,
+						attempt_start_time,
+						download_time_elapsed,
+						start_streaming_returned);
+				submit_event(berryessa,
+					     "ivs_obs_stream_start_failed",
+					     event);
+			} else {
+				auto event = MakeEvent_ivs_obs_stream_start(
+					go_live_post, go_live_config,
+					attempt_start_time,
+					download_time_elapsed,
+					start_streaming_returned,
+					connect_time_ms);
+
+				const char *configId =
+					obs_data_get_string(event, "config_id");
+				if (configId) {
+					// put the config_id on all events until the stream ends
+					add_always_string(berryessa,
+							  "config_id",
+							  configId);
+				} else if (berryessa) {
+					berryessa->unsetAlways("config_id");
+				}
+
+				add_always_string(berryessa,
+						  "stream_attempt_start_time",
+						  attempt_start_time.CStr());
+
+				submit_event(berryessa, "ivs_obs_stream_start",
+					     event);
+			}
+		};
+	}
+
+	return result;
 }
 
 signal_handler_t *SimulcastOutput::StreamingSignalHandler()
@@ -521,22 +608,38 @@ signal_handler_t *SimulcastOutput::StreamingSignalHandler()
 	return obs_output_get_signal_handler(output_);
 }
 
-bool SimulcastOutput::StartStreaming()
+void SimulcastOutput::StartedStreaming(QWidget *parent, bool success)
 {
-	if (!obs_output_start(output_)) {
-		blog(LOG_WARNING, "Failed to start stream");
-		throw QString{
-			QTStr("FailedToStartStream.OBSOutputStartFailed")};
+	if (!success) {
+		if (send_start_event)
+			send_start_event(false, std::nullopt);
+		send_start_event = {};
+		return;
 	}
 
-	blog(LOG_INFO, "starting stream");
-	return true;
+	if (send_start_event)
+		send_start_event(true, ConnectTimeMs());
+
+	send_start_event = {};
+
+	if (berryessa_)
+		berryessa_every_minute_ =
+			std::make_unique<BerryessaEveryMinute>(
+				parent, berryessa_.get(), VideoEncoders());
 }
 
 void SimulcastOutput::StopStreaming()
 {
 	if (output_)
 		obs_output_stop(output_);
+
+	submit_event(berryessa_.get(), "ivs_obs_stream_stop",
+		     MakeEvent_ivs_obs_stream_stop());
+
+	berryessa_every_minute_.reset(nullptr);
+
+	if (berryessa_)
+		berryessa_->unsetAlways("config_id");
 
 	output_ = nullptr;
 	video_encoders_.clear();
@@ -668,6 +771,13 @@ void StreamStartHandler(void *arg, calldata_t * /* data */)
 {
 	auto self = static_cast<SimulcastOutput *>(arg);
 	self->streaming_ = true;
+
+	if (!self->stream_attempt_start_time_.has_value() || !self->berryessa_)
+		return;
+
+	auto event = MakeEvent_ivs_obs_stream_started(
+		self->stream_attempt_start_time_->MSecsElapsed());
+	self->berryessa_->submit("ivs_obs_stream_started", event);
 }
 
 void StreamStopHandler(void *arg, calldata_t * /* data */)

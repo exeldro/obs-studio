@@ -88,12 +88,22 @@ target_sources(
 target_sources(
   obs-studio
   PRIVATE # cmake-format: sortable
+          berryessa-every-minute.cpp
+          berryessa-every-minute.hpp
+          berryessa-submitter.cpp
+          berryessa-submitter.hpp
           goliveapi-network.cpp
           goliveapi-network.hpp
           goliveapi-postdata.cpp
           goliveapi-postdata.hpp
           immutable-date-time.cpp
           immutable-date-time.h
+          ivs-events.cpp
+          ivs-events.h
+          presentmon-csv-capture.cpp
+          presentmon-csv-capture.hpp
+          presentmon-csv-parser.cpp
+          presentmon-csv-parser.hpp
           simulcast-output.cpp
           simulcast-output.h
           system-info.h)

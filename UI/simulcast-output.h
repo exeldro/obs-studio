@@ -9,7 +9,12 @@
 #include <qobject.h>
 #include <QFuture>
 
+#define NOMINMAX
+
 #include "immutable-date-time.h"
+
+#include "berryessa-submitter.hpp"
+#include "berryessa-every-minute.hpp"
 
 class QString;
 
@@ -28,7 +33,7 @@ public:
 			      const QString &stream_key,
 			      bool use_ertmp_multitrack);
 	signal_handler_t *StreamingSignalHandler();
-	bool StartStreaming();
+	void StartedStreaming(QWidget *parent, bool success);
 	void StopStreaming();
 	bool IsStreaming() const;
 	std::optional<int> ConnectTimeMs() const;
@@ -44,6 +49,12 @@ public:
 
 private:
 	const ImmutableDateTime &GenerateStreamAttemptStartTime();
+
+	std::unique_ptr<BerryessaSubmitter> berryessa_;
+	std::unique_ptr<BerryessaEveryMinute> berryessa_every_minute_;
+
+	std::function<void(bool success, std::optional<int> connect_time_ms)>
+		send_start_event;
 
 	std::atomic<bool> streaming_ = false;
 	std::atomic<bool> recording_ = false;

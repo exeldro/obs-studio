@@ -33,7 +33,7 @@ target_sources(
           update/models/whatsnew.hpp
           win-update/updater/manifest.hpp)
 
-target_sources(obs-studio PRIVATE system-info-windows.cpp)
+target_sources(obs-studio PRIVATE system-info-windows.cpp wmi-data-provider.h wmi-data-provider.cpp)
 
 target_link_libraries(obs-studio PRIVATE crypt32 OBS::blake2 OBS::w32-pthreads MbedTLS::MbedTLS
                                          nlohmann_json::nlohmann_json Detours::Detours)
