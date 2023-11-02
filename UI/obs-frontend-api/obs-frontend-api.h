@@ -256,6 +256,8 @@ EXPORT void obs_frontend_add_undo_redo_action(
 EXPORT void obs_frontend_external_stream_started(obs_output_t *output);
 EXPORT void obs_frontend_external_stream_stopped(obs_weak_output_t *output);
 
+EXPORT char *obs_frontend_get_version_string(void);
+
 /* ------------------------------------------------------------------------- */
 
 #ifdef __cplusplus

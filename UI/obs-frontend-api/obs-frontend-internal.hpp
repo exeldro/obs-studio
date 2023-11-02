@@ -172,6 +172,8 @@ struct obs_frontend_callbacks {
 	obs_frontend_external_stream_started(obs_output_t *output) = 0;
 	virtual void
 	obs_frontend_external_stream_stopped(obs_weak_output_t *output) = 0;
+
+	virtual char *obs_frontend_get_version_string() = 0;
 };
 
 EXPORT void
