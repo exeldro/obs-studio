@@ -23,6 +23,8 @@
 #include "remote-text.hpp"
 #include <memory>
 #include <cstring>
+#include <obs-frontend-api.h>
+#include <util/util.hpp>
 
 using namespace std;
 
@@ -71,12 +73,9 @@ bool GetRemoteFile(const char *url, std::string &str, std::string &error,
 
 	error_in[0] = 0;
 
-#if 0
+	BPtr<char> frontend_version{obs_frontend_get_version_string()};
 	string versionString("User-Agent: obs-basic ");
-	versionString += App()->GetVersionString();
-#endif
-	string versionString(
-		"User-Agent: obs-simulcast-plugin-tech-preview 0.0.1");
+	versionString += frontend_version;
 
 	string contentTypeString;
 	if (contentType) {
