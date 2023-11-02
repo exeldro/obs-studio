@@ -621,7 +621,12 @@ SetupOBSOutput(bool recording, obs_data_t *go_live_config,
 		obs_data_get_array(go_live_config, "encoder_configurations");
 	DStr video_encoder_name_buffer;
 	obs_encoder_t *first_encoder = nullptr;
-	for (size_t i = 0; i < obs_data_array_count(encoder_configs); i++) {
+	const size_t num_encoder_configs =
+		obs_data_array_count(encoder_configs);
+	if (num_encoder_configs < 1)
+		return nullptr;
+
+	for (size_t i = 0; i < num_encoder_configs; i++) {
 		OBSDataAutoRelease encoder_config =
 			obs_data_array_item(encoder_configs, i);
 		auto encoder = create_video_encoder(video_encoder_name_buffer,
