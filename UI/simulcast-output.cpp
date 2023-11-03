@@ -766,7 +766,8 @@ SetupOBSOutput(bool recording, obs_data_t *go_live_config,
 	const size_t num_encoder_configs =
 		obs_data_array_count(encoder_configs);
 	if (num_encoder_configs < 1)
-		return nullptr;
+		throw SimulcastError::warning(
+			QTStr("FailedToStartStream.MissingEncoderConfigs"));
 
 	for (size_t i = 0; i < num_encoder_configs; i++) {
 		OBSDataAutoRelease encoder_config =
