@@ -3,6 +3,7 @@
 #include <QMessageBox>
 #include "qt-wrappers.hpp"
 #include "audio-encoders.hpp"
+#include "simulcast-error.h"
 #include "window-basic-main.hpp"
 #include "window-basic-main-outputs.hpp"
 #include "window-basic-vcam-config.hpp"
@@ -1116,7 +1117,9 @@ bool SimpleOutput::SetupStreaming(obs_service_t *service)
 		OBSDataAutoRelease settings = obs_service_get_settings(service);
 		auto key = obs_data_get_string(settings, "key");
 
-		if (simulcast->PrepareStreaming(main, "", key, false)) {
+		try {
+			simulcast->PrepareStreaming(main, "", key, false);
+
 			simulcastActive = true;
 
 			auto signal_handler =
@@ -1132,17 +1135,11 @@ bool SimpleOutput::SetupStreaming(obs_service_t *service)
 			stopStreaming.Connect(signal_handler, "stop",
 					      OBSStopStreaming, this);
 			return true;
+		} catch (const SimulcastError &error) {
+			simulcastActive = false;
+			if (!error.ShowDialog(main))
+				return false;
 		}
-
-		auto res = QMessageBox::critical(
-			main, QTStr("Output.StartStreamFailed"),
-			QTStr("FailedToStartStream.FallbackToDefault"),
-			QMessageBox::StandardButton::Retry |
-				QMessageBox::StandardButton::Cancel);
-		if (res == QMessageBox::StandardButton::Cancel)
-			return false;
-
-		simulcastActive = false;
 	}
 
 	/* XXX: this is messy and disgusting and should be refactored */
@@ -2173,7 +2170,9 @@ bool AdvancedOutput::SetupStreaming(obs_service_t *service)
 		OBSDataAutoRelease settings = obs_service_get_settings(service);
 		auto key = obs_data_get_string(settings, "key");
 
-		if (simulcast->PrepareStreaming(main, "", key, false)) {
+		try {
+			simulcast->PrepareStreaming(main, "", key, false);
+
 			simulcastActive = true;
 
 			auto signal_handler =
@@ -2189,17 +2188,11 @@ bool AdvancedOutput::SetupStreaming(obs_service_t *service)
 			stopStreaming.Connect(signal_handler, "stop",
 					      OBSStopStreaming, this);
 			return true;
+		} catch (const SimulcastError &error) {
+			simulcastActive = false;
+			if (!error.ShowDialog(main))
+				return false;
 		}
-
-		auto res = QMessageBox::critical(
-			main, QTStr("Output.StartStreamFailed"),
-			QTStr("FailedToStartStream.FallbackToDefault"),
-			QMessageBox::StandardButton::Retry |
-				QMessageBox::StandardButton::Cancel);
-		if (res == QMessageBox::StandardButton::Cancel)
-			return false;
-
-		simulcastActive = false;
 	}
 
 	/* XXX: this is messy and disgusting and should be refactored */

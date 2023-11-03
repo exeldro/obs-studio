@@ -27,6 +27,7 @@
 #include "goliveapi-postdata.hpp"
 #include "goliveapi-network.hpp"
 #include "ivs-events.h"
+#include "simulcast-error.h"
 
 #define GO_LIVE_API_URL "https://ingest.twitch.tv/api/v3/GetClientConfiguration"
 
@@ -516,7 +517,7 @@ struct OutputObjects {
 	OBSServiceAutoRelease simulcast_service;
 };
 
-bool SimulcastOutput::PrepareStreaming(QWidget *parent, const QString &rtmp_url,
+void SimulcastOutput::PrepareStreaming(QWidget *parent, const QString &rtmp_url,
 				       const QString &stream_key,
 				       bool use_ertmp_multitrack)
 {
@@ -528,18 +529,21 @@ bool SimulcastOutput::PrepareStreaming(QWidget *parent, const QString &rtmp_url,
 	}
 
 	auto attempt_start_time = GenerateStreamAttemptStartTime();
+	OBSDataAutoRelease go_live_post;
+	OBSDataAutoRelease go_live_config;
+	quint64 download_time_elapsed = 0;
 
-	auto go_live_post = constructGoLivePost(attempt_start_time,
-						std::nullopt, std::nullopt);
+	try {
+		go_live_post = constructGoLivePost(attempt_start_time,
+						   std::nullopt, std::nullopt);
 
-	auto go_live_config =
-		DownloadGoLiveConfig(parent, GO_LIVE_API_URL, go_live_post);
-
-	auto download_time_elapsed = attempt_start_time.MSecsElapsed();
-
-	auto result = [&] {
+		go_live_config = DownloadGoLiveConfig(parent, GO_LIVE_API_URL,
+						      go_live_post);
 		if (!go_live_config)
-			return false;
+			throw SimulcastError::warning(
+				QTStr("FailedToStartStream.FallbackToDefault"));
+
+		download_time_elapsed = attempt_start_time.MSecsElapsed();
 
 		video_encoders_.clear();
 		OBSEncoderAutoRelease audio_encoder = nullptr;
@@ -547,13 +551,15 @@ bool SimulcastOutput::PrepareStreaming(QWidget *parent, const QString &rtmp_url,
 					     video_encoders_, audio_encoder,
 					     use_ertmp_multitrack);
 		if (!output)
-			return false;
+			throw SimulcastError::warning(
+				QTStr("FailedToStartStream.FallbackToDefault"));
 
 		auto simulcast_service =
 			create_service(device_id(), obs_session_id(),
 				       go_live_config, rtmp_url, stream_key);
 		if (!simulcast_service)
-			return false;
+			throw SimulcastError::warning(
+				QTStr("FailedToStartStream.FallbackToDefault"));
 
 		obs_output_set_service(output, simulcast_service);
 
@@ -564,10 +570,67 @@ bool SimulcastOutput::PrepareStreaming(QWidget *parent, const QString &rtmp_url,
 		audio_encoder_ = std::move(audio_encoder);
 		simulcast_service_ = std::move(simulcast_service);
 
-		return true;
-	}();
+		if (berryessa_) {
+			send_start_event = [berryessa = berryessa_.get(),
+					    attempt_start_time,
+					    download_time_elapsed,
+					    go_live_post =
+						    OBSData{go_live_post},
+					    go_live_config =
+						    OBSData{go_live_config}](
+						   bool success,
+						   std::optional<int>
+							   connect_time_ms) {
+				auto start_streaming_returned =
+					attempt_start_time.MSecsElapsed();
+				if (!success) {
 
-	if (!result) {
+					auto event =
+						MakeEvent_ivs_obs_stream_start_failed(
+							go_live_post,
+							go_live_config,
+							attempt_start_time,
+							download_time_elapsed,
+							start_streaming_returned);
+					submit_event(
+						berryessa,
+						"ivs_obs_stream_start_failed",
+						event);
+				} else {
+					auto event =
+						MakeEvent_ivs_obs_stream_start(
+							go_live_post,
+							go_live_config,
+							attempt_start_time,
+							download_time_elapsed,
+							start_streaming_returned,
+							connect_time_ms);
+
+					const char *configId =
+						obs_data_get_string(
+							event, "config_id");
+					if (configId) {
+						// put the config_id on all events until the stream ends
+						add_always_string(berryessa,
+								  "config_id",
+								  configId);
+					} else if (berryessa) {
+						berryessa->unsetAlways(
+							"config_id");
+					}
+
+					add_always_string(
+						berryessa,
+						"stream_attempt_start_time",
+						attempt_start_time.CStr());
+
+					submit_event(berryessa,
+						     "ivs_obs_stream_start",
+						     event);
+				}
+			};
+		}
+	} catch (...) {
 		auto start_streaming_returned =
 			attempt_start_time.MSecsElapsed();
 		auto event = MakeEvent_ivs_obs_stream_start_failed(
@@ -575,56 +638,8 @@ bool SimulcastOutput::PrepareStreaming(QWidget *parent, const QString &rtmp_url,
 			download_time_elapsed, start_streaming_returned);
 		submit_event(berryessa_.get(), "ivs_obs_stream_start_failed",
 			     event);
-	} else if (berryessa_) {
-		send_start_event = [berryessa = berryessa_.get(),
-				    attempt_start_time, download_time_elapsed,
-				    go_live_post = OBSData{go_live_post},
-				    go_live_config = OBSData{go_live_config}](
-					   bool success,
-					   std::optional<int> connect_time_ms) {
-			auto start_streaming_returned =
-				attempt_start_time.MSecsElapsed();
-			if (!success) {
-
-				auto event =
-					MakeEvent_ivs_obs_stream_start_failed(
-						go_live_post, go_live_config,
-						attempt_start_time,
-						download_time_elapsed,
-						start_streaming_returned);
-				submit_event(berryessa,
-					     "ivs_obs_stream_start_failed",
-					     event);
-			} else {
-				auto event = MakeEvent_ivs_obs_stream_start(
-					go_live_post, go_live_config,
-					attempt_start_time,
-					download_time_elapsed,
-					start_streaming_returned,
-					connect_time_ms);
-
-				const char *configId =
-					obs_data_get_string(event, "config_id");
-				if (configId) {
-					// put the config_id on all events until the stream ends
-					add_always_string(berryessa,
-							  "config_id",
-							  configId);
-				} else if (berryessa) {
-					berryessa->unsetAlways("config_id");
-				}
-
-				add_always_string(berryessa,
-						  "stream_attempt_start_time",
-						  attempt_start_time.CStr());
-
-				submit_event(berryessa, "ivs_obs_stream_start",
-					     event);
-			}
-		};
+		throw;
 	}
-
-	return result;
 }
 
 signal_handler_t *SimulcastOutput::StreamingSignalHandler()

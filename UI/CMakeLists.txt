@@ -104,6 +104,8 @@ target_sources(
           presentmon-csv-capture.hpp
           presentmon-csv-parser.cpp
           presentmon-csv-parser.hpp
+          simulcast-error.cpp
+          simulcast-error.h
           simulcast-output.cpp
           simulcast-output.h
           system-info.h)

@@ -27,7 +27,7 @@ void RecordingStopHandler(void *arg, calldata_t *data);
 struct SimulcastOutput {
 
 public:
-	bool PrepareStreaming(QWidget *parent, const QString &rtmp_url,
+	void PrepareStreaming(QWidget *parent, const QString &rtmp_url,
 			      const QString &stream_key,
 			      bool use_ertmp_multitrack);
 	signal_handler_t *StreamingSignalHandler();
