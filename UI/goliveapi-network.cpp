@@ -16,7 +16,39 @@ struct ReturnValues {
 	bool encodeConfigDownloadedOk;
 };
 
-OBSDataAutoRelease DownloadGoLiveConfig(QWidget * /*parent*/, QString url,
+void HandleGoLiveApiErrors(QWidget *parent, obs_data_t *config_data)
+{
+	OBSDataAutoRelease status = obs_data_get_obj(config_data, "status");
+	if (!status) // API does not currently return status responses
+		return;
+
+	auto result = obs_data_get_string(status, "result");
+	if (!result || strncmp(result, "success", 8) == 0)
+		return;
+
+	auto html_en_us = obs_data_get_string(status, "html_en_us");
+	if (strncmp(result, "warning", 8) == 0) {
+		OBSDataArrayAutoRelease encoder_configurations =
+			obs_data_get_array(config_data,
+					   "encoder_configuration");
+		if (obs_data_array_count(encoder_configurations) == 0)
+			throw SimulcastError::warning(html_en_us);
+		else {
+			auto res = QMessageBox::warning(
+				parent,
+				QTStr("ConfigDownload.WarningMessageTitle"),
+				html_en_us,
+				QMessageBox::StandardButton::Yes |
+					QMessageBox::StandardButton::No);
+			if (res == QMessageBox::StandardButton::No)
+				throw SimulcastError::cancel();
+		}
+	} else if (strncmp(result, "error", 6) == 0) {
+		throw SimulcastError::critical(html_en_us);
+	}
+}
+
+OBSDataAutoRelease DownloadGoLiveConfig(QWidget *parent, QString url,
 					obs_data_t *postData_)
 {
 	blog(LOG_INFO, "Go live POST data: %s", obs_data_get_json(postData_));
@@ -61,6 +93,8 @@ OBSDataAutoRelease DownloadGoLiveConfig(QWidget * /*parent*/, QString url,
 	     obs_data_get_json(encodeConfigObsData));
 
 	blog(LOG_INFO, "Go Live Config data: %s", encodeConfigText.c_str());
+
+	HandleGoLiveApiErrors(parent, encodeConfigObsData);
 
 	return OBSData{encodeConfigObsData};
 }

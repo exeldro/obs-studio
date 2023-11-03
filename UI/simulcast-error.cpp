@@ -13,6 +13,11 @@ SimulcastError SimulcastError::warning(QString error)
 	return {Type::Warning, error};
 }
 
+SimulcastError SimulcastError::cancel()
+{
+	return {Type::Cancel, {}};
+}
+
 bool SimulcastError::ShowDialog(QWidget *parent) const
 {
 	if (type == Type::Critical) {
