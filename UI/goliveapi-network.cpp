@@ -3,6 +3,7 @@
 #include <obs.hpp>
 #include <obs-app.hpp>
 #include <remote-text.hpp>
+#include "simulcast-error.h"
 
 #include <qstring.h>
 #include <string>
@@ -15,7 +16,7 @@ struct ReturnValues {
 	bool encodeConfigDownloadedOk;
 };
 
-OBSDataAutoRelease DownloadGoLiveConfig(QWidget *parent, QString url,
+OBSDataAutoRelease DownloadGoLiveConfig(QWidget * /*parent*/, QString url,
 					obs_data_t *postData_)
 {
 	blog(LOG_INFO, "Go live POST data: %s", obs_data_get_json(postData_));
@@ -37,15 +38,11 @@ OBSDataAutoRelease DownloadGoLiveConfig(QWidget *parent, QString url,
 		nullptr, // signature
 		3);      // timeout in seconds
 
-	QString encodeConfigError;
+	if (!encodeConfigDownloadedOk)
+		throw SimulcastError::warning(
+			QTStr("FailedToStartStream.ConfigRequestFailed")
+				.arg(url, libraryError.c_str()));
 
-	if (!encodeConfigDownloadedOk) {
-		encodeConfigError =
-			QString() + "Could not fetch config from " + url +
-			"\n\nHTTP error: " +
-			QString::fromStdString(libraryError) +
-			"\n\nDo you want to stream anyway? You'll only stream a single quality option.";
-	} else {
 #if 0
 		// XXX: entirely different json parser just because it gives us errors
 		// is a bit silly
@@ -57,24 +54,11 @@ OBSDataAutoRelease DownloadGoLiveConfig(QWidget *parent, QString url,
 				QString::fromStdString(libraryError);
 		}
 #endif
-		encodeConfigObsData =
-			obs_data_create_from_json(encodeConfigText.c_str());
-		blog(LOG_INFO, "Go live Response data: %s",
-		     obs_data_get_json(encodeConfigObsData));
-	}
 
-	if (!encodeConfigError.isEmpty()) {
-		int carryOn = QMessageBox::warning(
-			parent,
-			QString::asprintf(Str("ConfigDownloadError.Title"),
-					  SIMULCAST_DOCK_TITLE),
-			encodeConfigError, QMessageBox::Yes, QMessageBox::No);
-
-		if (carryOn != QMessageBox::Yes)
-			return nullptr; //false;
-
-		encodeConfigObsData = nullptr;
-	}
+	encodeConfigObsData =
+		obs_data_create_from_json(encodeConfigText.c_str());
+	blog(LOG_INFO, "Go live Response data: %s",
+	     obs_data_get_json(encodeConfigObsData));
 
 	blog(LOG_INFO, "Go Live Config data: %s", encodeConfigText.c_str());
 
