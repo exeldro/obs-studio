@@ -1116,7 +1116,7 @@ bool SimpleOutput::SetupStreaming(obs_service_t *service)
 		OBSDataAutoRelease settings = obs_service_get_settings(service);
 		auto key = obs_data_get_string(settings, "key");
 
-		if (simulcast->PrepareStreaming(main, "", "", "", key, false)) {
+		if (simulcast->PrepareStreaming(main, "", key, false)) {
 			simulcastActive = true;
 
 			auto signal_handler =
@@ -2173,7 +2173,7 @@ bool AdvancedOutput::SetupStreaming(obs_service_t *service)
 		OBSDataAutoRelease settings = obs_service_get_settings(service);
 		auto key = obs_data_get_string(settings, "key");
 
-		if (simulcast->PrepareStreaming(main, "", "", "", key, false)) {
+		if (simulcast->PrepareStreaming(main, "", key, false)) {
 			simulcastActive = true;
 
 			auto signal_handler =

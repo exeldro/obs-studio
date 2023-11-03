@@ -21,6 +21,7 @@
 #include <QThreadPool>
 #include <QUrl>
 #include <QUrlQuery>
+#include <QUuid>
 
 #include "system-info.h"
 #include "goliveapi-postdata.hpp"
@@ -28,6 +29,29 @@
 #include "ivs-events.h"
 
 #define GO_LIVE_API_URL "https://ingest.twitch.tv/api/v3/GetClientConfiguration"
+
+static const QString &device_id()
+{
+	static const QString device_id_ = []() -> QString {
+		auto config = App()->GlobalConfig();
+		if (!config_has_user_value(config, "General", "DeviceID")) {
+
+			auto new_device_id = QUuid::createUuid().toString(
+				QUuid::WithoutBraces);
+			config_set_string(config, "General", "DeviceID",
+					  new_device_id.toUtf8().constData());
+		}
+		return config_get_string(config, "General", "DeviceID");
+	}();
+	return device_id_;
+}
+
+static const QString &obs_session_id()
+{
+	static const QString session_id_ =
+		QUuid::createUuid().toString(QUuid::WithoutBraces);
+	return session_id_;
+}
 
 static void submit_event(BerryessaSubmitter *berryessa, const char *event_name,
 			 obs_data_t *data)
@@ -492,16 +516,16 @@ struct OutputObjects {
 	OBSServiceAutoRelease simulcast_service;
 };
 
-bool SimulcastOutput::PrepareStreaming(QWidget *parent,
-				       const QString &device_id,
-				       const QString &obs_session_id,
-				       const QString &rtmp_url,
+bool SimulcastOutput::PrepareStreaming(QWidget *parent, const QString &rtmp_url,
 				       const QString &stream_key,
 				       bool use_ertmp_multitrack)
 {
-	if (!berryessa_)
+	if (!berryessa_) {
 		berryessa_ = std::make_unique<BerryessaSubmitter>(
 			parent, "https://data.stats.live-video.net/");
+		berryessa_->setAlwaysString("device_id", device_id());
+		berryessa_->setAlwaysString("obs_session_id", obs_session_id());
+	}
 
 	auto attempt_start_time = GenerateStreamAttemptStartTime();
 
@@ -526,7 +550,7 @@ bool SimulcastOutput::PrepareStreaming(QWidget *parent,
 			return false;
 
 		auto simulcast_service =
-			create_service(device_id, obs_session_id,
+			create_service(device_id(), obs_session_id(),
 				       go_live_config, rtmp_url, stream_key);
 		if (!simulcast_service)
 			return false;
