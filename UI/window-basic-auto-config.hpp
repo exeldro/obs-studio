@@ -12,6 +12,7 @@
 #include <vector>
 #include <string>
 #include <mutex>
+#include <optional>
 
 class Ui_AutoConfigStartPage;
 class Ui_AutoConfigVideoPage;
@@ -75,6 +76,11 @@ class AutoConfig : public QWizard {
 	Type type = Type::Streaming;
 	FPSType fpsType = FPSType::PreferHighFPS;
 	int idealBitrate = 2500;
+	struct {
+		std::optional<int> targetBitrate;
+		std::optional<int> bitrate;
+		bool testSuccessful = false;
+	} simulcast;
 	int baseResolutionCX = 1920;
 	int baseResolutionCY = 1080;
 	int idealResolutionCX = 1280;
@@ -95,6 +101,7 @@ class AutoConfig : public QWizard {
 	int startingBitrate = 2500;
 	bool customServer = false;
 	bool bandwidthTest = false;
+	bool testSimulcast = false;
 	bool testRegions = true;
 	bool twitchAuto = false;
 	bool regionUS = true;

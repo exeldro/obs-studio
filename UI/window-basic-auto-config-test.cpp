@@ -287,6 +287,11 @@ void AutoConfigTestPage::TestBandwidthThread()
 	obs_service_apply_encoder_settings(service, vencoder_settings,
 					   aencoder_settings);
 
+	if (wiz->testSimulcast) {
+		obs_data_set_int(vencoder_settings, "bitrate",
+				 wiz->startingBitrate);
+	}
+
 	/* -----------------------------------*/
 	/* create output                      */
 
@@ -823,6 +828,10 @@ bool AutoConfigTestPage::TestSoftwareEncoding()
 		upperBitrate /= 100;
 	}
 
+	if (wiz->testSimulcast && wiz->simulcast.testSuccessful &&
+	    !wiz->simulcast.bitrate.has_value())
+		wiz->simulcast.bitrate = wiz->idealBitrate;
+
 	if (wiz->idealBitrate > upperBitrate)
 		wiz->idealBitrate = upperBitrate;
 
@@ -1080,6 +1089,10 @@ void AutoConfigTestPage::FinalizeResults()
 		OBSDataAutoRelease service_settings = obs_data_create();
 		OBSDataAutoRelease vencoder_settings = obs_data_create();
 
+		if (wiz->testSimulcast && wiz->simulcast.testSuccessful &&
+		    !wiz->simulcast.bitrate.has_value())
+			wiz->simulcast.bitrate = wiz->idealBitrate;
+
 		obs_data_set_int(vencoder_settings, "bitrate",
 				 wiz->idealBitrate);
 
@@ -1127,6 +1140,16 @@ void AutoConfigTestPage::FinalizeResults()
 		form->addRow(newLabel(TEST_RESULT_SE),
 			     new QLabel(encName(wiz->streamingEncoder),
 					ui->finishPage));
+
+		auto enabled = wiz->testSimulcast ? QTStr("Yes") : QTStr("No");
+		auto bitrate =
+			wiz->simulcast.bitrate.has_value()
+				? QString::number(*wiz->simulcast.bitrate)
+				: "-";
+		form->addRow(
+			newLabel(
+				"Basic.Settings.Stream.EnableSimulcastBitrate"),
+			new QLabel(QString("%1 (%2)").arg(enabled, bitrate)));
 	}
 
 	QString baseRes =
@@ -1168,6 +1191,8 @@ void AutoConfigTestPage::FinalizeResults()
 		     new QLabel(scaleRes, ui->finishPage));
 	form->addRow(newLabel("Basic.Settings.Video.FPS"),
 		     new QLabel(fpsStr, ui->finishPage));
+
+	// FIXME: form layout is super squished, probably need to set proper sizepolicy on all widgets?
 }
 
 #define STARTING_SEPARATOR \

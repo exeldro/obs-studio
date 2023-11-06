@@ -9,6 +9,11 @@
 #include "obs-app.hpp"
 #include "url-push-button.hpp"
 
+#include "goliveapi-postdata.hpp"
+#include "goliveapi-network.hpp"
+#include "immutable-date-time.h"
+#include "simulcast-error.h"
+
 #include "ui_AutoConfigStartPage.h"
 #include "ui_AutoConfigVideoPage.h"
 #include "ui_AutoConfigStreamPage.h"
@@ -260,6 +265,7 @@ AutoConfigStreamPage::AutoConfigStreamPage(QWidget *parent)
 	ui->bitrate->setVisible(false);
 	ui->connectAccount2->setVisible(false);
 	ui->disconnectAccount->setVisible(false);
+	ui->useSimulcast->setVisible(false);
 
 	ui->connectedAccountLabel->setVisible(false);
 	ui->connectedAccountText->setVisible(false);
@@ -405,6 +411,41 @@ bool AutoConfigStreamPage::validatePage()
 			wiz->service = AutoConfig::Service::Other;
 	} else {
 		wiz->service = AutoConfig::Service::Other;
+	}
+
+	if (wiz->service == AutoConfig::Service::Twitch) {
+		wiz->testSimulcast = ui->useSimulcast->isChecked();
+
+		auto postData =
+			constructGoLivePost(ImmutableDateTime::CurrentTimeUtc(),
+					    std::nullopt, std::nullopt);
+
+		try {
+			auto config = DownloadGoLiveConfig(
+				this, GO_LIVE_API_URL, postData);
+			OBSDataArrayAutoRelease encoder_configurations =
+				obs_data_get_array(config,
+						   "encoder_configurations");
+			int simulcastBitrate = 0;
+			for (size_t i = 0, numConfigs = obs_data_array_count(
+						   encoder_configurations);
+			     i < numConfigs; i++) {
+				OBSDataAutoRelease encoder_configuration =
+					obs_data_array_item(
+						encoder_configurations, i);
+				simulcastBitrate += obs_data_get_int(
+					encoder_configuration, "bitrate");
+			}
+
+			if (simulcastBitrate > 0) {
+				wiz->startingBitrate = simulcastBitrate;
+				wiz->idealBitrate = simulcastBitrate;
+				wiz->simulcast.targetBitrate = simulcastBitrate;
+				wiz->simulcast.testSuccessful = true;
+			}
+		} catch (const SimulcastError & /*err*/) {
+			// FIXME: do something sensible
+		}
 	}
 
 	if (wiz->service != AutoConfig::Service::Twitch &&
@@ -623,6 +664,8 @@ void AutoConfigStreamPage::ServiceChanged()
 	bool regionBased = service == "Twitch";
 	bool testBandwidth = ui->doBandwidthTest->isChecked();
 	bool custom = IsCustomService();
+
+	ui->useSimulcast->setVisible(service == "Twitch");
 
 	reset_service_ui_fields(service);
 
@@ -1139,6 +1182,24 @@ void AutoConfig::SaveStreamSettings()
 	config_set_string(main->Config(), "SimpleOutput", "StreamEncoder",
 			  GetEncoderId(streamingEncoder));
 	config_remove_value(main->Config(), "SimpleOutput", "UseAdvanced");
+
+	config_set_bool(main->Config(), "Stream1", "EnableSimulcast",
+			testSimulcast);
+
+	if (simulcast.targetBitrate.has_value())
+		config_set_int(main->Config(), "Stream1",
+			       "SimulcastTargetBitrate",
+			       *simulcast.targetBitrate);
+	else
+		config_remove_value(main->Config(), "Stream1",
+				    "SimulcastTargetBitrate");
+
+	if (simulcast.bitrate.has_value())
+		config_set_int(main->Config(), "Stream1",
+			       "SimulcastMeasuredBitrate", *simulcast.bitrate);
+	else
+		config_remove_value(main->Config(), "Stream1",
+				    "SimulcastMeasuredBitrate");
 }
 
 void AutoConfig::SaveSettings()
