@@ -29,8 +29,6 @@
 #include "ivs-events.h"
 #include "simulcast-error.h"
 
-#define GO_LIVE_API_URL "https://ingest.twitch.tv/api/v3/GetClientConfiguration"
-
 static const QString &device_id()
 {
 	static const QString device_id_ = []() -> QString {
