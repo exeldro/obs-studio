@@ -500,7 +500,7 @@ void SimulcastDockWidget::LoadConfig()
 	obs_data_set_default_bool(profile_, DATA_KEY_TELEMETRY_ENABLED, true);
 	obs_data_set_default_bool(profile_, DATA_KEY_USE_SERVER_CONFIG, true);
 	obs_data_set_default_bool(profile_, DATA_KEY_USE_ERTMP_MULTITRACK,
-				  false);
+				  true);
 
 	// Migrate old config values if necessary
 	if (obs_data_has_user_value(profile_, DATA_KEY_USE_TWITCH_CONFIG) &&
@@ -538,7 +538,11 @@ void SimulcastDockWidget::LoadConfig()
 	use_server_config_ =
 		obs_data_get_bool(profile_, DATA_KEY_USE_SERVER_CONFIG);
 	use_ertmp_multitrack_ =
+#ifdef ENABLE_IVS_DEV_FEATURES
 		obs_data_get_bool(profile_, DATA_KEY_USE_ERTMP_MULTITRACK);
+#else
+		true;
+#endif
 	custom_config_ = obs_data_get_string(profile_, DATA_KEY_CUSTOM_CONFIG);
 	settings_window_geometry_ = QByteArray::fromBase64(obs_data_get_string(
 		config_, DATA_KEY_SETTINGS_WINDOW_GEOMETRY));

@@ -1118,7 +1118,7 @@ bool SimpleOutput::SetupStreaming(obs_service_t *service)
 		auto key = obs_data_get_string(settings, "key");
 
 		try {
-			simulcast->PrepareStreaming(main, "", key, false);
+			simulcast->PrepareStreaming(main, "", key, true);
 
 			simulcastActive = true;
 
@@ -2171,7 +2171,7 @@ bool AdvancedOutput::SetupStreaming(obs_service_t *service)
 		auto key = obs_data_get_string(settings, "key");
 
 		try {
-			simulcast->PrepareStreaming(main, "", key, false);
+			simulcast->PrepareStreaming(main, "", key, true);
 
 			simulcastActive = true;
 
