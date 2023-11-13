@@ -6182,8 +6182,6 @@ void OBSBasicSettings::UpdateSimulcasting()
 
 	ui->simulcastInfo->setVisible(available);
 	ui->enableSimulcast->setVisible(available);
-	if (!available)
-		ui->enableSimulcast->setEnabled(false);
 
 	if (available) {
 		ui->simulcastInfo->setText(
