@@ -80,6 +80,7 @@ class AutoConfig : public QWizard {
 		std::optional<int> targetBitrate;
 		std::optional<int> bitrate;
 		bool testSuccessful = false;
+		bool enabled = false;
 	} simulcast;
 	int baseResolutionCX = 1920;
 	int baseResolutionCY = 1080;

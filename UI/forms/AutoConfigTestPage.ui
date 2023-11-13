@@ -88,6 +88,16 @@
         </widget>
        </item>
        <item>
+        <widget class="QCheckBox" name="useSimulcast">
+         <property name="text">
+          <string>Basic.Settings.Stream.EnableSimulcast</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QLabel" name="finalResultLabel_2">
          <property name="text">
           <string>Basic.AutoConfig.TestPage.Result.Footer</string>

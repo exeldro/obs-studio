@@ -1184,7 +1184,7 @@ void AutoConfig::SaveStreamSettings()
 	config_remove_value(main->Config(), "SimpleOutput", "UseAdvanced");
 
 	config_set_bool(main->Config(), "Stream1", "EnableSimulcast",
-			testSimulcast);
+			simulcast.enabled);
 
 	if (simulcast.targetBitrate.has_value())
 		config_set_int(main->Config(), "Stream1",

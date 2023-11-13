@@ -1152,6 +1152,12 @@ void AutoConfigTestPage::FinalizeResults()
 			new QLabel(QString("%1 (%2)").arg(enabled, bitrate)));
 	}
 
+	ui->useSimulcast->setChecked(wiz->testSimulcast);
+
+	wiz->simulcast.enabled = wiz->testSimulcast;
+	connect(ui->useSimulcast, &QCheckBox::toggled,
+		[&](bool checked) { wiz->simulcast.enabled = checked; });
+
 	QString baseRes =
 		QString("%1x%2").arg(QString::number(wiz->baseResolutionCX),
 				     QString::number(wiz->baseResolutionCY));
