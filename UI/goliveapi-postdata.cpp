@@ -3,10 +3,10 @@
 #include "immutable-date-time.h"
 #include "system-info.h"
 
-OBSDataAutoRelease constructGoLivePost(
-	const ImmutableDateTime &attempt_start_time,
-	const std::optional<uint64_t> &preference_maximum_bitrate,
-	const std::optional<uint32_t> &preference_maximum_renditions)
+OBSDataAutoRelease
+constructGoLivePost(const ImmutableDateTime &attempt_start_time,
+		    const std::optional<uint64_t> &maximum_aggregate_bitrate,
+		    const std::optional<uint32_t> &reserved_encoder_sessions)
 {
 	OBSDataAutoRelease postData = obs_data_create();
 	OBSDataAutoRelease capabilitiesData = obs_data_create();
@@ -42,12 +42,12 @@ OBSDataAutoRelease constructGoLivePost(
 
 	OBSDataAutoRelease preferences = obs_data_create();
 	obs_data_set_obj(postData, "preferences", preferences);
-	if (preference_maximum_bitrate.has_value())
-		obs_data_set_int(preferences, "maximum_bitrate",
-				 preference_maximum_bitrate.value());
-	if (preference_maximum_renditions.has_value())
-		obs_data_set_int(preferences, "maximum_renditions",
-				 preference_maximum_renditions.value());
+	if (maximum_aggregate_bitrate.has_value())
+		obs_data_set_int(preferences, "maximum_aggregate_bitrate",
+				 maximum_aggregate_bitrate.value());
+	if (reserved_encoder_sessions.has_value())
+		obs_data_set_int(preferences, "reserved_encoder_sessions",
+				 reserved_encoder_sessions.value());
 
 #if 0
 	// XXX hardcoding the present-day AdvancedOutput behavior here..
