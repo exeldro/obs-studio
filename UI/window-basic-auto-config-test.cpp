@@ -1152,6 +1152,12 @@ void AutoConfigTestPage::FinalizeResults()
 			new QLabel(QString("%1 (%2)").arg(enabled, bitrate)));
 	}
 
+	ui->simulcastInfo->setVisible(wiz->service ==
+				      AutoConfig::Service::Twitch);
+	ui->simulcastInfo->setText(
+		QTStr("Simulcast.Info").arg(wiz->serviceName.c_str()));
+	ui->useSimulcast->setVisible(wiz->service ==
+				     AutoConfig::Service::Twitch);
 	ui->useSimulcast->setChecked(wiz->testSimulcast);
 
 	wiz->simulcast.enabled = wiz->testSimulcast;

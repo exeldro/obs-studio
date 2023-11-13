@@ -1372,6 +1372,22 @@
               </widget>
              </item>
              <item row="13" column="1">
+              <widget class="QLabel" name="simulcastInfo">
+               <property name="text">
+                <string>Simulcast.Info</string>
+               </property>
+               <property name="textFormat">
+                <enum>Qt::RichText</enum>
+               </property>
+               <property name="wordWrap">
+                <bool>true</bool>
+               </property>
+               <property name="openExternalLinks">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item row="14" column="1">
               <widget class="QCheckBox" name="enableSimulcast">
                <property name="text">
                 <string>Basic.Settings.Stream.EnableSimulcast</string>

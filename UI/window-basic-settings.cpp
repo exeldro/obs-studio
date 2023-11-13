@@ -6180,11 +6180,14 @@ void OBSBasicSettings::UpdateSimulcasting()
 	// FIXME: protocol is not updated properly for WHIP; what do?
 	auto available = protocol.startsWith("RTMP");
 
+	ui->simulcastInfo->setVisible(available);
 	ui->enableSimulcast->setVisible(available);
 	if (!available)
 		ui->enableSimulcast->setEnabled(false);
 
 	if (available) {
+		ui->simulcastInfo->setText(
+			QTStr("Simulcast.Info").arg(ui->service->currentText()));
 		ui->enableSimulcast->setText(
 			QTStr("Basic.Settings.Stream.EnableSimulcast")
 				.arg(ui->service->currentText()));
