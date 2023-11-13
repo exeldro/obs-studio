@@ -148,6 +148,24 @@ void OBSBasicSettings::LoadStream1Settings()
 	ui->enableSimulcast->setChecked(
 		config_get_bool(main->Config(), "Stream1", "EnableSimulcast"));
 
+	ui->simulcastMaximumAggregateBitrateAuto->setChecked(
+		config_get_bool(main->Config(), "Stream1",
+				"SimulcastMaximumAggregateBitrateAuto"));
+	if (config_has_user_value(main->Config(), "Stream1",
+				  "SimulcastMaximumAggregateBitrate"))
+		ui->simulcastMaximumAggregateBitrate->setValue(
+			config_get_int(main->Config(), "Stream1",
+				       "SimulcastMaximumAggregateBitrate"));
+
+	ui->simulcastReservedEncoderSessionsAuto->setChecked(
+		config_get_bool(main->Config(), "Stream1",
+				"SimulcastReservedEncoderSessionsAuto"));
+	if (config_has_user_value(main->Config(), "Stream1",
+				  "SimulcastReservedEncoderSessions"))
+		ui->simulcastReservedEncoderSessions->setValue(
+			config_get_int(main->Config(), "Stream1",
+				       "SimulcastReservedEncoderSessions"));
+
 	UpdateServerList();
 
 	if (is_rtmp_common) {
@@ -271,7 +289,17 @@ void OBSBasicSettings::SaveStream1Settings()
 
 	auto oldSimulcastSetting =
 		config_get_bool(main->Config(), "Stream1", "EnableSimulcast");
+
 	SaveCheckBox(ui->enableSimulcast, "Stream1", "EnableSimulcast");
+	SaveCheckBox(ui->simulcastMaximumAggregateBitrateAuto, "Stream1",
+		     "SimulcastMaximumAggregateBitrateAuto");
+	SaveSpinBox(ui->simulcastMaximumAggregateBitrate, "Stream1",
+		    "SimulcastMaximumAggregateBitrate");
+	SaveCheckBox(ui->simulcastReservedEncoderSessionsAuto, "Stream1",
+		     "SimulcastReserverEncoderSessionsAuto");
+	SaveSpinBox(ui->simulcastReservedEncoderSessions, "Stream1",
+		    "SimulcastReservedEncoderSessions");
+
 	if (oldSimulcastSetting != ui->enableSimulcast->isChecked())
 		main->ResetOutputs();
 }
@@ -530,6 +558,23 @@ void OBSBasicSettings::on_customServer_textChanged(const QString &)
 
 	if (ServiceSupportsCodecCheck())
 		lastCustomServer = ui->customServer->text();
+}
+
+void OBSBasicSettings::on_enableSimulcast_toggled(bool /*enabled*/)
+{
+	UpdateSimulcasting();
+}
+
+void OBSBasicSettings::on_simulcastMaximumAggregateBitrateAuto_toggled(
+	bool /*enabled*/)
+{
+	UpdateSimulcasting();
+}
+
+void OBSBasicSettings::on_simulcastReservedEncoderSessionsAuto_toggled(
+	bool /*enabled*/)
+{
+	UpdateSimulcasting();
 }
 
 void OBSBasicSettings::ServiceChanged(bool resetFields)

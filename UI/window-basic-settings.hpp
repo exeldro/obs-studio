@@ -389,6 +389,9 @@ private slots:
 
 	void on_service_currentIndexChanged(int idx);
 	void on_customServer_textChanged(const QString &text);
+	void on_enableSimulcast_toggled(bool enabled);
+	void on_simulcastMaximumAggregateBitrateAuto_toggled(bool enabled);
+	void on_simulcastReservedEncoderSessionsAuto_toggled(bool enabled);
 	void on_simpleOutputBrowse_clicked();
 	void on_advOutRecPathBrowse_clicked();
 	void on_advOutFFPathBrowse_clicked();

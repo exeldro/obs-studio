@@ -515,9 +515,11 @@ struct OutputObjects {
 	OBSServiceAutoRelease simulcast_service;
 };
 
-void SimulcastOutput::PrepareStreaming(QWidget *parent, const QString &rtmp_url,
-				       const QString &stream_key,
-				       bool use_ertmp_multitrack)
+void SimulcastOutput::PrepareStreaming(
+	QWidget *parent, const QString &rtmp_url, const QString &stream_key,
+	bool use_ertmp_multitrack,
+	std::optional<uint32_t> maximum_aggregate_bitrate,
+	std::optional<uint32_t> reserved_encoder_sessions)
 {
 	if (!berryessa_) {
 		berryessa_ = std::make_unique<BerryessaSubmitter>(
@@ -533,7 +535,8 @@ void SimulcastOutput::PrepareStreaming(QWidget *parent, const QString &rtmp_url,
 
 	try {
 		go_live_post = constructGoLivePost(attempt_start_time,
-						   std::nullopt, std::nullopt);
+						   maximum_aggregate_bitrate,
+						   reserved_encoder_sessions);
 
 		go_live_config = DownloadGoLiveConfig(parent, GO_LIVE_API_URL,
 						      go_live_post);

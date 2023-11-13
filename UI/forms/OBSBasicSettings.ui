@@ -1394,6 +1394,80 @@
                </property>
               </widget>
              </item>
+             <item row="15" column="0">
+              <widget class="QLabel" name="simulcastMaximumAggregateBitrateLabel">
+               <property name="text">
+                <string>Basic.Settings.Stream.SimulcastMaximumAggregateBitrate</string>
+               </property>
+              </widget>
+             </item>
+             <item row="15" column="1">
+              <layout class="QHBoxLayout">
+               <item>
+                <widget class="QCheckBox" name="simulcastMaximumAggregateBitrateAuto">
+                 <property name="text">
+                  <string>Basic.Settings.Stream.SimulcastMaximumAggregateBitrateAuto</string>
+                 </property>
+                 <property name="sizePolicy">
+                  <enum>QSizePolicy::Minimum, QSizePolicy::Minimum</enum>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QSpinBox" name="simulcastMaximumAggregateBitrate">
+                 <property name="sizePolicy">
+                  <enum>QSizePolicy::MinimumExpanding, QSizePolicy::Minimum</enum>
+                 </property>
+                 <property name="minimum">
+                  <number>500</number>
+                 </property>
+                 <property name="maximum">
+                  <number>1000000</number>
+                 </property>
+                 <property name="value">
+                  <number>8000</number>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item row="16" column="0">
+              <widget class="QLabel" name="simulcastReservedEncoderSessionsLabel">
+               <property name="text">
+                <string>Basic.Settings.Stream.SimulcastReservedEncoderSessions</string>
+               </property>
+              </widget>
+             </item>
+             <item row="16" column="1">
+              <layout class="QHBoxLayout">
+               <item>
+                <widget class="QCheckBox" name="simulcastReservedEncoderSessionsAuto">
+                 <property name="text">
+                  <string>Basic.Settings.Stream.SimulcastReservedEncoderSessionsAuto</string>
+                 </property>
+                 <property name="sizePolicy">
+                  <enum>QSizePolicy::Minimum, QSizePolicy::Minimum</enum>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QSpinBox" name="simulcastReservedEncoderSessions">
+                 <property name="sizePolicy">
+                  <enum>QSizePolicy::MinimumExpanding, QSizePolicy::Minimum</enum>
+                 </property>
+                 <property name="minimum">
+                  <number>0</number>
+                 </property>
+                 <property name="maximum">
+                  <number>100</number>
+                 </property>
+                 <property name="value">
+                  <number>0</number>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
              <item row="5" column="1">
               <layout class="QHBoxLayout" name="horizontalLayout_28">
                <item>

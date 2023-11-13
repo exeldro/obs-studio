@@ -1587,6 +1587,10 @@ bool OBSBasic::InitBasicConfigDefaults()
 
 	config_set_default_bool(basicConfig, "Stream1", "IgnoreRecommended",
 				false);
+	config_set_default_bool(basicConfig, "Stream1",
+				"SimulcastMaximumAggregateBitrateAuto", true);
+	config_set_default_bool(basicConfig, "Stream1",
+				"SimulcastReservedEncoderSessionsAuto", true);
 
 	config_set_default_string(basicConfig, "SimpleOutput", "FilePath",
 				  GetDefaultVideoSavePath().c_str());

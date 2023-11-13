@@ -1117,8 +1117,26 @@ bool SimpleOutput::SetupStreaming(obs_service_t *service)
 		OBSDataAutoRelease settings = obs_service_get_settings(service);
 		auto key = obs_data_get_string(settings, "key");
 
+		auto maximum_aggregate_bitrate =
+			config_get_bool(main->Config(), "Stream1",
+					"SimulcastMaximumAggregateBitrateAuto")
+				? std::nullopt
+				: std::make_optional<uint32_t>(config_get_int(
+					  main->Config(), "Stream1",
+					  "SimulcastMaximumAggregateBitrate"));
+
+		auto reserved_encoder_sessions =
+			config_get_bool(main->Config(), "Stream1",
+					"SimulcastReservedEncoderSessionsAuto")
+				? std::nullopt
+				: std::make_optional<uint32_t>(config_get_int(
+					  main->Config(), "Stream1",
+					  "SimulcastReservedEncoderSessions"));
+
 		try {
-			simulcast->PrepareStreaming(main, "", key, true);
+			simulcast->PrepareStreaming(main, "", key, true,
+						    maximum_aggregate_bitrate,
+						    reserved_encoder_sessions);
 
 			simulcastActive = true;
 
@@ -2170,8 +2188,26 @@ bool AdvancedOutput::SetupStreaming(obs_service_t *service)
 		OBSDataAutoRelease settings = obs_service_get_settings(service);
 		auto key = obs_data_get_string(settings, "key");
 
+		auto maximum_aggregate_bitrate =
+			config_get_bool(main->Config(), "Stream1",
+					"SimulcastMaximumAggregateBitrateAuto")
+				? std::nullopt
+				: std::make_optional<uint32_t>(config_get_int(
+					  main->Config(), "Stream1",
+					  "SimulcastMaximumAggregateBitrate"));
+
+		auto reserved_encoder_sessions =
+			config_get_bool(main->Config(), "Stream1",
+					"SimulcastReservedEncoderSessionsAuto")
+				? std::nullopt
+				: std::make_optional<uint32_t>(config_get_int(
+					  main->Config(), "Stream1",
+					  "SimulcastReservedEncoderSessions"));
+
 		try {
-			simulcast->PrepareStreaming(main, "", key, true);
+			simulcast->PrepareStreaming(main, "", key, true,
+						    maximum_aggregate_bitrate,
+						    reserved_encoder_sessions);
 
 			simulcastActive = true;
 

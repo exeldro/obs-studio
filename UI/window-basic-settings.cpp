@@ -417,6 +417,10 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	HookWidget(ui->authPw,               EDIT_CHANGED,   STREAM1_CHANGED);
 	HookWidget(ui->ignoreRecommended,    CHECK_CHANGED,  STREAM1_CHANGED);
 	HookWidget(ui->enableSimulcast,      CHECK_CHANGED,  STREAM1_CHANGED);
+	HookWidget(ui->simulcastMaximumAggregateBitrateAuto, CHECK_CHANGED,  STREAM1_CHANGED);
+	HookWidget(ui->simulcastMaximumAggregateBitrate,     SCROLL_CHANGED, STREAM1_CHANGED);
+	HookWidget(ui->simulcastReservedEncoderSessionsAuto, CHECK_CHANGED,  STREAM1_CHANGED);
+	HookWidget(ui->simulcastReservedEncoderSessions,     SCROLL_CHANGED, STREAM1_CHANGED);
 	HookWidget(ui->outputMode,           COMBO_CHANGED,  OUTPUTS_CHANGED);
 	HookWidget(ui->simpleOutputPath,     EDIT_CHANGED,   OUTPUTS_CHANGED);
 	HookWidget(ui->simpleNoSpace,        CHECK_CHANGED,  OUTPUTS_CHANGED);
@@ -6182,6 +6186,30 @@ void OBSBasicSettings::UpdateSimulcasting()
 
 	ui->simulcastInfo->setVisible(available);
 	ui->enableSimulcast->setVisible(available);
+
+	ui->simulcastMaximumAggregateBitrateLabel->setVisible(available);
+	ui->simulcastMaximumAggregateBitrateAuto->setVisible(available);
+	ui->simulcastMaximumAggregateBitrate->setVisible(available);
+
+	ui->simulcastMaximumAggregateBitrateLabel->setEnabled(
+		ui->enableSimulcast->isChecked());
+	ui->simulcastMaximumAggregateBitrateAuto->setEnabled(
+		ui->enableSimulcast->isChecked());
+	ui->simulcastMaximumAggregateBitrate->setEnabled(
+		ui->enableSimulcast->isChecked() &&
+		!ui->simulcastMaximumAggregateBitrateAuto->isChecked());
+
+	ui->simulcastReservedEncoderSessionsLabel->setVisible(available);
+	ui->simulcastReservedEncoderSessionsAuto->setVisible(available);
+	ui->simulcastReservedEncoderSessions->setVisible(available);
+
+	ui->simulcastReservedEncoderSessionsLabel->setEnabled(
+		ui->enableSimulcast->isChecked());
+	ui->simulcastReservedEncoderSessionsAuto->setEnabled(
+		ui->enableSimulcast->isChecked());
+	ui->simulcastReservedEncoderSessions->setEnabled(
+		ui->enableSimulcast->isChecked() &&
+		!ui->simulcastReservedEncoderSessionsAuto->isChecked());
 
 	if (available) {
 		ui->simulcastInfo->setText(
