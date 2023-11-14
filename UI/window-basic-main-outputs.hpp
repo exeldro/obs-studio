@@ -92,6 +92,8 @@ protected:
 					 const char *container, bool noSpace,
 					 bool overwrite, const char *format,
 					 bool ffmpeg);
+
+	std::optional<bool> SetupSimulcast(obs_service_t *service);
 };
 
 BasicOutputHandler *CreateSimpleOutputHandler(OBSBasic *main);

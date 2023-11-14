@@ -1107,71 +1107,9 @@ bool SimpleOutput::SetupStreaming(obs_service_t *service)
 	if (!type)
 		return false;
 
-	if (simulcast) {
-		simulcastActive = false;
-
-		streamDelayStarting.Disconnect();
-		streamStopping.Disconnect();
-		startStreaming.Disconnect();
-		stopStreaming.Disconnect();
-
-		OBSDataAutoRelease settings = obs_service_get_settings(service);
-		auto key = obs_data_get_string(settings, "key");
-
-		auto maximum_aggregate_bitrate =
-			config_get_bool(main->Config(), "Stream1",
-					"SimulcastMaximumAggregateBitrateAuto")
-				? std::nullopt
-				: std::make_optional<uint32_t>(config_get_int(
-					  main->Config(), "Stream1",
-					  "SimulcastMaximumAggregateBitrate"));
-
-		auto reserved_encoder_sessions =
-			config_get_bool(main->Config(), "Stream1",
-					"SimulcastReservedEncoderSessionsAuto")
-				? std::nullopt
-				: std::make_optional<uint32_t>(config_get_int(
-					  main->Config(), "Stream1",
-					  "SimulcastReservedEncoderSessions"));
-
-		if (!maximum_aggregate_bitrate.has_value() &&
-		    config_has_user_value(main->Config(), "Stream1",
-					  "SimulcastMeasuredBitrate")) {
-			maximum_aggregate_bitrate =
-				config_get_int(main->Config(), "Stream1",
-					       "SimulcastMeasuredBitrate");
-			blog(LOG_INFO,
-			     "Sending speedtest bitrate (%" PRIu32
-			     ") as maximum aggregate bitrate",
-			     maximum_aggregate_bitrate.value());
-		}
-
-		try {
-			simulcast->PrepareStreaming(main, "", key, true,
-						    maximum_aggregate_bitrate,
-						    reserved_encoder_sessions);
-
-			simulcastActive = true;
-
-			auto signal_handler =
-				simulcast->StreamingSignalHandler();
-
-			streamDelayStarting.Connect(signal_handler, "starting",
-						    OBSStreamStarting, this);
-			streamStopping.Connect(signal_handler, "stopping",
-					       OBSStreamStopping, this);
-
-			startStreaming.Connect(signal_handler, "start",
-					       OBSStartStreaming, this);
-			stopStreaming.Connect(signal_handler, "stop",
-					      OBSStopStreaming, this);
-			return true;
-		} catch (const SimulcastError &error) {
-			simulcastActive = false;
-			if (!error.ShowDialog(main))
-				return false;
-		}
-	}
+	auto simulcastResult = SetupSimulcast(service);
+	if (simulcastResult.has_value())
+		return simulcastResult.value();
 
 	/* XXX: this is messy and disgusting and should be refactored */
 	if (outputType != type) {
@@ -2190,71 +2128,9 @@ bool AdvancedOutput::SetupStreaming(obs_service_t *service)
 	if (!type)
 		return false;
 
-	if (simulcast) {
-		simulcastActive = false;
-
-		streamDelayStarting.Disconnect();
-		streamStopping.Disconnect();
-		startStreaming.Disconnect();
-		stopStreaming.Disconnect();
-
-		OBSDataAutoRelease settings = obs_service_get_settings(service);
-		auto key = obs_data_get_string(settings, "key");
-
-		auto maximum_aggregate_bitrate =
-			config_get_bool(main->Config(), "Stream1",
-					"SimulcastMaximumAggregateBitrateAuto")
-				? std::nullopt
-				: std::make_optional<uint32_t>(config_get_int(
-					  main->Config(), "Stream1",
-					  "SimulcastMaximumAggregateBitrate"));
-
-		auto reserved_encoder_sessions =
-			config_get_bool(main->Config(), "Stream1",
-					"SimulcastReservedEncoderSessionsAuto")
-				? std::nullopt
-				: std::make_optional<uint32_t>(config_get_int(
-					  main->Config(), "Stream1",
-					  "SimulcastReservedEncoderSessions"));
-
-		if (!maximum_aggregate_bitrate.has_value() &&
-		    config_has_user_value(main->Config(), "Stream1",
-					  "SimulcastMeasuredBitrate")) {
-			maximum_aggregate_bitrate =
-				config_get_int(main->Config(), "Stream1",
-					       "SimulcastMeasuredBitrate");
-			blog(LOG_INFO,
-			     "Sending speedtest bitrate (%" PRIu32
-			     ") as maximum aggregate bitrate",
-			     maximum_aggregate_bitrate.value());
-		}
-
-		try {
-			simulcast->PrepareStreaming(main, "", key, true,
-						    maximum_aggregate_bitrate,
-						    reserved_encoder_sessions);
-
-			simulcastActive = true;
-
-			auto signal_handler =
-				simulcast->StreamingSignalHandler();
-
-			streamDelayStarting.Connect(signal_handler, "starting",
-						    OBSStreamStarting, this);
-			streamStopping.Connect(signal_handler, "stopping",
-					       OBSStreamStopping, this);
-
-			startStreaming.Connect(signal_handler, "start",
-					       OBSStartStreaming, this);
-			stopStreaming.Connect(signal_handler, "stop",
-					      OBSStopStreaming, this);
-			return true;
-		} catch (const SimulcastError &error) {
-			simulcastActive = false;
-			if (!error.ShowDialog(main))
-				return false;
-		}
-	}
+	auto simulcastResult = SetupSimulcast(service);
+	if (simulcastResult.has_value())
+		return simulcastResult.value();
 
 	/* XXX: this is messy and disgusting and should be refactored */
 	if (outputType != type) {
@@ -2609,6 +2485,76 @@ std::string BasicOutputHandler::GetRecordingFilename(
 		GetOutputFilename(path, container, noSpace, overwrite, format);
 	lastRecordingPath = dst;
 	return dst;
+}
+
+std::optional<bool> BasicOutputHandler::SetupSimulcast(obs_service_t *service)
+{
+	if (!simulcast)
+		return std::nullopt;
+
+	simulcastActive = false;
+
+	streamDelayStarting.Disconnect();
+	streamStopping.Disconnect();
+	startStreaming.Disconnect();
+	stopStreaming.Disconnect();
+
+	OBSDataAutoRelease settings = obs_service_get_settings(service);
+	auto key = obs_data_get_string(settings, "key");
+
+	auto maximum_aggregate_bitrate =
+		config_get_bool(main->Config(), "Stream1",
+				"SimulcastMaximumAggregateBitrateAuto")
+			? std::nullopt
+			: std::make_optional<uint32_t>(config_get_int(
+				  main->Config(), "Stream1",
+				  "SimulcastMaximumAggregateBitrate"));
+
+	auto reserved_encoder_sessions =
+		config_get_bool(main->Config(), "Stream1",
+				"SimulcastReservedEncoderSessionsAuto")
+			? std::nullopt
+			: std::make_optional<uint32_t>(config_get_int(
+				  main->Config(), "Stream1",
+				  "SimulcastReservedEncoderSessions"));
+
+	if (!maximum_aggregate_bitrate.has_value() &&
+	    config_has_user_value(main->Config(), "Stream1",
+				  "SimulcastMeasuredBitrate")) {
+		maximum_aggregate_bitrate = config_get_int(
+			main->Config(), "Stream1", "SimulcastMeasuredBitrate");
+		blog(LOG_INFO,
+		     "Sending speedtest bitrate (%" PRIu32
+		     ") as maximum aggregate bitrate",
+		     maximum_aggregate_bitrate.value());
+	}
+
+	try {
+		simulcast->PrepareStreaming(main, "", key, true,
+					    maximum_aggregate_bitrate,
+					    reserved_encoder_sessions);
+
+		simulcastActive = true;
+
+		auto signal_handler = simulcast->StreamingSignalHandler();
+
+		streamDelayStarting.Connect(signal_handler, "starting",
+					    OBSStreamStarting, this);
+		streamStopping.Connect(signal_handler, "stopping",
+				       OBSStreamStopping, this);
+
+		startStreaming.Connect(signal_handler, "start",
+				       OBSStartStreaming, this);
+		stopStreaming.Connect(signal_handler, "stop", OBSStopStreaming,
+				      this);
+		return true;
+	} catch (const SimulcastError &error) {
+		simulcastActive = false;
+		if (!error.ShowDialog(main))
+			return false;
+	}
+
+	return std::nullopt;
 }
 
 BasicOutputHandler *CreateSimpleOutputHandler(OBSBasic *main)
