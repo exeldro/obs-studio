@@ -139,8 +139,8 @@ static OBSServiceAutoRelease create_service(const QString &device_id,
 	obs_data_set_string(settings, "key",
 			    key_with_param.toUtf8().constData());
 
-	auto service = obs_service_create(
-		"simulcast_service", "simulcast service", settings, nullptr);
+	auto service = obs_service_create("rtmp_custom", "simulcast service",
+					  settings, nullptr);
 
 	if (!service) {
 		blog(LOG_WARNING, "Failed to create simulcast service");
