@@ -68,6 +68,8 @@ public slots:
 	}
 };
 
+std::string DeserializeConfigText(const char *value);
+
 class OBSBasicSettings : public QDialog {
 	Q_OBJECT
 	Q_PROPERTY(QIcon generalIcon READ GetGeneralIcon WRITE SetGeneralIcon
@@ -172,6 +174,8 @@ private:
 		      const char *value);
 	void SaveSpinBox(QSpinBox *widget, const char *section,
 			 const char *value);
+	void SaveText(QPlainTextEdit *widget, const char *section,
+		      const char *value);
 	void SaveFormat(QComboBox *combo);
 	void SaveEncoder(QComboBox *combo, const char *section,
 			 const char *value);
@@ -392,6 +396,7 @@ private slots:
 	void on_enableSimulcast_toggled(bool enabled);
 	void on_simulcastMaximumAggregateBitrateAuto_toggled(bool enabled);
 	void on_simulcastReservedEncoderSessionsAuto_toggled(bool enabled);
+	void on_simulcastConfigOverrideEnable_toggled(bool enabled);
 	void on_simpleOutputBrowse_clicked();
 	void on_advOutRecPathBrowse_clicked();
 	void on_advOutFFPathBrowse_clicked();

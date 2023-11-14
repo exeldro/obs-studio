@@ -1468,6 +1468,27 @@
                </item>
               </layout>
              </item>
+             <item row="17" column="1">
+              <widget class="QCheckBox" name="simulcastConfigOverrideEnable">
+                <property name="text">
+                <string>Basic.Settings.Stream.SimulcastConfigOverrideEnable</string>
+                </property>
+              </widget>
+             </item>
+             <item row="18" column="0">
+              <widget class="QLabel" name="simulcastConfigOverrideLabel">
+               <property name="text">
+                <string>Basic.Settings.Stream.SimulcastConfigOverride</string>
+               </property>
+              </widget>
+             </item>
+             <item row="18" column="1">
+              <widget class="QPlainTextEdit" name="simulcastConfigOverride">
+                <property name="sizePolicy">
+                <enum>QSizePolicy::Preferred, QSizePolicy::MinimumExpanding</enum>
+                </property>
+              </widget>
+             </item>
              <item row="5" column="1">
               <layout class="QHBoxLayout" name="horizontalLayout_28">
                <item>

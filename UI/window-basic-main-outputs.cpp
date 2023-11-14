@@ -2487,6 +2487,8 @@ std::string BasicOutputHandler::GetRecordingFilename(
 	return dst;
 }
 
+extern std::string DeserializeConfigText(const char *text);
+
 std::optional<bool> BasicOutputHandler::SetupSimulcast(obs_service_t *service)
 {
 	if (!simulcast)
@@ -2529,10 +2531,17 @@ std::optional<bool> BasicOutputHandler::SetupSimulcast(obs_service_t *service)
 		     maximum_aggregate_bitrate.value());
 	}
 
+	std::optional<std::string> custom_config = std::nullopt;
+	if (config_get_bool(main->Config(), "Stream1",
+			    "SimulcastConfigOverrideEnabled"))
+		custom_config = DeserializeConfigText(config_get_string(
+			main->Config(), "Stream1", "SimulcastConfigOverride"));
+
 	try {
 		simulcast->PrepareStreaming(main, "", key, true,
 					    maximum_aggregate_bitrate,
-					    reserved_encoder_sessions);
+					    reserved_encoder_sessions,
+					    custom_config);
 
 		simulcastActive = true;
 

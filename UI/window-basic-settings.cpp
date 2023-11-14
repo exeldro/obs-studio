@@ -337,6 +337,7 @@ void RestrictResetBitrates(initializer_list<QComboBox *> boxes, int maxbitrate);
 #define GROUP_CHANGED   &QGroupBox::toggled
 #define SCROLL_CHANGED  &QSpinBox::valueChanged
 #define DSCROLL_CHANGED &QDoubleSpinBox::valueChanged
+#define TEXT_CHANGED    &QPlainTextEdit::textChanged
 
 #define GENERAL_CHANGED &OBSBasicSettings::GeneralChanged
 #define STREAM1_CHANGED &OBSBasicSettings::Stream1Changed
@@ -421,6 +422,8 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	HookWidget(ui->simulcastMaximumAggregateBitrate,     SCROLL_CHANGED, STREAM1_CHANGED);
 	HookWidget(ui->simulcastReservedEncoderSessionsAuto, CHECK_CHANGED,  STREAM1_CHANGED);
 	HookWidget(ui->simulcastReservedEncoderSessions,     SCROLL_CHANGED, STREAM1_CHANGED);
+	HookWidget(ui->simulcastConfigOverrideEnable,        CHECK_CHANGED,  STREAM1_CHANGED);
+	HookWidget(ui->simulcastConfigOverride,              TEXT_CHANGED,   STREAM1_CHANGED);
 	HookWidget(ui->outputMode,           COMBO_CHANGED,  OUTPUTS_CHANGED);
 	HookWidget(ui->simpleOutputPath,     EDIT_CHANGED,   OUTPUTS_CHANGED);
 	HookWidget(ui->simpleNoSpace,        CHECK_CHANGED,  OUTPUTS_CHANGED);
@@ -1027,6 +1030,27 @@ void OBSBasicSettings::SaveSpinBox(QSpinBox *widget, const char *section,
 {
 	if (WidgetChanged(widget))
 		config_set_int(main->Config(), section, value, widget->value());
+}
+
+void OBSBasicSettings::SaveText(QPlainTextEdit *widget, const char *section,
+				const char *value)
+{
+	if (!WidgetChanged(widget))
+		return;
+
+	auto utf8 = widget->toPlainText().toUtf8();
+
+	OBSDataAutoRelease safe_text = obs_data_create();
+	obs_data_set_string(safe_text, "text", utf8.constData());
+
+	config_set_string(main->Config(), section, value,
+			  obs_data_get_json(safe_text));
+}
+
+std::string DeserializeConfigText(const char *value)
+{
+	OBSDataAutoRelease data = obs_data_create_from_json(value);
+	return obs_data_get_string(data, "text");
 }
 
 #define CS_PARTIAL_STR QTStr("Basic.Settings.Advanced.Video.ColorRange.Partial")
@@ -6179,6 +6203,8 @@ void OBSBasicSettings::UpdateAdvNetworkGroup()
 #endif
 }
 
+extern bool SimulcastDeveloperModeEnabled();
+
 void OBSBasicSettings::UpdateSimulcasting()
 {
 	// FIXME: protocol is not updated properly for WHIP; what do?
@@ -6210,6 +6236,22 @@ void OBSBasicSettings::UpdateSimulcasting()
 	ui->simulcastReservedEncoderSessions->setEnabled(
 		ui->enableSimulcast->isChecked() &&
 		!ui->simulcastReservedEncoderSessionsAuto->isChecked());
+
+	ui->simulcastConfigOverrideEnable->setVisible(
+		available && SimulcastDeveloperModeEnabled());
+	ui->simulcastConfigOverrideLabel->setVisible(
+		available && SimulcastDeveloperModeEnabled());
+	ui->simulcastConfigOverride->setVisible(
+		available && SimulcastDeveloperModeEnabled());
+
+	ui->simulcastConfigOverrideEnable->setEnabled(
+		ui->enableSimulcast->isChecked());
+	ui->simulcastConfigOverrideLabel->setEnabled(
+		ui->enableSimulcast->isChecked() &&
+		ui->simulcastConfigOverrideEnable->isChecked());
+	ui->simulcastConfigOverride->setEnabled(
+		ui->enableSimulcast->isChecked() &&
+		ui->simulcastConfigOverrideEnable->isChecked());
 
 	if (available) {
 		ui->simulcastInfo->setText(

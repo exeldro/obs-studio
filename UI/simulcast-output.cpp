@@ -29,6 +29,20 @@
 #include "ivs-events.h"
 #include "simulcast-error.h"
 
+bool SimulcastDeveloperModeEnabled()
+{
+	static bool developer_mode = [] {
+		auto args = qApp->arguments();
+		for (const auto &arg : args) {
+			if (arg == "--enable-simulcast-dev") {
+				return true;
+			}
+		}
+		return false;
+	}();
+	return developer_mode;
+}
+
 static const QString &device_id()
 {
 	static const QString device_id_ = []() -> QString {
@@ -519,7 +533,8 @@ void SimulcastOutput::PrepareStreaming(
 	QWidget *parent, const QString &rtmp_url, const QString &stream_key,
 	bool use_ertmp_multitrack,
 	std::optional<uint32_t> maximum_aggregate_bitrate,
-	std::optional<uint32_t> reserved_encoder_sessions)
+	std::optional<uint32_t> reserved_encoder_sessions,
+	std::optional<std::string> custom_config)
 {
 	if (!berryessa_) {
 		berryessa_ = std::make_unique<BerryessaSubmitter>(
@@ -532,6 +547,7 @@ void SimulcastOutput::PrepareStreaming(
 	OBSDataAutoRelease go_live_post;
 	OBSDataAutoRelease go_live_config;
 	quint64 download_time_elapsed = 0;
+	bool is_custom_config = false;
 
 	try {
 		go_live_post = constructGoLivePost(attempt_start_time,
@@ -540,11 +556,24 @@ void SimulcastOutput::PrepareStreaming(
 
 		go_live_config = DownloadGoLiveConfig(parent, GO_LIVE_API_URL,
 						      go_live_post);
-		if (!go_live_config)
+		if (!go_live_config && !custom_config.has_value())
 			throw SimulcastError::warning(
 				QTStr("FailedToStartStream.FallbackToDefault"));
 
 		download_time_elapsed = attempt_start_time.MSecsElapsed();
+
+		if (custom_config.has_value()) {
+			OBSDataAutoRelease custom = obs_data_create_from_json(
+				custom_config->c_str());
+			if (!custom)
+				throw SimulcastError::critical(QTStr(
+					"FailedToStartStream.InvalidCustomConfig"));
+
+			blog(LOG_INFO, "Using custom go live config: %s",
+			     custom_config->c_str());
+			go_live_config = std::move(custom);
+			is_custom_config = true;
+		}
 
 		video_encoders_.clear();
 		OBSEncoderAutoRelease audio_encoder = nullptr;
@@ -575,6 +604,7 @@ void SimulcastOutput::PrepareStreaming(
 			send_start_event = [berryessa = berryessa_.get(),
 					    attempt_start_time,
 					    download_time_elapsed,
+					    is_custom_config,
 					    go_live_post =
 						    OBSData{go_live_post},
 					    go_live_config =
@@ -608,8 +638,11 @@ void SimulcastOutput::PrepareStreaming(
 							connect_time_ms);
 
 					const char *configId =
-						obs_data_get_string(
-							event, "config_id");
+						is_custom_config
+							? nullptr
+							: obs_data_get_string(
+								  event,
+								  "config_id");
 					if (configId) {
 						// put the config_id on all events until the stream ends
 						add_always_string(berryessa,

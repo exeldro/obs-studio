@@ -171,6 +171,16 @@ void OBSBasicSettings::LoadStream1Settings()
 			config_get_int(main->Config(), "Stream1",
 				       "SimulcastReservedEncoderSessions"));
 
+	ui->simulcastConfigOverrideEnable->setChecked(config_get_bool(
+		main->Config(), "Stream1", "SimulcastConfigOverrideEnabled"));
+	if (config_has_user_value(main->Config(), "Stream1",
+				  "SimulcastConfigOverride"))
+		ui->simulcastConfigOverride->setPlainText(
+			DeserializeConfigText(
+				config_get_string(main->Config(), "Stream1",
+						  "SimulcastConfigOverride"))
+				.c_str());
+
 	UpdateServerList();
 
 	if (is_rtmp_common) {
@@ -304,6 +314,10 @@ void OBSBasicSettings::SaveStream1Settings()
 		     "SimulcastReserverEncoderSessionsAuto");
 	SaveSpinBox(ui->simulcastReservedEncoderSessions, "Stream1",
 		    "SimulcastReservedEncoderSessions");
+	SaveCheckBox(ui->simulcastConfigOverrideEnable, "Stream1",
+		     "SimulcastConfigOverrideEnabled");
+	SaveText(ui->simulcastConfigOverride, "Stream1",
+		 "SimulcastConfigOverride");
 
 	if (oldSimulcastSetting != ui->enableSimulcast->isChecked())
 		main->ResetOutputs();
@@ -578,6 +592,11 @@ void OBSBasicSettings::on_simulcastMaximumAggregateBitrateAuto_toggled(
 
 void OBSBasicSettings::on_simulcastReservedEncoderSessionsAuto_toggled(
 	bool /*enabled*/)
+{
+	UpdateSimulcasting();
+}
+
+void OBSBasicSettings::on_simulcastConfigOverrideEnable_toggled(bool /*enabled*/)
 {
 	UpdateSimulcasting();
 }
