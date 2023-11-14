@@ -1,5 +1,6 @@
 #include <string>
 #include <algorithm>
+#include <cinttypes>
 #include <QMessageBox>
 #include "qt-wrappers.hpp"
 #include "audio-encoders.hpp"
@@ -1133,6 +1134,18 @@ bool SimpleOutput::SetupStreaming(obs_service_t *service)
 					  main->Config(), "Stream1",
 					  "SimulcastReservedEncoderSessions"));
 
+		if (!maximum_aggregate_bitrate.has_value() &&
+		    config_has_user_value(main->Config(), "Stream1",
+					  "SimulcastMeasuredBitrate")) {
+			maximum_aggregate_bitrate =
+				config_get_int(main->Config(), "Stream1",
+					       "SimulcastMeasuredBitrate");
+			blog(LOG_INFO,
+			     "Sending speedtest bitrate (%" PRIu32
+			     ") as maximum aggregate bitrate",
+			     maximum_aggregate_bitrate.value());
+		}
+
 		try {
 			simulcast->PrepareStreaming(main, "", key, true,
 						    maximum_aggregate_bitrate,
@@ -2203,6 +2216,18 @@ bool AdvancedOutput::SetupStreaming(obs_service_t *service)
 				: std::make_optional<uint32_t>(config_get_int(
 					  main->Config(), "Stream1",
 					  "SimulcastReservedEncoderSessions"));
+
+		if (!maximum_aggregate_bitrate.has_value() &&
+		    config_has_user_value(main->Config(), "Stream1",
+					  "SimulcastMeasuredBitrate")) {
+			maximum_aggregate_bitrate =
+				config_get_int(main->Config(), "Stream1",
+					       "SimulcastMeasuredBitrate");
+			blog(LOG_INFO,
+			     "Sending speedtest bitrate (%" PRIu32
+			     ") as maximum aggregate bitrate",
+			     maximum_aggregate_bitrate.value());
+		}
 
 		try {
 			simulcast->PrepareStreaming(main, "", key, true,

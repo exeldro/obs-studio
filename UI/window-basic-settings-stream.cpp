@@ -152,10 +152,15 @@ void OBSBasicSettings::LoadStream1Settings()
 		config_get_bool(main->Config(), "Stream1",
 				"SimulcastMaximumAggregateBitrateAuto"));
 	if (config_has_user_value(main->Config(), "Stream1",
-				  "SimulcastMaximumAggregateBitrate"))
+				  "SimulcastMaximumAggregateBitrate")) {
 		ui->simulcastMaximumAggregateBitrate->setValue(
 			config_get_int(main->Config(), "Stream1",
 				       "SimulcastMaximumAggregateBitrate"));
+	} else if (config_has_user_value(main->Config(), "Stream1",
+					 "SimulcastMeasuredBitrate")) {
+		ui->simulcastMaximumAggregateBitrate->setValue(config_get_int(
+			main->Config(), "Stream1", "SimulcastMeasuredBitrate"));
+	}
 
 	ui->simulcastReservedEncoderSessionsAuto->setChecked(
 		config_get_bool(main->Config(), "Stream1",
