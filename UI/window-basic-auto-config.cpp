@@ -1189,7 +1189,7 @@ void AutoConfig::SaveStreamSettings()
 	config_remove_value(main->Config(), "SimpleOutput", "UseAdvanced");
 
 	config_set_bool(main->Config(), "Stream1", "EnableSimulcast",
-			simulcast.enabled);
+			testSimulcast);
 
 	if (simulcast.targetBitrate.has_value())
 		config_set_int(main->Config(), "Stream1",
@@ -1201,10 +1201,8 @@ void AutoConfig::SaveStreamSettings()
 
 	if (simulcast.bitrate.has_value())
 		config_set_int(main->Config(), "Stream1",
-			       "SimulcastMeasuredBitrate", *simulcast.bitrate);
-	else
-		config_remove_value(main->Config(), "Stream1",
-				    "SimulcastMeasuredBitrate");
+			       "SimulcastMaximumAggregateBitrate",
+			       *simulcast.bitrate);
 }
 
 void AutoConfig::SaveSettings()

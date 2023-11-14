@@ -1134,35 +1134,29 @@ void AutoConfigTestPage::FinalizeResults()
 		form->addRow(newLabel("Basic.AutoConfig.StreamPage.Server"),
 			     new QLabel(wiz->serverName.c_str(),
 					ui->finishPage));
-		form->addRow(newLabel("Basic.Settings.Output.VideoBitrate"),
-			     new QLabel(QString::number(wiz->idealBitrate),
-					ui->finishPage));
-		form->addRow(newLabel(TEST_RESULT_SE),
-			     new QLabel(encName(wiz->streamingEncoder),
-					ui->finishPage));
+		form->addRow(newLabel("Basic.Settings.Stream.SimulcastLabel"),
+			     newLabel(wiz->testSimulcast ? "Yes" : "No"));
 
-		auto enabled = wiz->testSimulcast ? QTStr("Yes") : QTStr("No");
-		auto bitrate =
-			wiz->simulcast.bitrate.has_value()
-				? QString::number(*wiz->simulcast.bitrate)
-				: "-";
-		form->addRow(
-			newLabel(
-				"Basic.Settings.Stream.EnableSimulcastBitrate"),
-			new QLabel(QString("%1 (%2)").arg(enabled, bitrate)));
+		if (wiz->testSimulcast) {
+			form->addRow(
+				newLabel("Basic.Settings.Output.VideoBitrate"),
+				newLabel("Automatic"));
+			form->addRow(newLabel(TEST_RESULT_SE),
+				     newLabel("Automatic"));
+			form->addRow(
+				newLabel(
+					"Basic.AutoConfig.TestPage.Result.StreamingResolution"),
+				newLabel("Automatic"));
+		} else {
+			form->addRow(
+				newLabel("Basic.Settings.Output.VideoBitrate"),
+				new QLabel(QString::number(wiz->idealBitrate),
+					   ui->finishPage));
+			form->addRow(newLabel(TEST_RESULT_SE),
+				     new QLabel(encName(wiz->streamingEncoder),
+						ui->finishPage));
+		}
 	}
-
-	ui->simulcastInfo->setVisible(wiz->service ==
-				      AutoConfig::Service::Twitch);
-	ui->simulcastInfo->setText(
-		QTStr("Simulcast.Info").arg(wiz->serviceName.c_str()));
-	ui->useSimulcast->setVisible(wiz->service ==
-				     AutoConfig::Service::Twitch);
-	ui->useSimulcast->setChecked(wiz->testSimulcast);
-
-	wiz->simulcast.enabled = wiz->testSimulcast;
-	connect(ui->useSimulcast, &QCheckBox::toggled,
-		[&](bool checked) { wiz->simulcast.enabled = checked; });
 
 	QString baseRes =
 		QString("%1x%2").arg(QString::number(wiz->baseResolutionCX),
