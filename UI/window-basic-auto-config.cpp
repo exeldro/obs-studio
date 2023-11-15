@@ -1208,10 +1208,19 @@ void AutoConfig::SaveStreamSettings()
 		config_remove_value(main->Config(), "Stream1",
 				    "SimulcastTargetBitrate");
 
-	if (simulcast.bitrate.has_value())
+	if (simulcast.bitrate.has_value() &&
+	    simulcast.targetBitrate.has_value() &&
+	    (static_cast<double>(*simulcast.bitrate) /
+	     *simulcast.targetBitrate) >= 0.90) {
+		config_set_bool(main->Config(), "Stream1",
+				"SimulcastMaximumAggregateBitrateAuto", true);
+	} else if (simulcast.bitrate.has_value()) {
+		config_set_bool(main->Config(), "Stream1",
+				"SimulcastMaximumAggregateBitrateAuto", false);
 		config_set_int(main->Config(), "Stream1",
 			       "SimulcastMaximumAggregateBitrate",
 			       *simulcast.bitrate);
+	}
 }
 
 void AutoConfig::SaveSettings()
