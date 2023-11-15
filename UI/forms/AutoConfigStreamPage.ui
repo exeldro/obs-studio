@@ -382,7 +382,7 @@
        <item row="5" column="1">
         <widget class="QLabel" name="simulcastInfo">
          <property name="text">
-          <string>Simulcast.Info</string>
+          <string>Simulcast.InfoTest</string>
          </property>
          <property name="textFormat">
           <enum>Qt::RichText</enum>

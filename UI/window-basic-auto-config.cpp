@@ -666,12 +666,9 @@ void AutoConfigStreamPage::ServiceChanged()
 	bool custom = IsCustomService();
 
 	ui->simulcastInfo->setVisible(service == "Twitch");
-	ui->simulcastInfo->setText(QTStr(wiz->hardwareEncodingAvailable
-						 ? "Simulcast.Info"
-						 : "Simulcast.InfoUnavailable")
-					   .arg(service.c_str()));
+	ui->simulcastInfo->setText(
+		QTStr("Simulcast.InfoTest").arg(service.c_str()));
 	ui->useSimulcast->setVisible(service == "Twitch");
-	ui->useSimulcast->setEnabled(wiz->hardwareEncodingAvailable);
 
 	reset_service_ui_fields(service);
 
@@ -1198,7 +1195,7 @@ void AutoConfig::SaveStreamSettings()
 	config_remove_value(main->Config(), "SimpleOutput", "UseAdvanced");
 
 	config_set_bool(main->Config(), "Stream1", "EnableSimulcast",
-			testSimulcast);
+			simulcast.testSuccessful);
 
 	if (simulcast.targetBitrate.has_value())
 		config_set_int(main->Config(), "Stream1",

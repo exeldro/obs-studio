@@ -287,7 +287,7 @@ void AutoConfigTestPage::TestBandwidthThread()
 	obs_service_apply_encoder_settings(service, vencoder_settings,
 					   aencoder_settings);
 
-	if (wiz->testSimulcast) {
+	if (wiz->simulcast.testSuccessful) {
 		obs_data_set_int(vencoder_settings, "bitrate",
 				 wiz->startingBitrate);
 	}
@@ -1135,9 +1135,10 @@ void AutoConfigTestPage::FinalizeResults()
 			     new QLabel(wiz->serverName.c_str(),
 					ui->finishPage));
 		form->addRow(newLabel("Basic.Settings.Stream.SimulcastLabel"),
-			     newLabel(wiz->testSimulcast ? "Yes" : "No"));
+			     newLabel(wiz->simulcast.testSuccessful ? "Yes"
+								    : "No"));
 
-		if (wiz->testSimulcast) {
+		if (wiz->simulcast.testSuccessful) {
 			form->addRow(
 				newLabel("Basic.Settings.Output.VideoBitrate"),
 				newLabel("Automatic"));
