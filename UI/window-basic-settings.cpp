@@ -6203,26 +6203,57 @@ void OBSBasicSettings::UpdateAdvNetworkGroup()
 #endif
 }
 
+// FIXME: dedupe with void AutoConfig::TestHardwareEncoding()
+static bool CheckForHardwareEncodingAvailability()
+{
+	bool available = false;
+	size_t idx = 0;
+	const char *id;
+	while (obs_enum_encoder_types(idx++, &id)) {
+		if (strcmp(id, "ffmpeg_nvenc") == 0)
+			available = true;
+		else if (strcmp(id, "obs_qsv11") == 0)
+			available = true;
+		else if (strcmp(id, "h264_texture_amf") == 0)
+			available = true;
+#ifdef __APPLE__
+		else if (strcmp(id,
+				"com.apple.videotoolbox.videoencoder.ave.avc") ==
+				 0
+#ifndef __aarch64__
+			 && os_get_emulation_status() == true
+#endif
+		)
+			if (__builtin_available(macOS 13.0, *))
+				available = true;
+#endif
+	}
+	return available;
+}
+
 extern bool SimulcastDeveloperModeEnabled();
 
 void OBSBasicSettings::UpdateSimulcasting()
 {
 	// FIXME: protocol is not updated properly for WHIP; what do?
 	auto available = protocol.startsWith("RTMP");
+	auto hw_encoder_available = CheckForHardwareEncodingAvailability();
 
 	ui->simulcastInfo->setVisible(available);
 	ui->enableSimulcast->setVisible(available);
+
+	ui->enableSimulcast->setEnabled(hw_encoder_available);
 
 	ui->simulcastMaximumAggregateBitrateLabel->setVisible(available);
 	ui->simulcastMaximumAggregateBitrateAuto->setVisible(available);
 	ui->simulcastMaximumAggregateBitrate->setVisible(available);
 
 	ui->simulcastMaximumAggregateBitrateLabel->setEnabled(
-		ui->enableSimulcast->isChecked());
+		hw_encoder_available && ui->enableSimulcast->isChecked());
 	ui->simulcastMaximumAggregateBitrateAuto->setEnabled(
-		ui->enableSimulcast->isChecked());
+		hw_encoder_available && ui->enableSimulcast->isChecked());
 	ui->simulcastMaximumAggregateBitrate->setEnabled(
-		ui->enableSimulcast->isChecked() &&
+		hw_encoder_available && ui->enableSimulcast->isChecked() &&
 		!ui->simulcastMaximumAggregateBitrateAuto->isChecked());
 
 	ui->simulcastReservedEncoderSessionsLabel->setVisible(available);
@@ -6230,11 +6261,11 @@ void OBSBasicSettings::UpdateSimulcasting()
 	ui->simulcastReservedEncoderSessions->setVisible(available);
 
 	ui->simulcastReservedEncoderSessionsLabel->setEnabled(
-		ui->enableSimulcast->isChecked());
+		hw_encoder_available && ui->enableSimulcast->isChecked());
 	ui->simulcastReservedEncoderSessionsAuto->setEnabled(
-		ui->enableSimulcast->isChecked());
+		hw_encoder_available && ui->enableSimulcast->isChecked());
 	ui->simulcastReservedEncoderSessions->setEnabled(
-		ui->enableSimulcast->isChecked() &&
+		hw_encoder_available && ui->enableSimulcast->isChecked() &&
 		!ui->simulcastReservedEncoderSessionsAuto->isChecked());
 
 	ui->simulcastConfigOverrideEnable->setVisible(
@@ -6245,17 +6276,20 @@ void OBSBasicSettings::UpdateSimulcasting()
 		available && SimulcastDeveloperModeEnabled());
 
 	ui->simulcastConfigOverrideEnable->setEnabled(
-		ui->enableSimulcast->isChecked());
+		hw_encoder_available && ui->enableSimulcast->isChecked());
 	ui->simulcastConfigOverrideLabel->setEnabled(
-		ui->enableSimulcast->isChecked() &&
+		hw_encoder_available && ui->enableSimulcast->isChecked() &&
 		ui->simulcastConfigOverrideEnable->isChecked());
 	ui->simulcastConfigOverride->setEnabled(
-		ui->enableSimulcast->isChecked() &&
+		hw_encoder_available && ui->enableSimulcast->isChecked() &&
 		ui->simulcastConfigOverrideEnable->isChecked());
 
 	if (available) {
 		ui->simulcastInfo->setText(
-			QTStr("Simulcast.Info").arg(ui->service->currentText()));
+			QTStr(hw_encoder_available
+				      ? "Simulcast.Info"
+				      : "Simulcast.InfoUnavailable")
+				.arg(ui->service->currentText()));
 		ui->enableSimulcast->setText(
 			QTStr("Basic.Settings.Stream.EnableSimulcast")
 				.arg(ui->service->currentText()));

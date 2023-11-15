@@ -666,9 +666,12 @@ void AutoConfigStreamPage::ServiceChanged()
 	bool custom = IsCustomService();
 
 	ui->simulcastInfo->setVisible(service == "Twitch");
-	ui->simulcastInfo->setText(
-		QTStr("Simulcast.Info").arg(service.c_str()));
+	ui->simulcastInfo->setText(QTStr(wiz->hardwareEncodingAvailable
+						 ? "Simulcast.Info"
+						 : "Simulcast.InfoUnavailable")
+					   .arg(service.c_str()));
 	ui->useSimulcast->setVisible(service == "Twitch");
+	ui->useSimulcast->setEnabled(wiz->hardwareEncodingAvailable);
 
 	reset_service_ui_fields(service);
 
@@ -1020,12 +1023,13 @@ AutoConfig::AutoConfig(QWidget *parent) : QWizard(parent)
 	if (!key.empty())
 		streamPage->ui->key->setText(key.c_str());
 
+	TestHardwareEncoding();
+
 	int bitrate =
 		config_get_int(main->Config(), "SimpleOutput", "VBitrate");
 	streamPage->ui->bitrate->setValue(bitrate);
 	streamPage->ServiceChanged();
 
-	TestHardwareEncoding();
 	if (!hardwareEncodingAvailable) {
 		delete streamPage->ui->preferHardware;
 		streamPage->ui->preferHardware = nullptr;
