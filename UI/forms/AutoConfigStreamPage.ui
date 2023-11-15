@@ -393,6 +393,9 @@
          <property name="openExternalLinks">
           <bool>true</bool>
          </property>
+         <property name="sizePolicy">
+          <enum>QSizePolicy::MinimumExpanding, QSizePolicy::Minimum</enum>
+         </property>
         </widget>
        </item>
        <item row="6" column="1">

@@ -666,8 +666,6 @@ void AutoConfigStreamPage::ServiceChanged()
 	bool custom = IsCustomService();
 
 	ui->simulcastInfo->setVisible(service == "Twitch");
-	ui->simulcastInfo->setSizePolicy(QSizePolicy::MinimumExpanding,
-					 QSizePolicy::Minimum);
 	ui->simulcastInfo->setText(
 		QTStr("Simulcast.Info").arg(service.c_str()));
 	ui->useSimulcast->setVisible(service == "Twitch");
