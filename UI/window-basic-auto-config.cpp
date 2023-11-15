@@ -1027,7 +1027,14 @@ AutoConfig::AutoConfig(QWidget *parent) : QWizard(parent)
 
 	int bitrate =
 		config_get_int(main->Config(), "SimpleOutput", "VBitrate");
+	bool simulcastEnabled = config_has_user_value(main->Config(), "Stream1",
+						      "EnableSimulcast")
+					? config_get_bool(main->Config(),
+							  "Stream1",
+							  "EnableSimulcast")
+					: true;
 	streamPage->ui->bitrate->setValue(bitrate);
+	streamPage->ui->useSimulcast->setChecked(simulcastEnabled);
 	streamPage->ServiceChanged();
 
 	if (!hardwareEncodingAvailable) {
