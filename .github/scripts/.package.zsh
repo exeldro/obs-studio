@@ -62,9 +62,6 @@ package() {
   local -i package=0
   local -i skip_deps=0
 
-  local customer="twitch"
-  local build_type="dev"
-
   local -a args
   while (( # )) {
     case ${1} {
@@ -93,8 +90,6 @@ package() {
         config=${2}
         shift 2
         ;;
-      --customer) customer="${2}"; shift 2 ;;
-      --type) build_type="${2}"; shift 2 ;;
       -s|--codesign) codesign=1; shift ;;
       -n|--notarize) notarize=1; shift ;;
       -p|--package) typeset -g package=1; shift ;;
@@ -118,12 +113,11 @@ package() {
   local commit_hash
 
   if [[ -d ${project_root}/.git ]] {
-    local git_description="$(git describe --tags --long --match=\*${customer}-${build_type}\*)"
+    local git_description="$(git describe --tags --long --match=\*enhanced-broadcasting\*)"
     commit_version="${${git_description%-*}%-*}"
     commit_hash="${git_description##*-g}"
     commit_distance="${${git_description%-*}##*-}"
   }
-
 
   local output_name
   if (( commit_distance > 0 )) {

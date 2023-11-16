@@ -3,11 +3,7 @@ param(
     [ValidateSet('x64')]
     [string] $Target = 'x64',
     [ValidateSet('Debug', 'RelWithDebInfo', 'Release', 'MinSizeRel')]
-    [string] $Configuration = 'RelWithDebInfo',
-    [ValidateSet('ivs', 'twitch')]
-    [string] $Customer,
-    [ValidateSet('alpha', 'dev')]
-    [string] $Type
+    [string] $Configuration = 'RelWithDebInfo'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -49,7 +45,7 @@ function Package {
 
     Install-BuildDependencies -WingetFile "${ScriptHome}/.Wingetfile"
 
-    $GitDescription = Invoke-External git describe --tags --long --match=*${Customer}-${Type}*
+    $GitDescription = Invoke-External git describe --tags --long --match=*enhanced-broadcasting*
     $Tokens = ($GitDescription -split '-')
     $CommitVersion = $Tokens[0..$($Tokens.Count - 3)] -join '-'
     $CommitHash = $($Tokens[-1]).SubString(1)
