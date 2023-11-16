@@ -231,84 +231,6 @@ static OBSOutputAutoRelease create_recording_output(bool use_ertmp_multitrack)
 	return output;
 }
 
-struct pixel_resolution {
-	uint32_t width;
-	uint32_t height;
-};
-
-static pixel_resolution scale_resolution(const obs_video_info &ovi,
-					 uint64_t requested_width,
-					 uint64_t requested_height)
-{
-	auto aspect_segments = std::gcd(ovi.base_width, ovi.base_height);
-	auto aspect_width = ovi.base_width / aspect_segments;
-	auto aspect_height = ovi.base_height / aspect_segments;
-
-	auto base_pixels =
-		static_cast<uint64_t>(ovi.base_width) * ovi.base_height;
-
-	auto requested_pixels =
-		std::min(requested_width * requested_height, base_pixels);
-
-	auto pixel_ratio = std::min(
-		requested_pixels / static_cast<double>(base_pixels), 1.0);
-
-	auto target_aspect_segments = static_cast<uint32_t>(std::floor(
-		std::sqrt(pixel_ratio * aspect_segments * aspect_segments)));
-
-	if (target_aspect_segments + 1 * aspect_width > ovi.base_width)
-		target_aspect_segments = ovi.base_width / aspect_width - 1;
-	if (target_aspect_segments + 1 * aspect_height > ovi.base_height)
-		target_aspect_segments = ovi.base_height / aspect_height - 1;
-
-	for (auto i : {0, 1, -1}) {
-		auto target_segments = std::max(
-			static_cast<uint32_t>(1),
-			std::min(aspect_segments, target_aspect_segments + i));
-		auto output_width = aspect_width * target_segments;
-		auto output_height = aspect_height * target_segments;
-
-		if (output_width > ovi.base_width ||
-		    output_height > ovi.base_height)
-			continue;
-
-		auto output_pixels = output_width * output_height;
-
-		auto ratio =
-			static_cast<float>(output_pixels) / requested_pixels;
-		if (ratio < 0.9 || ratio > 1.1)
-			continue;
-
-		if (output_width % 4 != 0 ||
-		    output_height % 2 !=
-			    0) //libobs enforces multiple of 4 width and multiple of 2 height
-			continue;
-
-		if (output_width == requested_width &&
-		    output_height == requested_height)
-			return {static_cast<uint32_t>(output_width),
-				static_cast<uint32_t>(requested_height)};
-
-		blog(LOG_INFO,
-		     "Scaled output resolution from %" PRIu64 "x%" PRIu64
-		     " to %ux%u (base: %ux%u)",
-		     requested_width, requested_height, output_width,
-		     output_height, ovi.base_width, ovi.base_height);
-
-		return {static_cast<uint32_t>(output_width),
-			static_cast<uint32_t>(output_height)};
-	}
-
-	blog(LOG_WARNING,
-	     "Failed to scale request resolution %" PRIu64 "x%" PRIu64
-	     " to %ux%u",
-	     requested_width, requested_height, ovi.base_width,
-	     ovi.base_height);
-
-	return {static_cast<uint32_t>(requested_width),
-		static_cast<uint32_t>(requested_height)};
-}
-
 static void data_item_release(obs_data_item_t *item)
 {
 	obs_data_item_release(&item);
@@ -365,7 +287,8 @@ static obs_scale_type load_gpu_scale_type(obs_data_t *encoder_config)
 
 static void adjust_video_encoder_scaling(const obs_video_info &ovi,
 					 obs_encoder_t *video_encoder,
-					 obs_data_t *encoder_config)
+					 obs_data_t *encoder_config,
+					 size_t encoder_index)
 {
 	uint64_t requested_width = obs_data_get_int(encoder_config, "width");
 	uint64_t requested_height = obs_data_get_int(encoder_config, "height");
@@ -374,14 +297,18 @@ static void adjust_video_encoder_scaling(const obs_video_info &ovi,
 	    ovi.output_height == requested_height)
 		return;
 
-#if 1
-	auto res = scale_resolution(ovi, requested_width, requested_height);
-	obs_encoder_set_scaled_size(video_encoder, res.width, res.height);
-#else
+	if (ovi.base_width < requested_width ||
+	    ovi.base_height < requested_height) {
+		blog(LOG_WARNING,
+		     "Requested resolution exceeds canvas/available resolution for encoder %zu: %" PRIu64
+		     "x%" PRIu64 " > %" PRIu32 "x%" PRIu32,
+		     encoder_index, requested_width, requested_height,
+		     ovi.base_width, ovi.base_height);
+	}
+
 	obs_encoder_set_scaled_size(video_encoder,
 				    static_cast<uint32_t>(requested_width),
 				    static_cast<uint32_t>(requested_height));
-#endif
 	obs_encoder_set_gpu_scale_type(video_encoder,
 				       load_gpu_scale_type(encoder_config));
 }
@@ -495,7 +422,8 @@ static OBSEncoderAutoRelease create_video_encoder(DStr &name_buffer,
 				.arg(name_buffer->array, encoder_type));
 	}
 
-	adjust_video_encoder_scaling(ovi, video_encoder, encoder_config);
+	adjust_video_encoder_scaling(ovi, video_encoder, encoder_config,
+				     encoder_index);
 	adjust_encoder_frame_rate_divisor(ovi, video_encoder, encoder_config,
 					  encoder_index);
 
