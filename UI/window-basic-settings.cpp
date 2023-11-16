@@ -6255,7 +6255,8 @@ void OBSBasicSettings::UpdateSimulcasting()
 
 	if (available) {
 		ui->simulcastInfo->setText(
-			QTStr("Simulcast.Info").arg(ui->service->currentText()));
+			QTStr("Simulcast.InfoTest")
+				.arg(ui->service->currentText()));
 		ui->enableSimulcast->setText(
 			QTStr("Basic.Settings.Stream.EnableSimulcast")
 				.arg(ui->service->currentText()));

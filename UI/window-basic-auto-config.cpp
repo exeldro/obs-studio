@@ -666,10 +666,8 @@ void AutoConfigStreamPage::ServiceChanged()
 	bool custom = IsCustomService();
 
 	ui->simulcastInfo->setVisible(service == "Twitch");
-	ui->simulcastInfo->setSizePolicy(QSizePolicy::MinimumExpanding,
-					 QSizePolicy::Minimum);
 	ui->simulcastInfo->setText(
-		QTStr("Simulcast.Info").arg(service.c_str()));
+		QTStr("Simulcast.InfoTest").arg(service.c_str()));
 	ui->useSimulcast->setVisible(service == "Twitch");
 
 	reset_service_ui_fields(service);
@@ -1022,12 +1020,20 @@ AutoConfig::AutoConfig(QWidget *parent) : QWizard(parent)
 	if (!key.empty())
 		streamPage->ui->key->setText(key.c_str());
 
+	TestHardwareEncoding();
+
 	int bitrate =
 		config_get_int(main->Config(), "SimpleOutput", "VBitrate");
+	bool simulcastEnabled = config_has_user_value(main->Config(), "Stream1",
+						      "EnableSimulcast")
+					? config_get_bool(main->Config(),
+							  "Stream1",
+							  "EnableSimulcast")
+					: true;
 	streamPage->ui->bitrate->setValue(bitrate);
+	streamPage->ui->useSimulcast->setChecked(simulcastEnabled);
 	streamPage->ServiceChanged();
 
-	TestHardwareEncoding();
 	if (!hardwareEncodingAvailable) {
 		delete streamPage->ui->preferHardware;
 		streamPage->ui->preferHardware = nullptr;
@@ -1189,7 +1195,7 @@ void AutoConfig::SaveStreamSettings()
 	config_remove_value(main->Config(), "SimpleOutput", "UseAdvanced");
 
 	config_set_bool(main->Config(), "Stream1", "EnableSimulcast",
-			simulcast.enabled);
+			simulcast.testSuccessful);
 
 	if (simulcast.targetBitrate.has_value())
 		config_set_int(main->Config(), "Stream1",
@@ -1199,12 +1205,19 @@ void AutoConfig::SaveStreamSettings()
 		config_remove_value(main->Config(), "Stream1",
 				    "SimulcastTargetBitrate");
 
-	if (simulcast.bitrate.has_value())
+	if (simulcast.bitrate.has_value() &&
+	    simulcast.targetBitrate.has_value() &&
+	    (static_cast<double>(*simulcast.bitrate) /
+	     *simulcast.targetBitrate) >= 0.90) {
+		config_set_bool(main->Config(), "Stream1",
+				"SimulcastMaximumAggregateBitrateAuto", true);
+	} else if (simulcast.bitrate.has_value()) {
+		config_set_bool(main->Config(), "Stream1",
+				"SimulcastMaximumAggregateBitrateAuto", false);
 		config_set_int(main->Config(), "Stream1",
-			       "SimulcastMeasuredBitrate", *simulcast.bitrate);
-	else
-		config_remove_value(main->Config(), "Stream1",
-				    "SimulcastMeasuredBitrate");
+			       "SimulcastMaximumAggregateBitrate",
+			       *simulcast.bitrate);
+	}
 }
 
 void AutoConfig::SaveSettings()
