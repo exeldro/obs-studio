@@ -138,10 +138,6 @@ package() {
       return 0
     }
 
-    pushd build_macos/OBS.app/Contents/PlugIns/simulcast.plugin/Contents/Resources
-    rm -f PresentMon-1.8.0-x64.exe
-    popd
-
     local -A arch_names=(x86_64 Intel arm64 Apple)
     output_name="${output_name}-macos-${(L)arch_names[${target##*-}]}"
 
