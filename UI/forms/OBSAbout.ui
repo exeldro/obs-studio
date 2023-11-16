@@ -195,7 +195,7 @@
       <item>
        <widget class="ClickableLabel" name="license">
         <property name="text">
-         <string>License</string>
+         <string>Licenses</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
