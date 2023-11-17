@@ -84,17 +84,15 @@ static void add_always_string(BerryessaSubmitter *berryessa, const char *name,
 	berryessa->setAlwaysString(name, data);
 }
 
-static OBSServiceAutoRelease create_service(const QString &device_id,
-					    const QString &obs_session_id,
-					    obs_data_t *go_live_config,
-					    const QString &rtmp_url,
-					    const QString &stream_key)
+static OBSServiceAutoRelease
+create_service(const QString &device_id, const QString &obs_session_id,
+	       obs_data_t *go_live_config,
+	       const std::optional<std::string> &rtmp_url,
+	       const QString &stream_key)
 {
 	const char *url = nullptr;
-	QByteArray rtmp_url_utf8_data;
-	if (!rtmp_url.isEmpty()) {
-		rtmp_url_utf8_data = rtmp_url.toUtf8();
-		url = rtmp_url_utf8_data.constData();
+	if (rtmp_url.has_value()) {
+		url = rtmp_url->c_str();
 
 		blog(LOG_INFO, "Using custom rtmp URL: '%s'", url);
 	} else {
@@ -458,8 +456,8 @@ struct OutputObjects {
 };
 
 void SimulcastOutput::PrepareStreaming(
-	QWidget *parent, const QString &rtmp_url, const QString &stream_key,
-	bool use_ertmp_multitrack,
+	QWidget *parent, const std::optional<std::string> &rtmp_url,
+	const QString &stream_key, bool use_ertmp_multitrack,
 	std::optional<uint32_t> maximum_aggregate_bitrate,
 	std::optional<uint32_t> reserved_encoder_sessions,
 	std::optional<std::string> custom_config)

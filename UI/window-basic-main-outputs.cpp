@@ -2527,7 +2527,7 @@ std::optional<bool> BasicOutputHandler::SetupSimulcast(obs_service_t *service)
 			main->Config(), "Stream1", "SimulcastConfigOverride"));
 
 	try {
-		simulcast->PrepareStreaming(main, "", key, true,
+		simulcast->PrepareStreaming(main, std::nullopt, key, true,
 					    maximum_aggregate_bitrate,
 					    reserved_encoder_sessions,
 					    custom_config);
