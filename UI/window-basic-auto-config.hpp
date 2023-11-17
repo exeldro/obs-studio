@@ -202,6 +202,7 @@ public slots:
 	void on_connectAccount_clicked();
 	void on_disconnectAccount_clicked();
 	void on_useStreamKey_clicked();
+	void on_preferHardware_clicked();
 	void ServiceChanged();
 	void UpdateKeyLink();
 	void UpdateMoreInfoLink();

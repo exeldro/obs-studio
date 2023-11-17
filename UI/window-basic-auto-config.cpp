@@ -599,6 +599,22 @@ void AutoConfigStreamPage::on_useStreamKey_clicked()
 	UpdateCompleted();
 }
 
+void AutoConfigStreamPage::on_preferHardware_clicked()
+{
+	auto *main = OBSBasic::Get();
+	bool simulcastEnabled = config_has_user_value(main->Config(), "Stream1",
+						      "EnableSimulcast")
+					? config_get_bool(main->Config(),
+							  "Stream1",
+							  "EnableSimulcast")
+					: true;
+
+	ui->useSimulcast->setEnabled(ui->preferHardware->isChecked());
+	ui->simulcastInfo->setEnabled(ui->preferHardware->isChecked());
+	ui->useSimulcast->setChecked(ui->preferHardware->isChecked() &&
+				     simulcastEnabled);
+}
+
 static inline bool is_auth_service(const std::string &service)
 {
 	return Auth::AuthType(service) != Auth::Type::None;
@@ -669,6 +685,8 @@ void AutoConfigStreamPage::ServiceChanged()
 	ui->simulcastInfo->setText(
 		QTStr("Simulcast.InfoTest").arg(service.c_str()));
 	ui->useSimulcast->setVisible(service == "Twitch");
+	ui->simulcastInfo->setEnabled(wiz->hardwareEncodingAvailable);
+	ui->useSimulcast->setEnabled(wiz->hardwareEncodingAvailable);
 
 	reset_service_ui_fields(service);
 
@@ -1031,7 +1049,8 @@ AutoConfig::AutoConfig(QWidget *parent) : QWizard(parent)
 							  "EnableSimulcast")
 					: true;
 	streamPage->ui->bitrate->setValue(bitrate);
-	streamPage->ui->useSimulcast->setChecked(simulcastEnabled);
+	streamPage->ui->useSimulcast->setChecked(hardwareEncodingAvailable &&
+						 simulcastEnabled);
 	streamPage->ServiceChanged();
 
 	if (!hardwareEncodingAvailable) {
