@@ -2501,8 +2501,17 @@ std::optional<bool> BasicOutputHandler::SetupSimulcast(obs_service_t *service)
 	startStreaming.Disconnect();
 	stopStreaming.Disconnect();
 
+	bool is_custom =
+		strncmp("custom_rtmp", obs_service_get_type(service), 12);
+
 	OBSDataAutoRelease settings = obs_service_get_settings(service);
 	auto key = obs_data_get_string(settings, "key");
+
+	auto custom_rtmp_url =
+		is_custom && obs_data_has_user_value(settings, "server")
+			? std::make_optional<std::string>(
+				  obs_data_get_string(settings, "server"))
+			: std::nullopt;
 
 	auto maximum_aggregate_bitrate =
 		config_get_bool(main->Config(), "Stream1",
@@ -2527,7 +2536,7 @@ std::optional<bool> BasicOutputHandler::SetupSimulcast(obs_service_t *service)
 			main->Config(), "Stream1", "SimulcastConfigOverride"));
 
 	try {
-		simulcast->PrepareStreaming(main, std::nullopt, key, true,
+		simulcast->PrepareStreaming(main, custom_rtmp_url, key, true,
 					    maximum_aggregate_bitrate,
 					    reserved_encoder_sessions,
 					    custom_config);
