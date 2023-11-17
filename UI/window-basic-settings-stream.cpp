@@ -106,6 +106,10 @@ void OBSBasicSettings::LoadStream1Settings()
 	OBSDataAutoRelease settings = obs_service_get_settings(service_obj);
 
 	const char *service = obs_data_get_string(settings, "service");
+	const char *service_name =
+		obs_data_has_user_value(settings, "service_name")
+			? obs_data_get_string(settings, "service_name")
+			: nullptr;
 	const char *server = obs_data_get_string(settings, "server");
 	const char *key = obs_data_get_string(settings, "key");
 	protocol = QT_UTF8(obs_service_get_protocol(service_obj));
@@ -116,8 +120,11 @@ void OBSBasicSettings::LoadStream1Settings()
 		ui->customServer->setText(server);
 
 	if (is_rtmp_custom) {
-		ui->service->setCurrentIndex(0);
-		lastServiceIdx = 0;
+		int index = 0;
+		if (service_name)
+			index = ui->service->findText(service_name);
+		ui->service->setCurrentIndex(index == -1 ? 0 : index);
+		lastServiceIdx = ui->service->currentIndex();
 		lastCustomServer = ui->customServer->text();
 
 		bool use_auth = obs_data_get_bool(settings, "use_auth");
@@ -238,6 +245,11 @@ void OBSBasicSettings::SaveStream1Settings()
 			settings, "server",
 			QT_TO_UTF8(ui->server->currentData().toString()));
 	} else {
+		if (ui->service->currentIndex() != 0) {
+			obs_data_set_string(
+				settings, "service_name",
+				QT_TO_UTF8(ui->service->currentText()));
+		}
 		obs_data_set_string(
 			settings, "server",
 			QT_TO_UTF8(ui->customServer->text().trimmed()));
@@ -458,6 +470,8 @@ void OBSBasicSettings::LoadServices(bool showAll)
 	ui->service->insertItem(
 		0, QTStr("Basic.AutoConfig.StreamPage.Service.Custom"),
 		QVariant((int)ListOpt::Custom));
+	ui->service->insertItem(1, "[Amazon IVS Basic Channel]",
+				QVariant(static_cast<int>(ListOpt::Custom)));
 
 	if (!lastService.isEmpty()) {
 		int idx = ui->service->findText(lastService);
