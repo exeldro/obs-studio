@@ -14,17 +14,12 @@ if(NOT DEFINED OBS_VERSION_OVERRIDE)
   if(NOT DEFINED RELEASE_CANDIDATE
      AND NOT DEFINED BETA
      AND EXISTS "${CMAKE_SOURCE_DIR}/.git")
-    set(_tag_pattern "")
-    if(DEFINED IVS_CUSTOMER AND DEFINED IVS_BUILD_TYPE)
-      set(_tag_pattern "--match=*${IVS_CUSTOMER}-${IVS_BUILD_TYPE}*")
-    endif()
     execute_process(
-      COMMAND git describe --always --tags --dirty=-modified ${_tag_pattern}
+      COMMAND git describe --always --tags --dirty=-modified --match=*enhanced-broadcasting*
       OUTPUT_VARIABLE _OBS_VERSION
       WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
       RESULT_VARIABLE _OBS_VERSION_RESULT
       OUTPUT_STRIP_TRAILING_WHITESPACE)
-    unset(_tag_pattern)
 
     if(_OBS_VERSION_RESULT EQUAL 0)
       if(${_OBS_VERSION} MATCHES "rc[0-9]+$")

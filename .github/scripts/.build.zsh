@@ -62,8 +62,6 @@ build() {
   local config='RelWithDebInfo'
   local -r -a _valid_configs=(Debug RelWithDebInfo Release MinSizeRel)
   local -i codesign=0
-  local customer="twitch"
-  local build_type="dev"
 
   local -a args
   while (( # )) {
@@ -93,8 +91,6 @@ build() {
         config=${2}
         shift 2
         ;;
-      --customer) customer="${2}"; shift 2 ;;
-      --type) build_type="${2}"; shift 2 ;;
       -s|--codesign) codesign=1; shift ;;
       --debug) debug=1; shift ;;
       *) log_error "Unknown option: %B${1}%b"; log_output ${_usage}; exit 2 ;;
@@ -123,14 +119,9 @@ build() {
 
   if (( debug )) cmake_args+=(--debug-output)
 
-  case ${build_type} {
-    dev) cmake_args+=(-DENABLE_IVS_DEV_FEATURES:BOOL=TRUE) ;;
-    alpha|*) cmake_args+=(-DENABLE_IVS_DEV_FEATURES:BOOL=FALSE) ;;
-  }
-
   case ${target} {
     macos-*)
-      cmake_args+=(--preset 'macos-ci' -DCMAKE_OSX_ARCHITECTURES:STRING=${target##*-} -DIVS_CUSTOMER:STRING=${customer} -DIVS_BUILD_TYPE:STRING=${build_type})
+      cmake_args+=(--preset 'macos-ci' -DCMAKE_OSX_ARCHITECTURES:STRING=${target##*-})
 
       typeset -gx NSUnbufferedIO=YES
 
@@ -215,8 +206,6 @@ build() {
         -DCEF_ROOT_DIR:PATH="${project_root}/.deps/cef_binary_${CEF_VERSION}_${target//-/_}"
         -DENABLE_AJA:BOOL=OFF
         -DENABLE_WEBRTC:BOOL=OFF
-        -DIVS_CUSTOMER:STRING=${customer}
-        -DIVS_BUILD_TYPE:STRING=${build_type}
       )
       if (( ! UBUNTU_2210_OR_LATER )) cmake_args+=(-DENABLE_NEW_MPEGTS_OUTPUT:BOOL=OFF)
 

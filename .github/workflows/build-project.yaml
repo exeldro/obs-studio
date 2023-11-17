@@ -13,7 +13,6 @@ jobs:
       codesign: ${{ steps.setup.outputs.codesign }}
       notarize: ${{ steps.setup.outputs.notarize }}
       config: ${{ steps.setup.outputs.config }}
-      dev: ${{ steps.setup.outputs.dev }}
       commitHash: ${{ steps.setup.outputs.commitHash }}
       annotate: ${{ steps.setup.outputs.annotate }}
     steps:
@@ -58,8 +57,6 @@ jobs:
       fail-fast: false
       matrix:
         target: [arm64, x86_64]
-        customer: [ivs, twitch]
-        type: [alpha, dev]
     defaults:
       run:
         shell: zsh --no-rcs --errexit --pipefail {0}
@@ -100,9 +97,9 @@ jobs:
         id: ccache-cache
         with:
           path: ${{ github.workspace }}/.ccache
-          key: ${{ runner.os }}-ccache-${{ matrix.target }}-${{ matrix.customer }}-${{ matrix.type }}-${{ needs.check-event.outputs.config }}
+          key: ${{ runner.os }}-ccache-${{ matrix.target }}-${{ needs.check-event.outputs.config }}
           restore-keys: |
-            ${{ runner.os }}-ccache-${{ matrix.target }}-${{ matrix.customer }}-${{ matrix.type }}-
+            ${{ runner.os }}-ccache-${{ matrix.target }}-
 
       - name: Set Up Code Signing 🔑
         uses: ./.github/actions/setup-macos-codesigning
@@ -131,8 +128,6 @@ jobs:
         with:
           target: ${{ matrix.target }}
           config: ${{ needs.check-event.outputs.config }}
-          type: ${{ matrix.type }}
-          customer: ${{ matrix.customer }}
           codesign: ${{ fromJSON(needs.check-event.outputs.codesign) }}
           codesignIdent: ${{ steps.codesign.outputs.codesignIdent }}
           codesignTeam: ${{ steps.codesign.outputs.codesignTeam }}
@@ -143,8 +138,6 @@ jobs:
         with:
           target: ${{ matrix.target }}
           config: ${{ needs.check-event.outputs.config }}
-          type: ${{ matrix.type }}
-          customer: ${{ matrix.customer }}
           package: ${{ fromJSON(needs.check-event.outputs.package) }}
           codesign: ${{ fromJSON(needs.check-event.outputs.codesign) && fromJSON(steps.codesign.outputs.haveCodesignIdent) }}
           codesignIdent: ${{ steps.codesign.outputs.codesignIdent }}
@@ -177,17 +170,12 @@ jobs:
         if: github.event_name != 'pull_request' && steps.ccache-cache.outputs.cache-hit != 'true'
         with:
           path: ${{ github.workspace }}/.ccache
-          key: ${{ runner.os }}-ccache-${{ matrix.target }}-${{ matrix.customer }}-${{ matrix.type }}-${{ needs.check-event.outputs.config }}
+          key: ${{ runner.os }}-ccache-${{ matrix.target }}-${{ needs.check-event.outputs.config }}
 
   ubuntu-build:
     name: Ubuntu 🐧
     runs-on: ubuntu-22.04
     needs: check-event
-    strategy:
-      fail-fast: false
-      matrix:
-        customer: [ivs, twitch]
-        type: [alpha, dev]
     defaults:
       run:
         shell: bash
@@ -201,9 +189,9 @@ jobs:
         id: ccache-cache
         with:
           path: ${{ github.workspace }}/.ccache
-          key: ${{ runner.os }}-ccache-x86_64-${{ matrix.customer }}-${{ matrix.type }}-${{ needs.check-event.outputs.config }}
+          key: ${{ runner.os }}-ccache-x86_64-${{ needs.check-event.outputs.config }}
           restore-keys: |
-            ${{ runner.os }}-ccache-x86_64-${{ matrix.customer }}-${{ matrix.type }}-
+            ${{ runner.os }}-ccache-x86_64-
 
       - name: Build OBS Studio 🧱
         uses: ./.github/actions/build-obs
@@ -219,16 +207,12 @@ jobs:
         with:
           target: x86_64
           config: ${{ needs.check-event.outputs.config }}
-          type: ${{ matrix.type }}
-          customer: ${{ matrix.customer }}
 
       - name: Package OBS Studio 📀
         uses: ./.github/actions/package-obs
         with:
           target: x86_64
           config: ${{ needs.check-event.outputs.config }}
-          type: ${{ matrix.type }}
-          customer: ${{ matrix.customer }}
           package: ${{ fromJSON(needs.check-event.outputs.package) }}
 
       - name: Upload Source Tarball 🗜️
@@ -255,7 +239,7 @@ jobs:
         if: github.event_name != 'pull_request' && steps.ccache-cache.outputs.cache-hit != 'true'
         with:
           path: ${{ github.workspace }}/.ccache
-          key: ${{ runner.os }}-ccache-x86_64-${{ matrix.customer }}-${{ matrix.type }}-${{ needs.check-event.outputs.config }}
+          key: ${{ runner.os }}-ccache-x86_64-${{ needs.check-event.outputs.config }}
 
   #flatpak-build:
   #  name: Flatpak 📦
@@ -316,11 +300,6 @@ jobs:
     name: Windows 🪟
     runs-on: windows-2022
     needs: check-event
-    strategy:
-      fail-fast: false
-      matrix:
-        customer: [ivs, twitch]
-        type: [alpha, dev]
     defaults:
       run:
         shell: pwsh
@@ -354,16 +333,12 @@ jobs:
         with:
           target: x64
           config: ${{ needs.check-event.outputs.config }}
-          type: ${{ matrix.type }}
-          customer: ${{ matrix.customer }}
 
       - name: Package OBS Studio 📀
         uses: ./.github/actions/package-obs
         with:
           target: x64
           config: ${{ needs.check-event.outputs.config }}
-          type: ${{ matrix.type }}
-          customer: ${{ matrix.customer }}
           package: ${{ fromJSON(needs.check-event.outputs.package) }}
 
       - name: Upload Artifacts 📡

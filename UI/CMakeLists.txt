@@ -130,23 +130,6 @@ foreach(graphics_library IN ITEMS opengl metal d3d11)
   endif()
 endforeach()
 
-option(ENABLE_IVS_DEV_FEATURES "Enable custom Twitch simulcast config" ON)
-if(ENABLE_IVS_DEV_FEATURES)
-  add_compile_definitions(ENABLE_IVS_DEV_FEATURES)
-endif()
-
-if(NOT DEFINED IVS_CUSTOMER OR IVS_CUSTOMER STREQUAL "twitch")
-  add_compile_definitions(
-    # cmake-format: sortable
-    SIMULCAST_DOCK_ID="twitch-go-live" SIMULCAST_DOCK_STYLE_BACKGROUND_COLOR_HEX="644186"
-    SIMULCAST_DOCK_STYLE_COLOR="white" SIMULCAST_DOCK_TITLE="Twitch"
-    SIMULCAST_GET_STREAM_KEY_URL="https://dashboard.twitch.tv/settings/stream")
-elseif(IVS_CUSTOMER STREQUAL "ivs")
-  add_compile_definitions(
-    # cmake-format: sortable
-    SIMULCAST_DOCK_ID="amazon-ivs-go-live" SIMULCAST_DOCK_TITLE="Amazon IVS" SIMULCAST_OVERRIDE_RTMP_URL=true)
-endif()
-
 get_property(obs_module_list GLOBAL PROPERTY OBS_MODULES_ENABLED)
 list(JOIN obs_module_list "|" SAFE_MODULES)
 target_compile_definitions(obs-studio PRIVATE "SAFE_MODULES=\"${SAFE_MODULES}\"")

@@ -3,11 +3,7 @@ param(
     [ValidateSet('x64')]
     [string] $Target = 'x64',
     [ValidateSet('Debug', 'RelWithDebInfo', 'Release', 'MinSizeRel')]
-    [string] $Configuration = 'RelWithDebInfo',
-    [ValidateSet('ivs', 'twitch')]
-    [string] $Customer,
-    [ValidateSet('alpha', 'dev')]
-    [string] $Type
+    [string] $Configuration = 'RelWithDebInfo'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -56,15 +52,9 @@ function Build {
     Push-Location -Stack BuildTemp
     Ensure-Location $ProjectRoot
 
-    $CmakeArgs = @('--preset', "windows-ci-${Target}", "-DIVS_CUSTOMER:STRING=${Customer}", "-DIVS_BUILD_TYPE:STRING=${Type}")
+    $CmakeArgs = @('--preset', "windows-ci-${Target}")
     $CmakeBuildArgs = @('--build')
     $CmakeInstallArgs = @()
-
-    if ( $Type -eq 'alpha' ) {
-        $CmakeArgs += @(
-            "-DENABLE_IVS_DEV_FEATURES:BOOL=FALSE"
-        )
-    }
 
     if ( $DebugPreference -eq 'Continue' ) {
         $CmakeArgs += ('--debug-output')
