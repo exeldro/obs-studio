@@ -2502,7 +2502,7 @@ std::optional<bool> BasicOutputHandler::SetupSimulcast(obs_service_t *service)
 	stopStreaming.Disconnect();
 
 	bool is_custom =
-		strncmp("custom_rtmp", obs_service_get_type(service), 12);
+		strncmp("custom_rtmp", obs_service_get_type(service), 12) == 0;
 
 	OBSDataAutoRelease settings = obs_service_get_settings(service);
 	auto key = obs_data_get_string(settings, "key");
