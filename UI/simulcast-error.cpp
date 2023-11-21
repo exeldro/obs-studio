@@ -28,9 +28,9 @@ bool SimulcastError::ShowDialog(QWidget *parent) const
 		return QMessageBox::warning(
 			       parent, QTStr("Output.StartStreamFailed"),
 			       error + QTStr("FailedToStartStream.WarningRetryNonSimulcast"),
-			       QMessageBox::StandardButton::Cancel |
-				       QMessageBox::StandardButton::Retry) ==
-		       QMessageBox::StandardButton::Retry;
+			       QMessageBox::StandardButton::Yes |
+				       QMessageBox::StandardButton::No) ==
+		       QMessageBox::StandardButton::Yes;
 	}
 	return false;
 }
