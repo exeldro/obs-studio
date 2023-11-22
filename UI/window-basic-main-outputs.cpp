@@ -2261,7 +2261,7 @@ bool AdvancedOutput::StartRecording()
 		if (!ffmpegOutput) {
 			UpdateRecordingSettings();
 		}
-	} else if (!obs_output_active(streamOutput)) {
+	} else if (!obs_output_active(StreamingOutput())) {
 		UpdateStreamSettings();
 	}
 
@@ -2360,7 +2360,7 @@ bool AdvancedOutput::StartReplayBuffer()
 	if (!useStreamEncoder) {
 		if (!ffmpegOutput)
 			UpdateRecordingSettings();
-	} else if (!obs_output_active(streamOutput)) {
+	} else if (!obs_output_active(StreamingOutput())) {
 		UpdateStreamSettings();
 	}
 
@@ -2452,7 +2452,7 @@ void AdvancedOutput::StopReplayBuffer(bool force)
 
 bool AdvancedOutput::StreamingActive() const
 {
-	return obs_output_active(streamOutput);
+	return obs_output_active(StreamingOutput());
 }
 
 bool AdvancedOutput::RecordingActive() const
