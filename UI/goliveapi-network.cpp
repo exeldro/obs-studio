@@ -30,14 +30,15 @@ void HandleGoLiveApiErrors(QWidget *parent, obs_data_t *config_data)
 	if (strncmp(result, "warning", 8) == 0) {
 		OBSDataArrayAutoRelease encoder_configurations =
 			obs_data_get_array(config_data,
-					   "encoder_configuration");
+					   "encoder_configurations");
 		if (obs_data_array_count(encoder_configurations) == 0)
 			throw SimulcastError::warning(html_en_us);
 		else {
 			auto res = QMessageBox::warning(
 				parent,
 				QTStr("ConfigDownload.WarningMessageTitle"),
-				html_en_us,
+				html_en_us +
+					QTStr("FailedToStartStream.WarningRetry"),
 				QMessageBox::StandardButton::Yes |
 					QMessageBox::StandardButton::No);
 			if (res == QMessageBox::StandardButton::No)
