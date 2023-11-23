@@ -2505,13 +2505,26 @@ std::optional<bool> BasicOutputHandler::SetupSimulcast(obs_service_t *service)
 		strncmp("custom_rtmp", obs_service_get_type(service), 12) == 0;
 
 	OBSDataAutoRelease settings = obs_service_get_settings(service);
-	auto key = obs_data_get_string(settings, "key");
+	QString key = obs_data_get_string(settings, "key");
 
 	auto custom_rtmp_url =
 		is_custom && obs_data_has_user_value(settings, "server")
 			? std::make_optional<std::string>(
 				  obs_data_get_string(settings, "server"))
 			: std::nullopt;
+
+	if (!is_custom && obs_data_has_user_value(settings, "custom_server")) {
+		custom_rtmp_url = std::make_optional<std::string>(
+			obs_data_get_string(settings, "custom_server"));
+		blog(LOG_INFO, "Using service custom server '%s'",
+		     custom_rtmp_url->c_str());
+	}
+
+	if (!is_custom &&
+	    obs_data_has_user_value(settings, "custom_stream_key")) {
+		key = obs_data_get_string(settings, "custom_stream_key");
+		blog(LOG_INFO, "Using service custom stream key");
+	}
 
 	auto maximum_aggregate_bitrate =
 		config_get_bool(main->Config(), "Stream1",

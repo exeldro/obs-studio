@@ -1150,6 +1150,67 @@
               </widget>
              </item>
              <item row="1" column="0">
+              <widget class="QLabel" name="serviceCustomServerLabel">
+               <property name="text">
+                <string>Basic.Settings.Stream.ServiceCustomServer</string>
+               </property>
+               <property name="buddy">
+                <cstring>serviceCustomServer</cstring>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QLineEdit" name="serviceCustomServer"/>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="serviceCustomStreamKeyLabel">
+               <property name="text">
+                <string>Basic.Settings.Stream.ServiceCustomStreamKey</string>
+               </property>
+               <property name="buddy">
+                <cstring>serviceCustomStreamKey</cstring>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1">
+              <widget class="QFrame" name="serviceCustomStreamKeyWidget">
+               <layout class="QHBoxLayout">
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
+                <item>
+                 <widget class="QLineEdit" name="serviceCustomStreamKey">
+                  <property name="inputMask">
+                   <string notr="true"/>
+                  </property>
+                  <property name="text">
+                   <string notr="true"/>
+                  </property>
+                  <property name="echoMode">
+                   <enum>QLineEdit::Password</enum>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="serviceCustomStreamKeyShow">
+                  <property name="text">
+                   <string>Show</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item row="3" column="0">
               <widget class="QLabel" name="streamKeyLabel">
                <property name="text">
                 <string>Basic.AutoConfig.StreamPage.StreamKey</string>
@@ -1162,7 +1223,7 @@
                </property>
               </widget>
              </item>
-             <item row="1" column="1">
+             <item row="3" column="1">
               <widget class="QFrame" name="streamKeyWidget">
                <layout class="QHBoxLayout" name="horizontalLayout_11">
                 <property name="leftMargin">
@@ -1213,7 +1274,7 @@
                </layout>
               </widget>
              </item>
-             <item row="3" column="0">
+             <item row="4" column="0">
               <spacer name="horizontalSpacer_18">
                <property name="orientation">
                 <enum>Qt::Horizontal</enum>
@@ -1226,7 +1287,7 @@
                </property>
               </spacer>
              </item>
-             <item row="4" column="1">
+             <item row="5" column="1">
               <layout class="QHBoxLayout" name="horizontalLayout_23">
                <property name="spacing">
                 <number>8</number>
@@ -1269,21 +1330,21 @@
                </item>
               </layout>
              </item>
-             <item row="6" column="1">
+             <item row="7" column="1">
               <widget class="QCheckBox" name="bandwidthTestEnable">
                <property name="text">
                 <string>Basic.Settings.Stream.BandwidthTestMode</string>
                </property>
               </widget>
              </item>
-             <item row="7" column="1">
+             <item row="8" column="1">
               <widget class="QCheckBox" name="useAuth">
                <property name="text">
                 <string>Basic.Settings.Stream.Custom.UseAuthentication</string>
                </property>
               </widget>
              </item>
-             <item row="9" column="0">
+             <item row="10" column="0">
               <widget class="QLabel" name="authUsernameLabel">
                <property name="text">
                 <string>Basic.Settings.Stream.Custom.Username</string>
@@ -1293,10 +1354,10 @@
                </property>
               </widget>
              </item>
-             <item row="9" column="1">
+             <item row="10" column="1">
               <widget class="QLineEdit" name="authUsername"/>
              </item>
-             <item row="10" column="0">
+             <item row="11" column="0">
               <widget class="QLabel" name="authPwLabel">
                <property name="text">
                 <string>Basic.Settings.Stream.Custom.Password</string>
@@ -1306,7 +1367,7 @@
                </property>
               </widget>
              </item>
-             <item row="10" column="1">
+             <item row="11" column="1">
               <widget class="QFrame" name="authPwWidget">
                <layout class="QHBoxLayout" name="horizontalLayout_25">
                 <property name="leftMargin">
@@ -1338,10 +1399,10 @@
                </layout>
               </widget>
              </item>
-             <item row="8" column="1">
+             <item row="9" column="1">
               <widget class="QComboBox" name="twitchAddonDropdown"/>
              </item>
-             <item row="8" column="0">
+             <item row="9" column="0">
               <widget class="QLabel" name="twitchAddonLabel">
                <property name="text">
                 <string>Basic.Settings.Stream.TTVAddon</string>
@@ -1351,14 +1412,14 @@
                </property>
               </widget>
              </item>
-             <item row="11" column="1">
+             <item row="12" column="1">
               <widget class="QCheckBox" name="ignoreRecommended">
                <property name="text">
                 <string>Basic.Settings.Stream.IgnoreRecommended</string>
                </property>
               </widget>
              </item>
-             <item row="12" column="1">
+             <item row="13" column="1">
               <widget class="QLabel" name="enforceSettingsLabel">
                <property name="text">
                 <string notr="true"/>
@@ -1371,7 +1432,7 @@
                </property>
               </widget>
              </item>
-             <item row="13" column="1">
+             <item row="14" column="1">
               <widget class="QLabel" name="simulcastInfo">
                <property name="text">
                 <string>Simulcast.Info</string>
@@ -1387,21 +1448,21 @@
                </property>
               </widget>
              </item>
-             <item row="14" column="1">
+             <item row="15" column="1">
               <widget class="QCheckBox" name="enableSimulcast">
                <property name="text">
                 <string>Basic.Settings.Stream.EnableSimulcast</string>
                </property>
               </widget>
              </item>
-             <item row="15" column="0">
+             <item row="16" column="0">
               <widget class="QLabel" name="simulcastMaximumAggregateBitrateLabel">
                <property name="text">
                 <string>Basic.Settings.Stream.SimulcastMaximumAggregateBitrate</string>
                </property>
               </widget>
              </item>
-             <item row="15" column="1">
+             <item row="16" column="1">
               <layout class="QHBoxLayout">
                <item>
                 <widget class="QCheckBox" name="simulcastMaximumAggregateBitrateAuto">
@@ -1431,14 +1492,14 @@
                </item>
               </layout>
              </item>
-             <item row="16" column="0">
+             <item row="17" column="0">
               <widget class="QLabel" name="simulcastReservedEncoderSessionsLabel">
                <property name="text">
                 <string>Basic.Settings.Stream.SimulcastReservedEncoderSessions</string>
                </property>
               </widget>
              </item>
-             <item row="16" column="1">
+             <item row="17" column="1">
               <layout class="QHBoxLayout">
                <item>
                 <widget class="QCheckBox" name="simulcastReservedEncoderSessionsAuto">
@@ -1468,28 +1529,28 @@
                </item>
               </layout>
              </item>
-             <item row="17" column="1">
+             <item row="18" column="1">
               <widget class="QCheckBox" name="simulcastConfigOverrideEnable">
                 <property name="text">
                 <string>Basic.Settings.Stream.SimulcastConfigOverrideEnable</string>
                 </property>
               </widget>
              </item>
-             <item row="18" column="0">
+             <item row="19" column="0">
               <widget class="QLabel" name="simulcastConfigOverrideLabel">
                <property name="text">
                 <string>Basic.Settings.Stream.SimulcastConfigOverride</string>
                </property>
               </widget>
              </item>
-             <item row="18" column="1">
+             <item row="19" column="1">
               <widget class="QPlainTextEdit" name="simulcastConfigOverride">
                 <property name="sizePolicy">
                 <enum>QSizePolicy::Preferred, QSizePolicy::MinimumExpanding</enum>
                 </property>
               </widget>
              </item>
-             <item row="5" column="1">
+             <item row="6" column="1">
               <layout class="QHBoxLayout" name="horizontalLayout_28">
                <item>
                 <widget class="QPushButton" name="useStreamKeyAdv">
@@ -1513,14 +1574,14 @@
                </item>
               </layout>
              </item>
-             <item row="4" column="0">
+             <item row="5" column="0">
               <widget class="QLabel" name="connectedAccountLabel">
                <property name="text">
                 <string>Basic.AutoConfig.StreamPage.ConnectedAccount</string>
                </property>
               </widget>
              </item>
-             <item row="3" column="1">
+             <item row="4" column="1">
               <layout class="QHBoxLayout" name="horizontalLayout_15">
                <item>
                 <widget class="QPushButton" name="connectAccount2">

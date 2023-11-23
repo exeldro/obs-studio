@@ -1,5 +1,6 @@
 #include <QMessageBox>
 #include <QUrl>
+#include <QUuid>
 
 #include "window-basic-settings.hpp"
 #include "obs-frontend-api.h"
@@ -19,6 +20,13 @@
 #ifdef YOUTUBE_ENABLED
 #include "youtube-api-wrappers.hpp"
 #endif
+
+static const QUuid &CustomServerUUID()
+{
+	static const QUuid uuid = QUuid::fromString(
+		QT_UTF8("{241da255-70f2-4bbb-bef7-509695bf8e65}"));
+	return uuid;
+}
 
 struct QCef;
 struct QCefCookieManager;
@@ -112,6 +120,14 @@ void OBSBasicSettings::LoadStream1Settings()
 			: nullptr;
 	const char *server = obs_data_get_string(settings, "server");
 	const char *key = obs_data_get_string(settings, "key");
+	const char *custom_server =
+		obs_data_has_user_value(settings, "custom_server")
+			? obs_data_get_string(settings, "custom_server")
+			: nullptr;
+	const char *custom_stream_key =
+		obs_data_has_user_value(settings, "custom_stream_key")
+			? obs_data_get_string(settings, "custom_stream_key")
+			: nullptr;
 	protocol = QT_UTF8(obs_service_get_protocol(service_obj));
 	const char *bearer_token =
 		obs_data_get_string(settings, "bearer_token");
@@ -187,7 +203,14 @@ void OBSBasicSettings::LoadStream1Settings()
 	UpdateServerList();
 
 	if (is_rtmp_common) {
-		int idx = ui->server->findData(server);
+		auto maybe_uuid = QUuid::fromString(QT_UTF8(server));
+
+		int idx = -1;
+		if (maybe_uuid.isNull())
+			idx = ui->server->findData(server);
+		else
+			idx = ui->server->findData(maybe_uuid);
+
 		if (idx == -1) {
 			if (server && *server)
 				ui->server->insertItem(0, server, server);
@@ -195,6 +218,11 @@ void OBSBasicSettings::LoadStream1Settings()
 		}
 		ui->server->setCurrentIndex(idx);
 	}
+
+	if (custom_server)
+		ui->serviceCustomServer->setText(custom_server);
+	if (custom_stream_key)
+		ui->serviceCustomStreamKey->setText(custom_stream_key);
 
 	if (is_whip)
 		ui->key->setText(bearer_token);
@@ -244,6 +272,15 @@ void OBSBasicSettings::SaveStream1Settings()
 		obs_data_set_string(
 			settings, "server",
 			QT_TO_UTF8(ui->server->currentData().toString()));
+
+		if (ui->server->currentData() == CustomServerUUID()) {
+			obs_data_set_string(
+				settings, "custom_server",
+				QT_TO_UTF8(ui->serviceCustomServer->text()));
+			obs_data_set_string(
+				settings, "custom_stream_key",
+				QT_TO_UTF8(ui->serviceCustomStreamKey->text()));
+		}
 	} else {
 		if (ui->service->currentIndex() != 0) {
 			obs_data_set_string(
@@ -732,6 +769,12 @@ void OBSBasicSettings::UpdateServerList()
 		ui->server->addItem(name, server);
 	}
 
+	if (serviceName == "Twitch") {
+		ui->server->addItem(
+			QTStr("Basic.Settings.Stream.SpecifyCustomServer"),
+			CustomServerUUID());
+	}
+
 	obs_properties_destroy(props);
 }
 
@@ -942,6 +985,34 @@ void OBSBasicSettings::on_useAuth_toggled()
 	ui->authUsername->setVisible(use_auth);
 	ui->authPwLabel->setVisible(use_auth);
 	ui->authPwWidget->setVisible(use_auth);
+}
+
+bool OBSBasicSettings::IsCustomTwitchServer()
+{
+	bool is_twitch = ui->service->currentText() == "Twitch";
+	return is_twitch &&
+	       ui->server->currentData() == QVariant{CustomServerUUID()};
+}
+
+void OBSBasicSettings::on_server_currentIndexChanged(int /*index*/)
+{
+	auto server_is_custom = IsCustomTwitchServer();
+
+	ui->serviceCustomServerLabel->setVisible(server_is_custom);
+	ui->serviceCustomServer->setVisible(server_is_custom);
+	ui->serviceCustomStreamKeyLabel->setVisible(server_is_custom);
+	ui->serviceCustomStreamKeyWidget->setVisible(server_is_custom);
+}
+
+void OBSBasicSettings::on_serviceCustomStreamKeyShow_clicked()
+{
+	if (ui->serviceCustomStreamKey->echoMode() == QLineEdit::Password) {
+		ui->serviceCustomStreamKey->setEchoMode(QLineEdit::Normal);
+		ui->serviceCustomStreamKeyShow->setText(QTStr("Hide"));
+	} else {
+		ui->serviceCustomStreamKey->setEchoMode(QLineEdit::Password);
+		ui->serviceCustomStreamKeyShow->setText(QTStr("Show"));
+	}
 }
 
 void OBSBasicSettings::UpdateVodTrackSetting()
