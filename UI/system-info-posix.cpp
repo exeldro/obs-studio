@@ -1,4 +1,4 @@
-#include "system-info.h"
+#include "system-info.hpp"
 
 OBSDataArrayAutoRelease system_gpu_data()
 {

@@ -3,7 +3,7 @@
 #include <memory>
 #include <string>
 
-#include "simulcast-output.h"
+#include "simulcast-output.hpp"
 
 class OBSBasic;
 

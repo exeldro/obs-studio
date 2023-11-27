@@ -4,7 +4,7 @@
 #include <QMessageBox>
 #include "qt-wrappers.hpp"
 #include "audio-encoders.hpp"
-#include "simulcast-error.h"
+#include "simulcast-error.hpp"
 #include "window-basic-main.hpp"
 #include "window-basic-main-outputs.hpp"
 #include "window-basic-vcam-config.hpp"

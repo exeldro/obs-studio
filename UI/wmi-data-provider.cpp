@@ -1,4 +1,4 @@
-#include "wmi-data-provider.h"
+#include "wmi-data-provider.hpp"
 
 #include <obs.hpp>
 #include <util/platform.h>

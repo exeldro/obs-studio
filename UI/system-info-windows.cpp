@@ -1,4 +1,4 @@
-#include "system-info.h"
+#include "system-info.hpp"
 
 #include <dxgi.h>
 #include <cinttypes>

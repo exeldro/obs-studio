@@ -11,7 +11,7 @@
 
 #define NOMINMAX
 
-#include "immutable-date-time.h"
+#include "immutable-date-time.hpp"
 
 #include "berryessa-submitter.hpp"
 #include "berryessa-every-minute.hpp"

@@ -1,4 +1,4 @@
-#include "simulcast-output.h"
+#include "simulcast-output.hpp"
 
 #include <util/dstr.hpp>
 #include <util/platform.h>
@@ -23,11 +23,11 @@
 #include <QUrlQuery>
 #include <QUuid>
 
-#include "system-info.h"
+#include "system-info.hpp"
 #include "goliveapi-postdata.hpp"
 #include "goliveapi-network.hpp"
-#include "ivs-events.h"
-#include "simulcast-error.h"
+#include "ivs-events.hpp"
+#include "simulcast-error.hpp"
 
 bool SimulcastDeveloperModeEnabled()
 {
