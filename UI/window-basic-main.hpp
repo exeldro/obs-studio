@@ -566,7 +566,7 @@ private:
 	void UpdatePreviewProgramIndicators();
 
 	QStringList extraDockNames;
-	QList<QSharedPointer<QDockWidget>> extraDocks;
+	QList<std::shared_ptr<QDockWidget>> extraDocks;
 
 	QStringList extraCustomDockNames;
 	QList<QPointer<QDockWidget>> extraCustomDocks;
@@ -574,7 +574,7 @@ private:
 #ifdef BROWSER_AVAILABLE
 	QPointer<QAction> extraBrowserMenuDocksSeparator;
 
-	QList<QSharedPointer<QDockWidget>> extraBrowserDocks;
+	QList<std::shared_ptr<QDockWidget>> extraBrowserDocks;
 	QStringList extraBrowserDockNames;
 	QStringList extraBrowserDockTargets;
 

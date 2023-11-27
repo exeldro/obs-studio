@@ -14,7 +14,6 @@ jobs:
       notarize: ${{ steps.setup.outputs.notarize }}
       config: ${{ steps.setup.outputs.config }}
       commitHash: ${{ steps.setup.outputs.commitHash }}
-      annotate: ${{ steps.setup.outputs.annotate }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -29,16 +28,16 @@ jobs:
 
           case "${GITHUB_EVENT_NAME}" in
             pull_request|merge_group)
-              config_data=('codesign:false' 'notarize:false' 'package:false' 'config:RelWithDebInfo' 'annotate:false')
+              config_data=('codesign:false' 'notarize:false' 'package:false' 'config:RelWithDebInfo')
               ;;
             push)
-              config_data=('codesign:false' 'notarize:false' 'package:false' 'config:RelWithDebInfo' 'annotate:false')
+              config_data=('codesign:false' 'notarize:false' 'package:false' 'config:RelWithDebInfo')
               ;;
             workflow_dispatch)
-              config_data=('codesign:true' 'notarize:false' 'package:false' 'config:RelWithDebInfo' 'annotate:false')
+              config_data=('codesign:true' 'notarize:false' 'package:false' 'config:RelWithDebInfo')
               ;;
             schedule)
-              config_data=('codesign:true' 'notarize:false' 'package:true' 'config:RelWithDebInfo' 'annotate:true')
+              config_data=('codesign:true' 'notarize:false' 'package:true' 'config:RelWithDebInfo')
               ;;
             *) ;;
           esac
@@ -144,14 +143,6 @@ jobs:
           notarize: ${{ fromJSON(needs.check-event.outputs.notarize) && fromJSON(steps.codesign.outputs.haveNotarizationUser) }}
           codesignUser: ${{ secrets.MACOS_NOTARIZATION_USERNAME }}
           codesignPass: ${{ secrets.MACOS_NOTARIZATION_PASSWORD }}
-
-      - name: Annotate Build 🏷️
-        if: matrix.target == 'arm64' && github.event_name == 'schedule'
-        uses: yuzutech/annotations-action@v0.4.0
-        with:
-          repo-token: ${{ github.token }}
-          title: Clang Compiler
-          input: ${{ github.workspace }}/build_issues.json
 
       - name: Upload Artifacts 📡
         uses: actions/upload-artifact@v3
@@ -286,8 +277,15 @@ jobs:
 
   #        echo "cacheKey=${cache_key}" >> $GITHUB_OUTPUT
 
+  #    - name: Validate Flatpak manifest
+  #      uses: ./.github/actions/flatpak-builder-lint
+  #      with:
+  #        artifact: manifest
+  #        path: build-aux/com.obsproject.Studio.json
+  #        validateToPublish: false
+
   #    - name: Build Flatpak Manifest 🧾
-  #      uses: flatpak/flatpak-github-actions/flatpak-builder@1283416d7c0462e052ab0685d9444a7a48bfff3b
+  #      uses: flatpak/flatpak-github-actions/flatpak-builder@0ab9dd6a6afa6fe7e292db0325171660bf5b6fdf
   #      with:
   #        build-bundle: ${{ fromJSON(needs.check-event.outputs.package) }}
   #        bundle: obs-studio-flatpak-${{ needs.check-event.outputs.commitHash }}.flatpak
@@ -295,6 +293,20 @@ jobs:
   #        cache: ${{ fromJSON(steps.setup.outputs.cacheHit) || (github.event_name == 'push' && github.ref_name == 'master')}}
   #        restore-cache: ${{ fromJSON(steps.setup.outputs.cacheHit) }}
   #        cache-key: ${{ steps.setup.outputs.cacheKey }}
+
+  #    - name: Validate build directory
+  #      uses: ./.github/actions/flatpak-builder-lint
+  #      with:
+  #        artifact: builddir
+  #        path: flatpak_app
+  #        validateToPublish: false
+
+  #    - name: Validate repository
+  #      uses: ./.github/actions/flatpak-builder-lint
+  #      with:
+  #        artifact: repo
+  #        path: repo
+  #        validateToPublish: false
 
   windows-build:
     name: Windows 🪟
