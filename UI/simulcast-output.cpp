@@ -211,10 +211,12 @@ static OBSOutputAutoRelease create_output(bool use_ertmp_multitrack)
 static OBSOutputAutoRelease create_recording_output(bool use_ertmp_multitrack)
 {
 	OBSDataAutoRelease settings = obs_data_create();
+#if 0
 	obs_data_set_string(settings, "path",
 			    GetOutputFilename(system_video_save_path(),
 					      "%CCYY-%MM-%DD_%hh-%mm-%ss")
 				    .c_str());
+#endif
 	obs_data_set_bool(settings, "ertmp_multitrack", use_ertmp_multitrack);
 
 	OBSOutputAutoRelease output = obs_output_create(
