@@ -547,6 +547,8 @@ static void get_yt_ch_title(Ui::OBSBasicSettings *ui)
 void OBSBasicSettings::UseStreamKeyAdvClicked()
 {
 	ui->streamKeyWidget->setVisible(true);
+	ui->streamKeyLabel->setVisible(true);
+	ui->useStreamKeyAdv->setVisible(false);
 }
 
 void OBSBasicSettings::on_service_currentIndexChanged(int idx)
