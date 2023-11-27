@@ -1,4 +1,4 @@
-#include "system-info.h"
+#include "system-info.hpp"
 
 #include <dxgi.h>
 #include <cinttypes>
@@ -272,16 +272,4 @@ OBSDataAutoRelease system_info()
 			  os_get_emulation_status());
 
 	return data;
-}
-
-std::string system_video_save_path()
-{
-	wchar_t path_utf16[MAX_PATH];
-	char path_utf8[MAX_PATH] = {};
-
-	SHGetFolderPathW(NULL, CSIDL_MYVIDEO, NULL, SHGFP_TYPE_CURRENT,
-			 path_utf16);
-
-	os_wcs_to_utf8(path_utf16, wcslen(path_utf16), path_utf8, MAX_PATH);
-	return std::string(path_utf8);
 }

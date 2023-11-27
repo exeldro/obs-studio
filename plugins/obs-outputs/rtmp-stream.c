@@ -998,7 +998,7 @@ static inline bool send_headers(struct rtmp_stream *stream)
 
 	if (!send_audio_header(stream, 0, &next_audio))
 		return false;
-	if (!send_video_header(stream, 0, &next_video) &&
+	if (!send_video_header(stream, 0, &next_video) ||
 	    !send_video_metadata(stream, 0))
 		return false;
 
@@ -1010,7 +1010,7 @@ static inline bool send_headers(struct rtmp_stream *stream)
 
 	i = 1;
 	while (next_video) {
-		if (!send_video_header(stream, i++, &next_video) &&
+		if (!send_video_header(stream, i++, &next_video) ||
 		    !send_video_metadata(stream, i))
 			return false;
 	}

@@ -1,4 +1,4 @@
-#include "simulcast-output.h"
+#include "simulcast-output.hpp"
 
 #include <util/dstr.hpp>
 #include <util/platform.h>
@@ -23,11 +23,11 @@
 #include <QUrlQuery>
 #include <QUuid>
 
-#include "system-info.h"
+#include "system-info.hpp"
 #include "goliveapi-postdata.hpp"
 #include "goliveapi-network.hpp"
-#include "ivs-events.h"
-#include "simulcast-error.h"
+#include "ivs-events.hpp"
+#include "simulcast-error.hpp"
 
 bool SimulcastDeveloperModeEnabled()
 {
@@ -211,10 +211,12 @@ static OBSOutputAutoRelease create_output(bool use_ertmp_multitrack)
 static OBSOutputAutoRelease create_recording_output(bool use_ertmp_multitrack)
 {
 	OBSDataAutoRelease settings = obs_data_create();
+#if 0
 	obs_data_set_string(settings, "path",
 			    GetOutputFilename(system_video_save_path(),
 					      "%CCYY-%MM-%DD_%hh-%mm-%ss")
 				    .c_str());
+#endif
 	obs_data_set_bool(settings, "ertmp_multitrack", use_ertmp_multitrack);
 
 	OBSOutputAutoRelease output = obs_output_create(

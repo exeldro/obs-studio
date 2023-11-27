@@ -1,6 +1,6 @@
-#include "ivs-events.h"
+#include "ivs-events.hpp"
 
-#include "immutable-date-time.h"
+#include "immutable-date-time.hpp"
 
 OBSDataAutoRelease MakeEvent_ivs_obs_stream_start(
 	obs_data_t *postData, obs_data_t *goLiveConfig,

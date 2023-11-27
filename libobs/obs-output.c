@@ -2034,7 +2034,7 @@ check_encoder_group_keyframe_alignment(obs_output_t *output,
 
 		if (data->dts_usec < packet->dts_usec) {
 			if (data->seen_on_track[packet->track_idx] ==
-			    KEYFRAME_TRACK_STATUS_NOT_SEEN)
+			    KEYFRAME_TRACK_STATUS_NOT_SEEN) {
 				blog(LOG_WARNING,
 				     "obs-output '%s': Missing keyframe with dts_usec %" PRIi64
 				     " for encoder '%s' (track: %zu)",
@@ -2042,6 +2042,8 @@ check_encoder_group_keyframe_alignment(obs_output_t *output,
 				     data->dts_usec,
 				     obs_encoder_get_name(packet->encoder),
 				     packet->track_idx);
+			}
+
 			data->seen_on_track[packet->track_idx] =
 				KEYFRAME_TRACK_STATUS_SKIPPED;
 

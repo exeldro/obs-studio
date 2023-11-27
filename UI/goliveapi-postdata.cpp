@@ -1,7 +1,7 @@
 #include "goliveapi-postdata.hpp"
 
-#include "immutable-date-time.h"
-#include "system-info.h"
+#include "immutable-date-time.hpp"
+#include "system-info.hpp"
 
 OBSDataAutoRelease
 constructGoLivePost(const ImmutableDateTime &attempt_start_time,

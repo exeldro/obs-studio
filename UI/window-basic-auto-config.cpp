@@ -11,8 +11,8 @@
 
 #include "goliveapi-postdata.hpp"
 #include "goliveapi-network.hpp"
-#include "immutable-date-time.h"
-#include "simulcast-error.h"
+#include "immutable-date-time.hpp"
+#include "simulcast-error.hpp"
 
 #include "ui_AutoConfigStartPage.h"
 #include "ui_AutoConfigVideoPage.h"

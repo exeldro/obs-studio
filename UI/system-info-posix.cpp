@@ -1,4 +1,4 @@
-#include "system-info.h"
+#include "system-info.hpp"
 
 OBSDataArrayAutoRelease system_gpu_data()
 {
@@ -8,9 +8,4 @@ OBSDataArrayAutoRelease system_gpu_data()
 OBSDataAutoRelease system_info()
 {
 	return nullptr;
-}
-
-std::string system_video_save_path()
-{
-	return std::string(getenv("HOME"));
 }

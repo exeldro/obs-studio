@@ -3,7 +3,7 @@
 #include <obs.hpp>
 #include <obs-app.hpp>
 #include <remote-text.hpp>
-#include "simulcast-error.h"
+#include "simulcast-error.hpp"
 
 #include <qstring.h>
 #include <string>

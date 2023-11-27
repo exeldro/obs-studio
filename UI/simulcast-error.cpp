@@ -1,4 +1,4 @@
-#include "simulcast-error.h"
+#include "simulcast-error.hpp"
 
 #include <QMessageBox>
 #include "obs-app.hpp"

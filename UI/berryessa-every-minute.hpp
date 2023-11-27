@@ -7,7 +7,7 @@
 
 #include "presentmon-csv-capture.hpp"
 #ifdef _WIN32
-#include "wmi-data-provider.h"
+#include "wmi-data-provider.hpp"
 #endif
 
 #include <util/platform.h>

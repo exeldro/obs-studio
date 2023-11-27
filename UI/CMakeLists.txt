@@ -97,18 +97,18 @@ target_sources(
           goliveapi-postdata.cpp
           goliveapi-postdata.hpp
           immutable-date-time.cpp
-          immutable-date-time.h
+          immutable-date-time.hpp
           ivs-events.cpp
-          ivs-events.h
+          ivs-events.hpp
           presentmon-csv-capture.cpp
           presentmon-csv-capture.hpp
           presentmon-csv-parser.cpp
           presentmon-csv-parser.hpp
           simulcast-error.cpp
-          simulcast-error.h
+          simulcast-error.hpp
           simulcast-output.cpp
-          simulcast-output.h
-          system-info.h)
+          simulcast-output.hpp
+          system-info.hpp)
 
 if(OS_WINDOWS)
   include(cmake/os-windows.cmake)
