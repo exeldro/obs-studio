@@ -1010,9 +1010,10 @@ static inline bool send_headers(struct rtmp_stream *stream)
 
 	i = 1;
 	while (next_video) {
-		if (!send_video_header(stream, i++, &next_video) ||
+		if (!send_video_header(stream, i, &next_video) ||
 		    !send_video_metadata(stream, i))
 			return false;
+		i += 1;
 	}
 
 	return true;
