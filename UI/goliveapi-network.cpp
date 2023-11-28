@@ -37,7 +37,7 @@ void HandleGoLiveApiErrors(QWidget *parent, obs_data_t *config_data)
 			auto res = QMessageBox::warning(
 				parent,
 				QTStr("ConfigDownload.WarningMessageTitle"),
-				html_en_us +
+				QString("<html>") + html_en_us +
 					QTStr("FailedToStartStream.WarningRetry"),
 				QMessageBox::StandardButton::Yes |
 					QMessageBox::StandardButton::No);

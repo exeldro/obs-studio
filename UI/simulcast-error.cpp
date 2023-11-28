@@ -22,12 +22,14 @@ bool SimulcastError::ShowDialog(QWidget *parent) const
 {
 	if (type == Type::Critical) {
 		QMessageBox::critical(parent, QTStr("Output.StartStreamFailed"),
-				      error, QMessageBox::StandardButton::Ok);
+				      QString("<html>") + error,
+				      QMessageBox::StandardButton::Ok);
 		return false;
 	} else if (type == Type::Warning) {
 		return QMessageBox::warning(
 			       parent, QTStr("Output.StartStreamFailed"),
-			       error + QTStr("FailedToStartStream.WarningRetryNonSimulcast"),
+			       QString("<html>") + error +
+				       QTStr("FailedToStartStream.WarningRetryNonSimulcast"),
 			       QMessageBox::StandardButton::Yes |
 				       QMessageBox::StandardButton::No) ==
 		       QMessageBox::StandardButton::Yes;
