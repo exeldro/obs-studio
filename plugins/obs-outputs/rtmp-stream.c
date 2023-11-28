@@ -831,8 +831,7 @@ static bool send_audio_header(struct rtmp_stream *stream, size_t idx,
 	return send_packet(stream, &packet, true, idx) >= 0;
 }
 
-static bool send_video_header(struct rtmp_stream *stream, size_t idx,
-			      bool *next)
+static bool send_video_header(struct rtmp_stream *stream, size_t idx)
 {
 	obs_output_t *context = stream->output;
 	obs_encoder_t *vencoder = obs_output_get_video_encoder2(context, idx);
@@ -843,10 +842,8 @@ static bool send_video_header(struct rtmp_stream *stream, size_t idx,
 					.timebase_den = 1,
 					.keyframe = true};
 
-	if (!vencoder) {
-		*next = false;
-		return true;
-	}
+	if (!vencoder)
+		return false;
 
 	if (!obs_encoder_get_extra_data(vencoder, &header, &size))
 		return false;
@@ -994,12 +991,10 @@ static inline bool send_headers(struct rtmp_stream *stream)
 	stream->sent_headers = true;
 	size_t i = 0;
 	bool next_audio = true;
-	bool next_video = true;
 
 	if (!send_audio_header(stream, 0, &next_audio))
 		return false;
-	if (!send_video_header(stream, 0, &next_video) ||
-	    !send_video_metadata(stream, 0))
+	if (!send_video_header(stream, 0) || !send_video_metadata(stream, 0))
 		return false;
 
 	i = 1;
@@ -1009,8 +1004,8 @@ static inline bool send_headers(struct rtmp_stream *stream)
 	}
 
 	i = 1;
-	while (next_video) {
-		if (!send_video_header(stream, i, &next_video) ||
+	while (obs_output_get_video_encoder2(stream->output, i) != NULL) {
+		if (!send_video_header(stream, i) ||
 		    !send_video_metadata(stream, i))
 			return false;
 		i += 1;
