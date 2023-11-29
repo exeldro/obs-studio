@@ -849,6 +849,12 @@ static bool send_video_header(struct rtmp_stream *stream, size_t idx)
 		return false;
 
 	switch (stream->video_codec[idx]) {
+	case CODEC_NONE:
+		do_log(LOG_ERROR,
+		       "Codec not initialized for track %zu while sending header",
+		       idx);
+		return false;
+
 	case CODEC_H264:
 		packet.size = obs_parse_avc_header(&packet.data, header, size);
 		// Always send H264 on track 0 as old style for compat
@@ -1558,7 +1564,8 @@ static void *connect_thread(void *data)
 
 	// HDR streaming disabled for AV1 and HEVC
 	for (size_t i = 0; i < MAX_OUTPUT_VIDEO_ENCODERS; i++) {
-		if (stream->video_codec[i] != CODEC_H264) {
+		if (stream->video_codec[i] &&
+		    stream->video_codec[i] != CODEC_H264) {
 			video_t *video = obs_get_video();
 			const struct video_output_info *info =
 				video_output_get_info(video);
@@ -1881,6 +1888,11 @@ static void rtmp_stream_data(void *data, struct encoder_packet *packet)
 		}
 
 		switch (stream->video_codec[packet->track_idx]) {
+		case CODEC_NONE:
+			do_log(LOG_ERROR, "Codec not initialized for track %zu",
+			       packet->track_idx);
+			return;
+
 		case CODEC_H264:
 			obs_parse_avc_packet(&new_packet, packet);
 			break;
