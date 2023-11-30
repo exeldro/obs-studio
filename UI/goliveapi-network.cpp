@@ -54,7 +54,7 @@ OBSDataAutoRelease DownloadGoLiveConfig(QWidget *parent, QString url,
 					obs_data_t *postData_)
 {
 	blog(LOG_INFO, "Go live POST data: %s",
-	     censoredJson(postData_).toLocal8Bit().constData());
+	     censoredJson(postData_).toUtf8().constData());
 
 	// andrew download code start
 	OBSDataAutoRelease encodeConfigObsData;
