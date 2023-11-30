@@ -467,8 +467,9 @@ struct OutputObjects {
 };
 
 void SimulcastOutput::PrepareStreaming(
-	QWidget *parent, const std::optional<std::string> &rtmp_url,
-	const QString &stream_key, bool use_ertmp_multitrack,
+	QWidget *parent, const char *service_name,
+	const std::optional<std::string> &rtmp_url, const QString &stream_key,
+	bool use_ertmp_multitrack,
 	std::optional<uint32_t> maximum_aggregate_bitrate,
 	std::optional<uint32_t> reserved_encoder_sessions,
 	std::optional<std::string> custom_config)
@@ -485,6 +486,26 @@ void SimulcastOutput::PrepareStreaming(
 	OBSDataAutoRelease go_live_config;
 	quint64 download_time_elapsed = 0;
 	bool is_custom_config = false;
+
+	blog(LOG_INFO,
+	     "Preparing enhanced broadcasting stream for:\n"
+	     "    device_id:      %s\n"
+	     "    obs_session_id: %s\n"
+	     "    custom config:  %s\n"
+	     "  settings:\n"
+	     "    service:                   %s\n"
+	     "    max aggregate bitrate:     %s (%" PRIu32 ")\n"
+	     "    reserved encoder sessions: %s (%" PRIu32 ")\n"
+	     "    custom rtmp url:           %s ('%s')",
+	     device_id().toUtf8().constData(),
+	     obs_session_id().toUtf8().constData(),
+	     is_custom_config ? "Yes" : "No", service_name,
+	     maximum_aggregate_bitrate.has_value() ? "Set" : "Auto",
+	     maximum_aggregate_bitrate.value_or(0),
+	     reserved_encoder_sessions.has_value() ? "Set" : "Auto",
+	     reserved_encoder_sessions.value_or(0),
+	     rtmp_url.has_value() ? "Yes" : "No",
+	     rtmp_url.has_value() ? rtmp_url->c_str() : "");
 
 	try {
 		go_live_post = constructGoLivePost(attempt_start_time,
@@ -532,6 +553,8 @@ void SimulcastOutput::PrepareStreaming(
 		if (goLiveMeta) {
 			const char *s =
 				obs_data_get_string(goLiveMeta, "config_id");
+			blog(LOG_INFO, "Enhanced broadcasting config_id: '%s'",
+			     s);
 			if (s && *s && berryessa_) {
 				add_always_string(berryessa_.get(), "config_id",
 						  s);

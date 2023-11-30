@@ -2514,6 +2514,13 @@ std::optional<bool> BasicOutputHandler::SetupSimulcast(obs_service_t *service)
 	OBSDataAutoRelease settings = obs_service_get_settings(service);
 	QString key = obs_data_get_string(settings, "key");
 
+	const char *service_name = "<unknown>";
+	if (is_custom && obs_data_has_user_value(settings, "service_name")) {
+		service_name = obs_data_get_string(settings, "service_name");
+	} else if (!is_custom) {
+		service_name = obs_data_get_string(settings, "service");
+	}
+
 	auto custom_rtmp_url =
 		is_custom && obs_data_has_user_value(settings, "server")
 			? std::make_optional<std::string>(
@@ -2556,7 +2563,8 @@ std::optional<bool> BasicOutputHandler::SetupSimulcast(obs_service_t *service)
 			main->Config(), "Stream1", "SimulcastConfigOverride"));
 
 	try {
-		simulcast->PrepareStreaming(main, custom_rtmp_url, key, true,
+		simulcast->PrepareStreaming(main, service_name, custom_rtmp_url,
+					    key, true,
 					    maximum_aggregate_bitrate,
 					    reserved_encoder_sessions,
 					    custom_config);
