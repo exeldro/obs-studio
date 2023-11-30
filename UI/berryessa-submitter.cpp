@@ -122,6 +122,12 @@ void SubmissionWorker::AttemptSubmission()
 	emit SubmissionError(OBSData{error});
 }
 
+void BerryessaSubmitter::setAlwaysBool(QString propertyKey, bool propertyValue)
+{
+	obs_data_set_bool(this->alwaysProperties_, propertyKey.toUtf8(),
+			  propertyValue);
+}
+
 void BerryessaSubmitter::setAlwaysString(QString propertyKey,
 					 QString propertyValue)
 {

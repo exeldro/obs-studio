@@ -75,6 +75,15 @@ static void submit_event(BerryessaSubmitter *berryessa, const char *event_name,
 	berryessa->submit(event_name, data);
 }
 
+static void add_always_bool(BerryessaSubmitter *berryessa, const char *name,
+			    bool data)
+{
+	if (!berryessa)
+		return;
+
+	berryessa->setAlwaysBool(name, data);
+}
+
 static void add_always_string(BerryessaSubmitter *berryessa, const char *name,
 			      const char *data)
 {
@@ -528,6 +537,8 @@ void SimulcastOutput::PrepareStreaming(
 						  s);
 			}
 		}
+		add_always_bool(berryessa_.get(), "config_custom",
+				is_custom_config);
 
 		video_encoders_.clear();
 		OBSEncoderAutoRelease audio_encoder = nullptr;
