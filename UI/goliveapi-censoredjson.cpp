@@ -26,8 +26,6 @@ void censorRecurse(obs_data_t *data)
 			censorRecurseArray(child_array);
 		}
 	}
-
-
 }
 
 void censorRecurseArray(obs_data_array_t *array)
@@ -42,15 +40,14 @@ QString censoredJson(obs_data_t *data, bool pretty)
 {
 	// Ugly clone via JSON write/read
 	const char *j = obs_data_get_json(data);
-	obs_data_t* clone = obs_data_create_from_json(j);
+	obs_data_t *clone = obs_data_create_from_json(j);
 
 	// Censor our copy
 	censorRecurse(clone);
 
 	// Turn our copy into JSON
-	QString s = pretty
-		? obs_data_get_json_pretty(clone)
-		: obs_data_get_json(clone);
+	QString s = pretty ? obs_data_get_json_pretty(clone)
+			   : obs_data_get_json(clone);
 
 	// Eliminate our copy
 	obs_data_release(clone);

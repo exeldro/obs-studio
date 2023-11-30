@@ -53,7 +53,8 @@ void HandleGoLiveApiErrors(QWidget *parent, obs_data_t *config_data)
 OBSDataAutoRelease DownloadGoLiveConfig(QWidget *parent, QString url,
 					obs_data_t *postData_)
 {
-	blog(LOG_INFO, "Go live POST data: %s", censoredJson(postData_).toLocal8Bit().constData());
+	blog(LOG_INFO, "Go live POST data: %s",
+	     censoredJson(postData_).toLocal8Bit().constData());
 
 	// andrew download code start
 	OBSDataAutoRelease encodeConfigObsData;

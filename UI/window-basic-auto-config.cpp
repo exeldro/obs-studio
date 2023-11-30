@@ -443,8 +443,7 @@ bool AutoConfigStreamPage::validatePage()
 
 			// grab a streamkey from the go live config if we can
 			OBSDataArrayAutoRelease ingest_endpoints =
-			obs_data_get_array(config,
-			   "ingest_endpoints");
+				obs_data_get_array(config, "ingest_endpoints");
 			for (size_t i = 0;
 			     i < obs_data_array_count(ingest_endpoints); i++) {
 				OBSDataAutoRelease item = obs_data_array_item(
