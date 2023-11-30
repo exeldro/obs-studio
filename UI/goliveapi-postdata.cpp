@@ -5,6 +5,7 @@
 
 OBSDataAutoRelease
 constructGoLivePost(const ImmutableDateTime &attempt_start_time,
+		    QString streamKey,
 		    const std::optional<uint64_t> &maximum_aggregate_bitrate,
 		    const std::optional<uint32_t> &reserved_encoder_sessions)
 {
@@ -14,6 +15,7 @@ constructGoLivePost(const ImmutableDateTime &attempt_start_time,
 	obs_data_set_string(postData, "schema_version", "2023-05-10");
 	obs_data_set_string(postData, "stream_attempt_start_time",
 			    attempt_start_time.CStr());
+	obs_data_set_string(postData, "authentication", streamKey().toUtf8().constData());
 	obs_data_set_obj(postData, "capabilities", capabilitiesData);
 
 	obs_data_set_bool(capabilitiesData, "plugin", true);

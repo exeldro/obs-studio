@@ -290,6 +290,8 @@ target_sources(
           berryessa-every-minute.hpp
           berryessa-submitter.cpp
           berryessa-submitter.hpp
+          goliveapi-censoredjson.cpp
+          goliveapi-censoredjson.hpp
           goliveapi-network.cpp
           goliveapi-network.hpp
           goliveapi-postdata.cpp
