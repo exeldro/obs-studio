@@ -1,4 +1,5 @@
 #include "ivs-events.hpp"
+#include "goliveapi-censoredjson.hpp"
 
 #include "immutable-date-time.hpp"
 
