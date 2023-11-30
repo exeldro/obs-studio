@@ -75,6 +75,15 @@ static void submit_event(BerryessaSubmitter *berryessa, const char *event_name,
 	berryessa->submit(event_name, data);
 }
 
+static void add_always_bool(BerryessaSubmitter *berryessa, const char *name,
+			    bool data)
+{
+	if (!berryessa)
+		return;
+
+	berryessa->setAlwaysBool(name, data);
+}
+
 static void add_always_string(BerryessaSubmitter *berryessa, const char *name,
 			      const char *data)
 {
@@ -497,11 +506,39 @@ void SimulcastOutput::PrepareStreaming(
 				throw SimulcastError::critical(QTStr(
 					"FailedToStartStream.InvalidCustomConfig"));
 
+			// create a new unique ID for this particular usage of
+			// a custom config, before using or logging anything
+			QString uuid = QUuid::createUuid().toString(
+				QUuid::WithoutBraces);
+			OBSDataAutoRelease meta =
+				obs_data_get_obj(custom, "meta");
+			if (!meta) {
+				meta = obs_data_create();
+				obs_data_set_obj(custom, "meta", meta);
+			}
+			obs_data_set_string(meta, "config_id",
+					    uuid.toUtf8().constData());
+
 			blog(LOG_INFO, "Using custom go live config: %s",
-			     custom_config->c_str());
+			     obs_data_get_json_pretty(custom));
 			go_live_config = std::move(custom);
 			is_custom_config = true;
 		}
+
+		// Put the config_id (whether we created it or downloaded it) on all
+		// Berryessa submissions from this point
+		OBSDataAutoRelease goLiveMeta =
+			obs_data_get_obj(go_live_config, "meta");
+		if (goLiveMeta) {
+			const char *s =
+				obs_data_get_string(goLiveMeta, "config_id");
+			if (s && *s && berryessa_) {
+				add_always_string(berryessa_.get(), "config_id",
+						  s);
+			}
+		}
+		add_always_bool(berryessa_.get(), "config_custom",
+				is_custom_config);
 
 		video_encoders_.clear();
 		OBSEncoderAutoRelease audio_encoder = nullptr;
@@ -542,8 +579,12 @@ void SimulcastOutput::PrepareStreaming(
 							   connect_time_ms) {
 				auto start_streaming_returned =
 					attempt_start_time.MSecsElapsed();
-				if (!success) {
 
+				add_always_string(berryessa,
+						  "stream_attempt_start_time",
+						  attempt_start_time.CStr());
+
+				if (!success) {
 					auto event =
 						MakeEvent_ivs_obs_stream_start_failed(
 							go_live_post,
@@ -564,27 +605,6 @@ void SimulcastOutput::PrepareStreaming(
 							download_time_elapsed,
 							start_streaming_returned,
 							connect_time_ms);
-
-					const char *configId =
-						is_custom_config
-							? nullptr
-							: obs_data_get_string(
-								  event,
-								  "config_id");
-					if (configId) {
-						// put the config_id on all events until the stream ends
-						add_always_string(berryessa,
-								  "config_id",
-								  configId);
-					} else if (berryessa) {
-						berryessa->unsetAlways(
-							"config_id");
-					}
-
-					add_always_string(
-						berryessa,
-						"stream_attempt_start_time",
-						attempt_start_time.CStr());
 
 					submit_event(berryessa,
 						     "ivs_obs_stream_start",

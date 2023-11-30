@@ -28,15 +28,6 @@ OBSDataAutoRelease MakeEvent_ivs_obs_stream_start(
 	if (connect_time_ms.has_value())
 		obs_data_set_int(event, "connect_time_msecs", *connect_time_ms);
 
-	// extract specific items of interest from the capabilities API response
-	OBSDataAutoRelease goLiveMeta = obs_data_get_obj(goLiveConfig, "meta");
-	if (goLiveMeta) {
-		const char *s = obs_data_get_string(goLiveMeta, "config_id");
-		if (s && *s) {
-			obs_data_set_string(event, "config_id", s);
-		}
-	}
-
 	OBSDataArrayAutoRelease goLiveEncoderConfigurations =
 		obs_data_get_array(goLiveConfig, "encoder_configurations");
 	if (goLiveEncoderConfigurations) {
