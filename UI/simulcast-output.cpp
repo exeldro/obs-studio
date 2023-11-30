@@ -487,6 +487,7 @@ void SimulcastOutput::PrepareStreaming(
 
 	try {
 		go_live_post = constructGoLivePost(attempt_start_time,
+						   stream_key,
 						   maximum_aggregate_bitrate,
 						   reserved_encoder_sessions);
 
