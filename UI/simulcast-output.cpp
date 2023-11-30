@@ -97,9 +97,10 @@ static OBSServiceAutoRelease
 create_service(const QString &device_id, const QString &obs_session_id,
 	       obs_data_t *go_live_config,
 	       const std::optional<std::string> &rtmp_url,
-	       const QString &stream_key)
+	       const QString &in_stream_key)
 {
 	const char *url = nullptr;
+	QString stream_key = in_stream_key;
 	if (rtmp_url.has_value()) {
 		url = rtmp_url->c_str();
 
@@ -117,6 +118,13 @@ create_service(const QString &device_id, const QString &obs_session_id,
 
 			url = obs_data_get_string(item, "url_template");
 			blog(LOG_INFO, "Using URL template: '%s'", url);
+			const char *sk =
+				obs_data_get_string(item, "authentication");
+			if (sk && *sk) {
+				blog(LOG_INFO,
+				     "Using stream key supplied by autoconfig");
+				stream_key = sk;
+			}
 			break;
 		}
 
@@ -509,6 +517,7 @@ void SimulcastOutput::PrepareStreaming(
 
 	try {
 		go_live_post = constructGoLivePost(attempt_start_time,
+						   stream_key,
 						   maximum_aggregate_bitrate,
 						   reserved_encoder_sessions);
 

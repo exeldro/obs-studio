@@ -421,6 +421,7 @@ bool AutoConfigStreamPage::validatePage()
 
 		auto postData =
 			constructGoLivePost(ImmutableDateTime::CurrentTimeUtc(),
+					    QString::fromStdString(wiz->key),
 					    std::nullopt, std::nullopt);
 
 		try {
@@ -438,6 +439,24 @@ bool AutoConfigStreamPage::validatePage()
 						encoder_configurations, i);
 				simulcastBitrate += obs_data_get_int(
 					encoder_configuration, "bitrate");
+			}
+
+			// grab a streamkey from the go live config if we can
+			OBSDataArrayAutoRelease ingest_endpoints =
+				obs_data_get_array(config, "ingest_endpoints");
+			for (size_t i = 0;
+			     i < obs_data_array_count(ingest_endpoints); i++) {
+				OBSDataAutoRelease item = obs_data_array_item(
+					ingest_endpoints, i);
+				const char *p =
+					obs_data_get_string(item, "protocol");
+				const char *auth = obs_data_get_string(
+					item, "authentication");
+				if (qstrnicmp("RTMP", p, 4) == 0 && auth &&
+				    *auth) {
+					wiz->key = auth;
+					break;
+				}
 			}
 
 			if (simulcastBitrate > 0) {
