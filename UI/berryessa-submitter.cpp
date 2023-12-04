@@ -91,7 +91,6 @@ void SubmissionWorker::AttemptSubmission()
 
 	// http post to berryessa
 	static const std::vector<std::string> headers = {
-		{"User-Agent: obs-simulcast-plugin-tech-preview"},
 		{"Content-Type: application/x-www-form-urlencoded; charset=UTF-8"}};
 
 	std::string httpResponse, httpError;
