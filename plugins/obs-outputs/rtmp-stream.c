@@ -119,6 +119,8 @@ static void rtmp_stream_destroy(void *data)
 		}
 	}
 
+	flv_additional_meta_data_free(&stream->additional_metadata);
+
 	RTMP_TLS_Free(&stream->rtmp);
 	free_packets(stream);
 	dstr_free(&stream->path);
