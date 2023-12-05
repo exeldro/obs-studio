@@ -20,10 +20,12 @@ void censorRecurse(obs_data_t *data)
 		if (typ == OBS_DATA_OBJECT) {
 			obs_data_t *child_data = obs_data_item_get_obj(item);
 			censorRecurse(child_data);
+			obs_data_release(child_data);
 		} else if (typ == OBS_DATA_ARRAY) {
 			obs_data_array_t *child_array =
 				obs_data_item_get_array(item);
 			censorRecurseArray(child_array);
+			obs_data_array_release(child_array);
 		}
 	}
 }
@@ -32,7 +34,9 @@ void censorRecurseArray(obs_data_array_t *array)
 {
 	const size_t sz = obs_data_array_count(array);
 	for (size_t i = 0; i < sz; i++) {
-		censorRecurse(obs_data_array_item(array, i));
+		obs_data_t *item = obs_data_array_item(array, i);
+		censorRecurse(item);
+		obs_data_release(item);
 	}
 }
 
