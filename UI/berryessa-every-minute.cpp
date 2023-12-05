@@ -63,10 +63,10 @@ static OBSFrameCounters InitFrameCounters()
 	return frame_counters;
 }
 
-static void
-AddOBSStats(os_cpu_usage_info *info, OBSFrameCounters &frame_counters,
-	    const std::vector<OBSEncoderFrameCounters> &encoder_counters,
-	    obs_data_t *event)
+static void AddOBSStats(os_cpu_usage_info *info,
+			OBSFrameCounters &frame_counters,
+			std::vector<OBSEncoderFrameCounters> &encoder_counters,
+			obs_data_t *event)
 {
 	obs_data_set_double(event, "obs_cpu_usage",
 			    os_cpu_usage_info_query(info));
@@ -104,9 +104,14 @@ AddOBSStats(os_cpu_usage_info *info, OBSFrameCounters &frame_counters,
 	obs_data_set_int(event, "lagged_frames",
 			 lagged_frames - frame_counters.lagged);
 
+	frame_counters.skipped = skipped_frames;
+	frame_counters.output = output_frames;
+	frame_counters.rendered = rendered_frames;
+	frame_counters.lagged = lagged_frames;
+
 	DStr buffer;
 	for (size_t i = 0; i < encoder_counters.size(); i++) {
-		const auto &counter = encoder_counters[i];
+		auto &counter = encoder_counters[i];
 		OBSEncoderAutoRelease encoder =
 			obs_weak_encoder_get_encoder(counter.weak_output);
 		if (!encoder)
@@ -116,9 +121,14 @@ AddOBSStats(os_cpu_usage_info *info, OBSFrameCounters &frame_counters,
 		auto skipped_frames = video_output_get_skipped_frames(video);
 
 		dstr_printf(buffer, "encoder%zu_total_frames", i);
-		obs_data_set_int(event, buffer->array, output_frames);
+		obs_data_set_int(event, buffer->array,
+				 output_frames - counter.output);
 		dstr_printf(buffer, "encoder%zu_skipped_frames", i);
-		obs_data_set_int(event, buffer->array, skipped_frames);
+		obs_data_set_int(event, buffer->array,
+				 skipped_frames - counter.skipped);
+
+		counter.output = output_frames;
+		counter.skipped = skipped_frames;
 	}
 }
 
