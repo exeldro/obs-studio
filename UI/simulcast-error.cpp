@@ -20,6 +20,7 @@ SimulcastError SimulcastError::cancel()
 
 bool SimulcastError::ShowDialog(QWidget *parent) const
 {
+	#if 0
 	if (type == Type::Critical) {
 		QMessageBox::critical(parent, QTStr("Output.StartStreamFailed"),
 				      QString("<html>") + error,
@@ -34,5 +35,25 @@ bool SimulcastError::ShowDialog(QWidget *parent) const
 				       QMessageBox::StandardButton::No) ==
 		       QMessageBox::StandardButton::Yes;
 	}
+	#endif
+	QMessageBox mb(parent);
+	mb.setTextFormat(Qt::RichText);
+	mb.setWindowTitle(QTStr("Output.StartStreamFailed"));
+
+	if (type == Type::Warning) {
+		mb.setText(
+			error +
+			QTStr("FailedToStartStream.WarningRetryNonSimulcast"));
+		mb.setIcon(QMessageBox::Warning);
+		mb.setStandardButtons(QMessageBox::StandardButton::Yes |
+				      QMessageBox::StandardButton::No);
+		return mb.exec() == QMessageBox::StandardButton::Yes;
+	} else if (type == Type::Critical) {
+		mb.setText(error);
+		mb.setIcon(QMessageBox::Critical);
+		mb.setStandardButtons(QMessageBox::StandardButton::Ok); // cannot continue
+		mb.exec();
+	}
+
 	return false;
 }

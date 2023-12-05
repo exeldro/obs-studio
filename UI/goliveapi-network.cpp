@@ -35,14 +35,16 @@ void HandleGoLiveApiErrors(QWidget *parent, obs_data_t *config_data)
 		if (obs_data_array_count(encoder_configurations) == 0)
 			throw SimulcastError::warning(html_en_us);
 		else {
-			auto res = QMessageBox::warning(
-				parent,
-				QTStr("ConfigDownload.WarningMessageTitle"),
-				QString("<html>") + html_en_us +
-					QTStr("FailedToStartStream.WarningRetry"),
-				QMessageBox::StandardButton::Yes |
+			QMessageBox mb(parent);
+			mb.setIcon(QMessageBox::Warning);
+			mb.setWindowTitle(
+				QTStr("ConfigDownload.WarningMessageTitle"));
+			mb.setTextFormat(Qt::RichText);
+			mb.setText(html_en_us +
+				   QTStr("FailedToStartStream.WarningRetry"));
+			mb.setStandardButtons(QMessageBox::StandardButton::Yes |
 					QMessageBox::StandardButton::No);
-			if (res == QMessageBox::StandardButton::No)
+			if (mb.exec() == QMessageBox::StandardButton::No)
 				throw SimulcastError::cancel();
 		}
 	} else if (strncmp(result, "error", 6) == 0) {
