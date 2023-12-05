@@ -35,7 +35,8 @@ bool SimulcastError::ShowDialog(QWidget *parent) const
 	} else if (type == Type::Critical) {
 		mb.setText(error);
 		mb.setIcon(QMessageBox::Critical);
-		mb.setStandardButtons(QMessageBox::StandardButton::Ok); // cannot continue
+		mb.setStandardButtons(
+			QMessageBox::StandardButton::Ok); // cannot continue
 		mb.exec();
 	}
 

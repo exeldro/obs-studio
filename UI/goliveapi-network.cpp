@@ -43,7 +43,7 @@ void HandleGoLiveApiErrors(QWidget *parent, obs_data_t *config_data)
 			mb.setText(html_en_us +
 				   QTStr("FailedToStartStream.WarningRetry"));
 			mb.setStandardButtons(QMessageBox::StandardButton::Yes |
-					QMessageBox::StandardButton::No);
+					      QMessageBox::StandardButton::No);
 			if (mb.exec() == QMessageBox::StandardButton::No)
 				throw SimulcastError::cancel();
 		}
