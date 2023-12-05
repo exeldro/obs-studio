@@ -38,6 +38,10 @@ void censorRecurseArray(obs_data_array_t *array)
 
 QString censoredJson(obs_data_t *data, bool pretty)
 {
+	if (!data) {
+		return "";
+	}
+
 	// Ugly clone via JSON write/read
 	const char *j = obs_data_get_json(data);
 	obs_data_t *clone = obs_data_create_from_json(j);
