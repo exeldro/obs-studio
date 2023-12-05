@@ -148,6 +148,9 @@ void BerryessaEveryMinute::fire()
 		wmi_queries_->SummarizeData(event);
 #endif
 
+	auto current_time = ImmutableDateTime::CurrentTimeUtc();
+	obs_data_set_string(event, "time_utc", current_time.CStr());
+
 	berryessa_->submit("ivs_obs_stream_minute", event);
 
 	// XXX after the first firing at a random [0.000, 60.000) time, try to fire
