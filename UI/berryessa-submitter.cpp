@@ -86,7 +86,7 @@ void SubmissionWorker::AttemptSubmission()
 	postJson += "]";
 
 	// base64 encoding for HTTP post
-	QByteArray postEncoded("data=");
+	QByteArray postEncoded("ua=1&data=");
 	postEncoded += postJson.toBase64();
 
 	// http post to berryessa
