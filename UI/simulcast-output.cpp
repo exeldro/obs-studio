@@ -521,8 +521,8 @@ void SimulcastOutput::PrepareStreaming(
 						   maximum_aggregate_bitrate,
 						   reserved_encoder_sessions);
 
-		go_live_config = DownloadGoLiveConfig(parent, GO_LIVE_API_URL,
-						      go_live_post);
+		go_live_config = DownloadGoLiveConfig(
+			parent, SimulcastAutoConfigURL(), go_live_post);
 		if (!go_live_config && !custom_config.has_value())
 			throw SimulcastError::warning(
 				QTStr("FailedToStartStream.FallbackToDefault"));
