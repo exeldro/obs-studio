@@ -83,7 +83,8 @@ struct BasicOutputHandler {
 	inline bool Active() const
 	{
 		return streamingActive || recordingActive || delayActive ||
-		       replayBufferActive || virtualCamActive;
+		       replayBufferActive || virtualCamActive ||
+		       simulcastActive;
 	}
 
 protected:
