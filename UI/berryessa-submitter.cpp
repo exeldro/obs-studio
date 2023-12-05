@@ -91,7 +91,6 @@ void SubmissionWorker::AttemptSubmission()
 
 	// http post to berryessa
 	static const std::vector<std::string> headers = {
-		{"User-Agent: obs-simulcast-plugin-tech-preview"},
 		{"Content-Type: application/x-www-form-urlencoded; charset=UTF-8"}};
 
 	std::string httpResponse, httpError;
@@ -108,18 +107,27 @@ void SubmissionWorker::AttemptSubmission()
 	// XXX parse response from berryessa, check response code?
 
 	pending_events_.clear(); // TODO: add discarded event names to error?
-	if (ok)
-		return;
 
 	// log and return http error information, if any
-	OBSDataAutoRelease error = obs_data_create();
-	obs_data_set_string(error, "url", url_.toUtf8());
-	obs_data_set_string(error, "error", httpError.c_str());
-	obs_data_set_int(error, "response_code", httpResponseCode);
-	blog(LOG_WARNING, "Could not submit %lld bytes to metrics backend: %s",
-	     postEncoded.size(), obs_data_get_json(error));
+	OBSDataAutoRelease status = obs_data_create();
+	obs_data_set_string(status, "url", url_.toUtf8());
+	obs_data_set_string(status, "error", httpError.c_str());
+	obs_data_set_int(status, "response_code", httpResponseCode);
+	if (ok) {
+		blog(LOG_INFO, "Submitted %lld bytes to metrics backend: %s",
+		     postEncoded.size(), obs_data_get_json(status));
+	} else {
+		blog(LOG_WARNING,
+		     "Could not submit %lld bytes to metrics backend: %s",
+		     postEncoded.size(), obs_data_get_json(status));
+		emit SubmissionError(OBSData{status});
+	}
+}
 
-	emit SubmissionError(OBSData{error});
+void BerryessaSubmitter::setAlwaysBool(QString propertyKey, bool propertyValue)
+{
+	obs_data_set_bool(this->alwaysProperties_, propertyKey.toUtf8(),
+			  propertyValue);
 }
 
 void BerryessaSubmitter::setAlwaysString(QString propertyKey,

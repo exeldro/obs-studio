@@ -54,12 +54,18 @@ public:
 
 	/**
 	 * This property key/value will be added to every item submitted by this
+	 * BerryessaSubmitter, unless overridden by a subsequent setAlwaysBool or unsetAlways.
+	 */
+	void setAlwaysBool(QString propertyKey, bool propertyValue);
+
+	/**
+	 * This property key/value will be added to every item submitted by this
 	 * BerryessaSubmitter, unless overridden by a subsequent setAlwaysString or unsetAlways.
 	 */
 	void setAlwaysString(QString propertyKey, QString propertyValue);
 
 	/**
-	 * Undoes setAlwaysString.
+	 * Undoes setAlwaysBool and setAlwaysString.
 	 */
 	void unsetAlways(QString propertyKey);
 

@@ -29,7 +29,7 @@ bool SimulcastDeveloperModeEnabled();
 struct SimulcastOutput {
 
 public:
-	void PrepareStreaming(QWidget *parent,
+	void PrepareStreaming(QWidget *parent, const char *service_name,
 			      const std::optional<std::string> &rtmp_url,
 			      const QString &stream_key,
 			      bool use_ertmp_multitrack,

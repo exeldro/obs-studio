@@ -1,4 +1,5 @@
 #include "goliveapi-network.hpp"
+#include "goliveapi-censoredjson.hpp"
 
 #include <obs.hpp>
 #include <obs-app.hpp>
@@ -52,7 +53,8 @@ void HandleGoLiveApiErrors(QWidget *parent, obs_data_t *config_data)
 OBSDataAutoRelease DownloadGoLiveConfig(QWidget *parent, QString url,
 					obs_data_t *postData_)
 {
-	blog(LOG_INFO, "Go live POST data: %s", obs_data_get_json(postData_));
+	blog(LOG_INFO, "Go live POST data: %s",
+	     censoredJson(postData_).toUtf8().constData());
 
 	// andrew download code start
 	OBSDataAutoRelease encodeConfigObsData;
@@ -91,9 +93,7 @@ OBSDataAutoRelease DownloadGoLiveConfig(QWidget *parent, QString url,
 	encodeConfigObsData =
 		obs_data_create_from_json(encodeConfigText.c_str());
 	blog(LOG_INFO, "Go live Response data: %s",
-	     obs_data_get_json(encodeConfigObsData));
-
-	blog(LOG_INFO, "Go Live Config data: %s", encodeConfigText.c_str());
+	     censoredJson(encodeConfigObsData, true).toUtf8().constData());
 
 	HandleGoLiveApiErrors(parent, encodeConfigObsData);
 

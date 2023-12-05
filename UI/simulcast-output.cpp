@@ -75,6 +75,15 @@ static void submit_event(BerryessaSubmitter *berryessa, const char *event_name,
 	berryessa->submit(event_name, data);
 }
 
+static void add_always_bool(BerryessaSubmitter *berryessa, const char *name,
+			    bool data)
+{
+	if (!berryessa)
+		return;
+
+	berryessa->setAlwaysBool(name, data);
+}
+
 static void add_always_string(BerryessaSubmitter *berryessa, const char *name,
 			      const char *data)
 {
@@ -88,9 +97,10 @@ static OBSServiceAutoRelease
 create_service(const QString &device_id, const QString &obs_session_id,
 	       obs_data_t *go_live_config,
 	       const std::optional<std::string> &rtmp_url,
-	       const QString &stream_key)
+	       const QString &in_stream_key)
 {
 	const char *url = nullptr;
+	QString stream_key = in_stream_key;
 	if (rtmp_url.has_value()) {
 		url = rtmp_url->c_str();
 
@@ -108,6 +118,13 @@ create_service(const QString &device_id, const QString &obs_session_id,
 
 			url = obs_data_get_string(item, "url_template");
 			blog(LOG_INFO, "Using URL template: '%s'", url);
+			const char *sk =
+				obs_data_get_string(item, "authentication");
+			if (sk && *sk) {
+				blog(LOG_INFO,
+				     "Using stream key supplied by autoconfig");
+				stream_key = sk;
+			}
 			break;
 		}
 
@@ -458,8 +475,9 @@ struct OutputObjects {
 };
 
 void SimulcastOutput::PrepareStreaming(
-	QWidget *parent, const std::optional<std::string> &rtmp_url,
-	const QString &stream_key, bool use_ertmp_multitrack,
+	QWidget *parent, const char *service_name,
+	const std::optional<std::string> &rtmp_url, const QString &stream_key,
+	bool use_ertmp_multitrack,
 	std::optional<uint32_t> maximum_aggregate_bitrate,
 	std::optional<uint32_t> reserved_encoder_sessions,
 	std::optional<std::string> custom_config)
@@ -477,8 +495,29 @@ void SimulcastOutput::PrepareStreaming(
 	quint64 download_time_elapsed = 0;
 	bool is_custom_config = false;
 
+	blog(LOG_INFO,
+	     "Preparing enhanced broadcasting stream for:\n"
+	     "    device_id:      %s\n"
+	     "    obs_session_id: %s\n"
+	     "    custom config:  %s\n"
+	     "  settings:\n"
+	     "    service:                   %s\n"
+	     "    max aggregate bitrate:     %s (%" PRIu32 ")\n"
+	     "    reserved encoder sessions: %s (%" PRIu32 ")\n"
+	     "    custom rtmp url:           %s ('%s')",
+	     device_id().toUtf8().constData(),
+	     obs_session_id().toUtf8().constData(),
+	     is_custom_config ? "Yes" : "No", service_name,
+	     maximum_aggregate_bitrate.has_value() ? "Set" : "Auto",
+	     maximum_aggregate_bitrate.value_or(0),
+	     reserved_encoder_sessions.has_value() ? "Set" : "Auto",
+	     reserved_encoder_sessions.value_or(0),
+	     rtmp_url.has_value() ? "Yes" : "No",
+	     rtmp_url.has_value() ? rtmp_url->c_str() : "");
+
 	try {
 		go_live_post = constructGoLivePost(attempt_start_time,
+						   stream_key,
 						   maximum_aggregate_bitrate,
 						   reserved_encoder_sessions);
 
@@ -497,11 +536,41 @@ void SimulcastOutput::PrepareStreaming(
 				throw SimulcastError::critical(QTStr(
 					"FailedToStartStream.InvalidCustomConfig"));
 
+			// create a new unique ID for this particular usage of
+			// a custom config, before using or logging anything
+			QString uuid = QUuid::createUuid().toString(
+				QUuid::WithoutBraces);
+			OBSDataAutoRelease meta =
+				obs_data_get_obj(custom, "meta");
+			if (!meta) {
+				meta = obs_data_create();
+				obs_data_set_obj(custom, "meta", meta);
+			}
+			obs_data_set_string(meta, "config_id",
+					    uuid.toUtf8().constData());
+
 			blog(LOG_INFO, "Using custom go live config: %s",
-			     custom_config->c_str());
+			     obs_data_get_json_pretty(custom));
 			go_live_config = std::move(custom);
 			is_custom_config = true;
 		}
+
+		// Put the config_id (whether we created it or downloaded it) on all
+		// Berryessa submissions from this point
+		OBSDataAutoRelease goLiveMeta =
+			obs_data_get_obj(go_live_config, "meta");
+		if (goLiveMeta) {
+			const char *s =
+				obs_data_get_string(goLiveMeta, "config_id");
+			blog(LOG_INFO, "Enhanced broadcasting config_id: '%s'",
+			     s);
+			if (s && *s && berryessa_) {
+				add_always_string(berryessa_.get(), "config_id",
+						  s);
+			}
+		}
+		add_always_bool(berryessa_.get(), "config_custom",
+				is_custom_config);
 
 		video_encoders_.clear();
 		OBSEncoderAutoRelease audio_encoder = nullptr;
@@ -542,8 +611,12 @@ void SimulcastOutput::PrepareStreaming(
 							   connect_time_ms) {
 				auto start_streaming_returned =
 					attempt_start_time.MSecsElapsed();
-				if (!success) {
 
+				add_always_string(berryessa,
+						  "stream_attempt_start_time",
+						  attempt_start_time.CStr());
+
+				if (!success) {
 					auto event =
 						MakeEvent_ivs_obs_stream_start_failed(
 							go_live_post,
@@ -564,27 +637,6 @@ void SimulcastOutput::PrepareStreaming(
 							download_time_elapsed,
 							start_streaming_returned,
 							connect_time_ms);
-
-					const char *configId =
-						is_custom_config
-							? nullptr
-							: obs_data_get_string(
-								  event,
-								  "config_id");
-					if (configId) {
-						// put the config_id on all events until the stream ends
-						add_always_string(berryessa,
-								  "config_id",
-								  configId);
-					} else if (berryessa) {
-						berryessa->unsetAlways(
-							"config_id");
-					}
-
-					add_always_string(
-						berryessa,
-						"stream_attempt_start_time",
-						attempt_start_time.CStr());
 
 					submit_event(berryessa,
 						     "ivs_obs_stream_start",

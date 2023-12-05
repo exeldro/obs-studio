@@ -119,6 +119,8 @@ static void rtmp_stream_destroy(void *data)
 		}
 	}
 
+	flv_additional_meta_data_free(&stream->additional_metadata);
+
 	RTMP_TLS_Free(&stream->rtmp);
 	free_packets(stream);
 	dstr_free(&stream->path);
@@ -831,8 +833,7 @@ static bool send_audio_header(struct rtmp_stream *stream, size_t idx,
 	return send_packet(stream, &packet, true, idx) >= 0;
 }
 
-static bool send_video_header(struct rtmp_stream *stream, size_t idx,
-			      bool *next)
+static bool send_video_header(struct rtmp_stream *stream, size_t idx)
 {
 	obs_output_t *context = stream->output;
 	obs_encoder_t *vencoder = obs_output_get_video_encoder2(context, idx);
@@ -843,15 +844,19 @@ static bool send_video_header(struct rtmp_stream *stream, size_t idx,
 					.timebase_den = 1,
 					.keyframe = true};
 
-	if (!vencoder) {
-		*next = false;
-		return true;
-	}
+	if (!vencoder)
+		return false;
 
 	if (!obs_encoder_get_extra_data(vencoder, &header, &size))
 		return false;
 
 	switch (stream->video_codec[idx]) {
+	case CODEC_NONE:
+		do_log(LOG_ERROR,
+		       "Codec not initialized for track %zu while sending header",
+		       idx);
+		return false;
+
 	case CODEC_H264:
 		packet.size = obs_parse_avc_header(&packet.data, header, size);
 		// Always send H264 on track 0 as old style for compat
@@ -994,12 +999,10 @@ static inline bool send_headers(struct rtmp_stream *stream)
 	stream->sent_headers = true;
 	size_t i = 0;
 	bool next_audio = true;
-	bool next_video = true;
 
 	if (!send_audio_header(stream, 0, &next_audio))
 		return false;
-	if (!send_video_header(stream, 0, &next_video) ||
-	    !send_video_metadata(stream, 0))
+	if (!send_video_header(stream, 0) || !send_video_metadata(stream, 0))
 		return false;
 
 	i = 1;
@@ -1009,10 +1012,11 @@ static inline bool send_headers(struct rtmp_stream *stream)
 	}
 
 	i = 1;
-	while (next_video) {
-		if (!send_video_header(stream, i++, &next_video) ||
+	while (obs_output_get_video_encoder2(stream->output, i) != NULL) {
+		if (!send_video_header(stream, i) ||
 		    !send_video_metadata(stream, i))
 			return false;
+		i += 1;
 	}
 
 	return true;
@@ -1562,7 +1566,8 @@ static void *connect_thread(void *data)
 
 	// HDR streaming disabled for AV1 and HEVC
 	for (size_t i = 0; i < MAX_OUTPUT_VIDEO_ENCODERS; i++) {
-		if (stream->video_codec[i] != CODEC_H264) {
+		if (stream->video_codec[i] &&
+		    stream->video_codec[i] != CODEC_H264) {
 			video_t *video = obs_get_video();
 			const struct video_output_info *info =
 				video_output_get_info(video);
@@ -1885,6 +1890,11 @@ static void rtmp_stream_data(void *data, struct encoder_packet *packet)
 		}
 
 		switch (stream->video_codec[packet->track_idx]) {
+		case CODEC_NONE:
+			do_log(LOG_ERROR, "Codec not initialized for track %zu",
+			       packet->track_idx);
+			return;
+
 		case CODEC_H264:
 			obs_parse_avc_packet(&new_packet, packet);
 			break;

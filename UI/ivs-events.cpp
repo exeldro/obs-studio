@@ -1,4 +1,5 @@
 #include "ivs-events.hpp"
+#include "goliveapi-censoredjson.hpp"
 
 #include "immutable-date-time.hpp"
 
@@ -13,10 +14,10 @@ OBSDataAutoRelease MakeEvent_ivs_obs_stream_start(
 
 	// include the entire capabilities API request/response
 	obs_data_set_string(event, "capabilities_api_request",
-			    obs_data_get_json(postData));
+			    censoredJson(postData).toUtf8().constData());
 
 	obs_data_set_string(event, "capabilities_api_response",
-			    obs_data_get_json(goLiveConfig));
+			    censoredJson(goLiveConfig).toUtf8().constData());
 
 	obs_data_set_string(event, "stream_attempt_start_time",
 			    stream_attempt_start_time.CStr());
@@ -27,15 +28,6 @@ OBSDataAutoRelease MakeEvent_ivs_obs_stream_start(
 
 	if (connect_time_ms.has_value())
 		obs_data_set_int(event, "connect_time_msecs", *connect_time_ms);
-
-	// extract specific items of interest from the capabilities API response
-	OBSDataAutoRelease goLiveMeta = obs_data_get_obj(goLiveConfig, "meta");
-	if (goLiveMeta) {
-		const char *s = obs_data_get_string(goLiveMeta, "config_id");
-		if (s && *s) {
-			obs_data_set_string(event, "config_id", s);
-		}
-	}
 
 	OBSDataArrayAutoRelease goLiveEncoderConfigurations =
 		obs_data_get_array(goLiveConfig, "encoder_configurations");
