@@ -101,3 +101,19 @@ OBSDataAutoRelease DownloadGoLiveConfig(QWidget *parent, QString url,
 
 	return OBSData{encodeConfigObsData};
 }
+
+QString SimulcastAutoConfigURL()
+{
+	static const QString url = []() -> QString {
+		auto args = qApp->arguments();
+		for (int i = 0; i < args.length() - 1; i++) {
+			if (args[i] == "--config-url") {
+				return args[i + 1];
+			}
+		}
+		return GO_LIVE_API_PRODUCTION_URL;
+	}();
+
+	blog(LOG_INFO, "Go live URL: %s", url.toUtf8().constData());
+	return url;
+}
