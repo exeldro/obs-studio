@@ -130,21 +130,24 @@ static OBSDataAutoRelease get_gaming_features_data(const win_version_info &ver)
 		LPCWSTR sub_key;
 		LPCWSTR value_name;
 		LPCWSTR backup_value_name;
+		bool non_existence_is_false;
+		DWORD disabled_value;
 	};
 	struct feature_mapping_s features[] = {
 		{"game_bar_enabled", HKEY_CURRENT_USER, WIN10_GAME_BAR_REG_KEY,
-		 L"AppCaptureEnabled", 0},
+		 L"AppCaptureEnabled", 0, false, 0},
 		{"game_dvr_allowed", HKEY_CURRENT_USER,
-		 WIN10_GAME_DVR_POLICY_REG_KEY, L"AllowGameDVR", 0},
+		 WIN10_GAME_DVR_POLICY_REG_KEY, L"AllowGameDVR", 0, false, 0},
 		{"game_dvr_enabled", HKEY_CURRENT_USER, WIN10_GAME_DVR_REG_KEY,
-		 L"GameDVR_Enabled", 0},
+		 L"GameDVR_Enabled", 0, false, 0},
 		{"game_dvr_bg_recording", HKEY_CURRENT_USER,
-		 WIN10_GAME_BAR_REG_KEY, L"HistoricalCaptureEnabled", 0},
+		 WIN10_GAME_BAR_REG_KEY, L"HistoricalCaptureEnabled", 0, false,
+		 0},
 		{"game_mode_enabled", HKEY_CURRENT_USER,
 		 WIN10_GAME_MODE_REG_KEY, L"AutoGameModeEnabled",
-		 L"AllowAutoGameMode"},
+		 L"AllowAutoGameMode", false, 0},
 		{"hags_enabled", HKEY_LOCAL_MACHINE, WIN10_HAGS_REG_KEY,
-		 L"HwSchMode", 0}};
+		 L"HwSchMode", 0, true, 1}};
 
 	for (int i = 0; i < sizeof(features) / sizeof(*features); ++i) {
 		struct reg_dword info;
@@ -160,7 +163,10 @@ static OBSDataAutoRelease get_gaming_features_data(const win_version_info &ver)
 
 		if (info.status == ERROR_SUCCESS) {
 			obs_data_set_bool(fdata, features[i].name,
-					  info.return_value != 0);
+					  info.return_value !=
+						  features[i].disabled_value);
+		} else if (features[i].non_existence_is_false) {
+			obs_data_set_bool(fdata, features[i].name, false);
 		}
 	}
 
