@@ -125,6 +125,9 @@ static inline double encoder_video_codec(obs_encoder_t *encoder)
 {
 	const char *codec = obs_encoder_get_codec(encoder);
 
+	if (!codec)
+		return 0.0;
+
 	if (strcmp(codec, "h264") == 0)
 		return VIDEODATA_AVCVIDEOPACKET;
 	if (strcmp(codec, "av1") == 0)
