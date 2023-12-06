@@ -67,6 +67,7 @@ static void OBSStopStreaming(void *data, calldata_t *params)
 
 	output->streamingActive = false;
 	output->delayActive = false;
+	output->simulcastActive = false;
 	os_atomic_set_bool(&streaming_active, false);
 	QMetaObject::invokeMethod(output->main, "StreamingStop",
 				  Q_ARG(int, code),
