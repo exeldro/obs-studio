@@ -2512,6 +2512,12 @@ std::optional<bool> BasicOutputHandler::SetupSimulcast(obs_service_t *service)
 	bool is_custom =
 		strncmp("rtmp_custom", obs_service_get_type(service), 12) == 0;
 
+	std::optional<std::string> custom_config = std::nullopt;
+	if (config_get_bool(main->Config(), "Stream1",
+			    "SimulcastConfigOverrideEnabled"))
+		custom_config = DeserializeConfigText(config_get_string(
+			main->Config(), "Stream1", "SimulcastConfigOverride"));
+
 	OBSDataAutoRelease settings = obs_service_get_settings(service);
 	QString key = obs_data_get_string(settings, "key");
 
@@ -2527,6 +2533,14 @@ std::optional<bool> BasicOutputHandler::SetupSimulcast(obs_service_t *service)
 			? std::make_optional<std::string>(
 				  obs_data_get_string(settings, "server"))
 			: std::nullopt;
+
+	if (custom_config.has_value()) {
+		custom_rtmp_url = obs_service_get_connect_info(
+			service, OBS_SERVICE_CONNECT_INFO_SERVER_URL);
+		blog(LOG_INFO,
+		     "Custom config enabled, ignoring server from custom config (using '%s' instead)",
+		     custom_rtmp_url->c_str());
+	}
 
 	if (!is_custom && obs_data_has_user_value(settings, "custom_server")) {
 		custom_rtmp_url = std::make_optional<std::string>(
@@ -2556,12 +2570,6 @@ std::optional<bool> BasicOutputHandler::SetupSimulcast(obs_service_t *service)
 			: std::make_optional<uint32_t>(config_get_int(
 				  main->Config(), "Stream1",
 				  "SimulcastReservedEncoderSessions"));
-
-	std::optional<std::string> custom_config = std::nullopt;
-	if (config_get_bool(main->Config(), "Stream1",
-			    "SimulcastConfigOverrideEnabled"))
-		custom_config = DeserializeConfigText(config_get_string(
-			main->Config(), "Stream1", "SimulcastConfigOverride"));
 
 	try {
 		simulcast->PrepareStreaming(main, service_name, custom_rtmp_url,
