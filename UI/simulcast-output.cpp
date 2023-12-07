@@ -493,7 +493,7 @@ void SimulcastOutput::PrepareStreaming(
 	OBSDataAutoRelease go_live_post;
 	OBSDataAutoRelease go_live_config;
 	quint64 download_time_elapsed = 0;
-	bool is_custom_config = false;
+	bool is_custom_config = custom_config.has_value();
 
 	blog(LOG_INFO,
 	     "Preparing enhanced broadcasting stream for:\n"
@@ -552,7 +552,6 @@ void SimulcastOutput::PrepareStreaming(
 			blog(LOG_INFO, "Using custom go live config: %s",
 			     obs_data_get_json_pretty(custom));
 			go_live_config = std::move(custom);
-			is_custom_config = true;
 		}
 
 		// Put the config_id (whether we created it or downloaded it) on all
