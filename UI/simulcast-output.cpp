@@ -104,6 +104,11 @@ create_service(const QString &device_id, const QString &obs_session_id,
 	if (rtmp_url.has_value()) {
 		url = rtmp_url->c_str();
 
+		// Despite being set by user, it was set to a ""
+		if (rtmp_url->empty()) {
+			throw SimulcastError::warning(QTStr(
+				"FailedToStartStream.NoCustomRTMPURLInSettings"));
+		}
 		blog(LOG_INFO, "Using custom rtmp URL: '%s'", url);
 	} else {
 		OBSDataArrayAutoRelease ingest_endpoints =
@@ -139,10 +144,14 @@ create_service(const QString &device_id, const QString &obs_session_id,
 	dstr_cat(str, url);
 
 	{
-		auto found = dstr_find(str, "/{stream_key}");
-		if (found)
-			dstr_remove(str, found - str->array,
-				    str->len - (found - str->array));
+		// dstr_find does not protect against null, and dstr_cat will
+		// not inialize str if cat'ing with a null url
+		if (!dstr_is_empty(str)) {
+			auto found = dstr_find(str, "/{stream_key}");
+			if (found)
+				dstr_remove(str, found - str->array,
+					    str->len - (found - str->array));
+		}
 	}
 
 	QUrl parsed_url{url};
