@@ -2551,8 +2551,12 @@ std::optional<bool> BasicOutputHandler::SetupSimulcast(obs_service_t *service)
 
 	if (!is_custom &&
 	    obs_data_has_user_value(settings, "custom_stream_key")) {
-		key = obs_data_get_string(settings, "custom_stream_key");
-		blog(LOG_INFO, "Using service custom stream key");
+		const char *custom_key =
+			obs_data_get_string(settings, "custom_stream_key");
+		if (custom_key && *custom_key) {
+			key = custom_key;
+			blog(LOG_INFO, "Using service custom stream key");
+		}
 	}
 
 	auto maximum_aggregate_bitrate =
