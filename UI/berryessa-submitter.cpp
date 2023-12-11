@@ -27,7 +27,7 @@ BerryessaSubmitter::BerryessaSubmitter(QObject *parent, QString url)
 	connect(&submission_worker_, &SubmissionWorker::SubmissionError, this,
 		&BerryessaSubmitter::SubmissionError, Qt::QueuedConnection);
 	connect(this, &BerryessaSubmitter::SubmitEvent, &submission_worker_,
-		&SubmissionWorker::QueueEvent);
+		&SubmissionWorker::QueueEvent, Qt::QueuedConnection);
 }
 
 BerryessaSubmitter::~BerryessaSubmitter()
@@ -48,6 +48,9 @@ void BerryessaSubmitter::submit(QString eventName, obs_data_t *properties)
 	OBSDataAutoRelease toplevel = obs_data_create();
 	obs_data_set_string(toplevel, "event", eventName.toUtf8());
 	obs_data_set_obj(toplevel, "properties", newProperties);
+
+	blog(LOG_INFO, "BerryessaSubmitter: submitting %s",
+	     eventName.toUtf8().constData());
 
 	emit SubmitEvent(OBSData{toplevel});
 }
