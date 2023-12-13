@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cinttypes>
 #include <QMessageBox>
+#include <QPromise>
 #include "qt-wrappers.hpp"
 #include "audio-encoders.hpp"
 #include "simulcast-error.hpp"
@@ -21,6 +22,15 @@ volatile bool virtualcam_active = false;
 
 #define FTL_PROTOCOL "ftl"
 #define RTMP_PROTOCOL "rtmp"
+
+QFuture<void> CreateFuture()
+{
+	QPromise<void> promise;
+	auto future = promise.future();
+	promise.start();
+	promise.finish();
+	return future;
+}
 
 static void OBSStreamStarting(void *data, calldata_t *params)
 {
@@ -508,7 +518,7 @@ struct SimpleOutput : BasicOutputHandler {
 
 	void SetupVodTrack(obs_service_t *service);
 
-	virtual bool SetupStreaming(obs_service_t *service) override;
+	virtual QFuture<bool> SetupStreaming(obs_service_t *service) override;
 	virtual bool StartStreaming(obs_service_t *service) override;
 	virtual bool StartRecording() override;
 	virtual bool StartReplayBuffer() override;
@@ -1100,7 +1110,7 @@ const char *FindAudioEncoderFromCodec(const char *type)
 	return nullptr;
 }
 
-bool SimpleOutput::SetupStreaming(obs_service_t *service)
+QFuture<bool> SimpleOutput::SetupStreaming(obs_service_t *service)
 {
 	if (!Active())
 		SetupOutputs();
@@ -1113,50 +1123,52 @@ bool SimpleOutput::SetupStreaming(obs_service_t *service)
 
 	const char *type = GetStreamOutputType(service);
 	if (!type)
-		return false;
+		return CreateFuture().then([] { return false; });
 
-	auto simulcastResult = SetupSimulcast(service);
-	if (simulcastResult.has_value())
-		return simulcastResult.value();
+	return SetupSimulcast(service).then(main, [&](std::optional<bool>
+							      simulcastResult) {
+		if (simulcastResult.has_value())
+			return simulcastResult.value();
 
-	/* XXX: this is messy and disgusting and should be refactored */
-	if (outputType != type) {
-		streamDelayStarting.Disconnect();
-		streamStopping.Disconnect();
-		startStreaming.Disconnect();
-		stopStreaming.Disconnect();
+		/* XXX: this is messy and disgusting and should be refactored */
+		if (outputType != type) {
+			streamDelayStarting.Disconnect();
+			streamStopping.Disconnect();
+			startStreaming.Disconnect();
+			stopStreaming.Disconnect();
 
-		streamOutput = obs_output_create(type, "simple_stream", nullptr,
-						 nullptr);
-		if (!streamOutput) {
-			blog(LOG_WARNING,
-			     "Creation of stream output type '%s' "
-			     "failed!",
-			     type);
-			return false;
+			streamOutput = obs_output_create(type, "simple_stream",
+							 nullptr, nullptr);
+			if (!streamOutput) {
+				blog(LOG_WARNING,
+				     "Creation of stream output type '%s' "
+				     "failed!",
+				     type);
+				return false;
+			}
+
+			streamDelayStarting.Connect(
+				obs_output_get_signal_handler(streamOutput),
+				"starting", OBSStreamStarting, this);
+			streamStopping.Connect(
+				obs_output_get_signal_handler(streamOutput),
+				"stopping", OBSStreamStopping, this);
+
+			startStreaming.Connect(
+				obs_output_get_signal_handler(streamOutput),
+				"start", OBSStartStreaming, this);
+			stopStreaming.Connect(
+				obs_output_get_signal_handler(streamOutput),
+				"stop", OBSStopStreaming, this);
+
+			outputType = type;
 		}
 
-		streamDelayStarting.Connect(
-			obs_output_get_signal_handler(streamOutput), "starting",
-			OBSStreamStarting, this);
-		streamStopping.Connect(
-			obs_output_get_signal_handler(streamOutput), "stopping",
-			OBSStreamStopping, this);
-
-		startStreaming.Connect(
-			obs_output_get_signal_handler(streamOutput), "start",
-			OBSStartStreaming, this);
-		stopStreaming.Connect(
-			obs_output_get_signal_handler(streamOutput), "stop",
-			OBSStopStreaming, this);
-
-		outputType = type;
-	}
-
-	obs_output_set_video_encoder(streamOutput, videoStreaming);
-	obs_output_set_audio_encoder(streamOutput, audioStreaming, 0);
-	obs_output_set_service(streamOutput, service);
-	return true;
+		obs_output_set_video_encoder(streamOutput, videoStreaming);
+		obs_output_set_audio_encoder(streamOutput, audioStreaming, 0);
+		obs_output_set_service(streamOutput, service);
+		return true;
+	});
 }
 
 static inline bool ServiceSupportsVodTrack(const char *service);
@@ -1522,7 +1534,7 @@ struct AdvancedOutput : BasicOutputHandler {
 	void SetupOutputs() override;
 	int GetAudioBitrate(size_t i, const char *id) const;
 
-	virtual bool SetupStreaming(obs_service_t *service) override;
+	virtual QFuture<bool> SetupStreaming(obs_service_t *service) override;
 	virtual bool StartStreaming(obs_service_t *service) override;
 	virtual bool StartRecording() override;
 	virtual bool StartReplayBuffer() override;
@@ -2114,7 +2126,7 @@ inline void AdvancedOutput::SetupVodTrack(obs_service_t *service)
 		clear_archive_encoder(streamOutput, ADV_ARCHIVE_NAME);
 }
 
-bool AdvancedOutput::SetupStreaming(obs_service_t *service)
+QFuture<bool> AdvancedOutput::SetupStreaming(obs_service_t *service)
 {
 	if (!useStreamEncoder ||
 	    (!ffmpegOutput && !obs_output_active(fileOutput))) {
@@ -2134,50 +2146,52 @@ bool AdvancedOutput::SetupStreaming(obs_service_t *service)
 
 	const char *type = GetStreamOutputType(service);
 	if (!type)
-		return false;
+		return CreateFuture().then(main, [] { return false; });
 
-	auto simulcastResult = SetupSimulcast(service);
-	if (simulcastResult.has_value())
-		return simulcastResult.value();
+	return SetupSimulcast(service).then(main, [&](std::optional<bool>
+							      simulcastResult) {
+		if (simulcastResult.has_value())
+			return simulcastResult.value();
 
-	/* XXX: this is messy and disgusting and should be refactored */
-	if (outputType != type) {
-		streamDelayStarting.Disconnect();
-		streamStopping.Disconnect();
-		startStreaming.Disconnect();
-		stopStreaming.Disconnect();
+		/* XXX: this is messy and disgusting and should be refactored */
+		if (outputType != type) {
+			streamDelayStarting.Disconnect();
+			streamStopping.Disconnect();
+			startStreaming.Disconnect();
+			stopStreaming.Disconnect();
 
-		streamOutput =
-			obs_output_create(type, "adv_stream", nullptr, nullptr);
-		if (!streamOutput) {
-			blog(LOG_WARNING,
-			     "Creation of stream output type '%s' "
-			     "failed!",
-			     type);
-			return false;
+			streamOutput = obs_output_create(type, "adv_stream",
+							 nullptr, nullptr);
+			if (!streamOutput) {
+				blog(LOG_WARNING,
+				     "Creation of stream output type '%s' "
+				     "failed!",
+				     type);
+				return false;
+			}
+
+			streamDelayStarting.Connect(
+				obs_output_get_signal_handler(streamOutput),
+				"starting", OBSStreamStarting, this);
+			streamStopping.Connect(
+				obs_output_get_signal_handler(streamOutput),
+				"stopping", OBSStreamStopping, this);
+
+			startStreaming.Connect(
+				obs_output_get_signal_handler(streamOutput),
+				"start", OBSStartStreaming, this);
+			stopStreaming.Connect(
+				obs_output_get_signal_handler(streamOutput),
+				"stop", OBSStopStreaming, this);
+
+			outputType = type;
 		}
 
-		streamDelayStarting.Connect(
-			obs_output_get_signal_handler(streamOutput), "starting",
-			OBSStreamStarting, this);
-		streamStopping.Connect(
-			obs_output_get_signal_handler(streamOutput), "stopping",
-			OBSStreamStopping, this);
+		obs_output_set_video_encoder(streamOutput, videoStreaming);
+		obs_output_set_audio_encoder(streamOutput, streamAudioEnc, 0);
 
-		startStreaming.Connect(
-			obs_output_get_signal_handler(streamOutput), "start",
-			OBSStartStreaming, this);
-		stopStreaming.Connect(
-			obs_output_get_signal_handler(streamOutput), "stop",
-			OBSStopStreaming, this);
-
-		outputType = type;
-	}
-
-	obs_output_set_video_encoder(streamOutput, videoStreaming);
-	obs_output_set_audio_encoder(streamOutput, streamAudioEnc, 0);
-
-	return true;
+		return true;
+	});
 }
 
 bool AdvancedOutput::StartStreaming(obs_service_t *service)
@@ -2497,10 +2511,12 @@ std::string BasicOutputHandler::GetRecordingFilename(
 
 extern std::string DeserializeConfigText(const char *text);
 
-std::optional<bool> BasicOutputHandler::SetupSimulcast(obs_service_t *service)
+QFuture<std::optional<bool>>
+BasicOutputHandler::SetupSimulcast(obs_service_t *service)
 {
 	if (!simulcast)
-		return std::nullopt;
+		return CreateFuture().then(
+			[] { return std::optional<bool>{std::nullopt}; });
 
 	simulcastActive = false;
 
@@ -2575,34 +2591,51 @@ std::optional<bool> BasicOutputHandler::SetupSimulcast(obs_service_t *service)
 				  main->Config(), "Stream1",
 				  "SimulcastReservedEncoderSessions"));
 
-	try {
-		simulcast->PrepareStreaming(main, service_name, custom_rtmp_url,
-					    key, true,
-					    maximum_aggregate_bitrate,
-					    reserved_encoder_sessions,
-					    custom_config);
+	return CreateFuture()
+		.then(QThreadPool::globalInstance(),
+		      [=, simulcast = simulcast.get(),
+		       service_name = std::string{service_name}]()
+			      -> std::optional<SimulcastError> {
+			      try {
+				      simulcast->PrepareStreaming(
+					      main, service_name.c_str(),
+					      custom_rtmp_url, key, true,
+					      maximum_aggregate_bitrate,
+					      reserved_encoder_sessions,
+					      custom_config);
+			      } catch (const SimulcastError &error) {
+				      return error;
+			      }
+			      return std::nullopt;
+		      })
+		.then(main,
+		      [&](std::optional<SimulcastError> error)
+			      -> std::optional<bool> {
+			      if (error) {
+				      simulcastActive = false;
+				      if (!error->ShowDialog(main))
+					      return false;
+				      return std::nullopt;
+			      }
 
-		simulcastActive = true;
+			      simulcastActive = true;
 
-		auto signal_handler = simulcast->StreamingSignalHandler();
+			      auto signal_handler =
+				      simulcast->StreamingSignalHandler();
 
-		streamDelayStarting.Connect(signal_handler, "starting",
-					    OBSStreamStarting, this);
-		streamStopping.Connect(signal_handler, "stopping",
-				       OBSStreamStopping, this);
+			      streamDelayStarting.Connect(signal_handler,
+							  "starting",
+							  OBSStreamStarting,
+							  this);
+			      streamStopping.Connect(signal_handler, "stopping",
+						     OBSStreamStopping, this);
 
-		startStreaming.Connect(signal_handler, "start",
-				       OBSStartStreaming, this);
-		stopStreaming.Connect(signal_handler, "stop", OBSStopStreaming,
-				      this);
-		return true;
-	} catch (const SimulcastError &error) {
-		simulcastActive = false;
-		if (!error.ShowDialog(main))
-			return false;
-	}
-
-	return std::nullopt;
+			      startStreaming.Connect(signal_handler, "start",
+						     OBSStartStreaming, this);
+			      stopStreaming.Connect(signal_handler, "stop",
+						    OBSStopStreaming, this);
+			      return true;
+		      });
 }
 
 BasicOutputHandler *CreateSimpleOutputHandler(OBSBasic *main)

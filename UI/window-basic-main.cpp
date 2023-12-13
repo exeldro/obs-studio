@@ -6944,68 +6944,86 @@ void OBSBasic::StartStreaming()
 		}
 	}
 
-	if (!outputHandler->SetupStreaming(service)) {
-		DisplayStreamStartError();
-		return;
-	}
-
-	if (api)
-		api->on_event(OBS_FRONTEND_EVENT_STREAMING_STARTING);
-
-	SaveProject();
+	auto setStreamText = [&](const QString &text) {
+		ui->streamButton->setText(text);
+		if (sysTrayStream)
+			sysTrayStream->setText(text);
+	};
 
 	ui->streamButton->setEnabled(false);
 	ui->streamButton->setChecked(false);
-	ui->streamButton->setText(QTStr("Basic.Main.Connecting"));
 	ui->broadcastButton->setChecked(false);
-
-	if (sysTrayStream) {
+	if (sysTrayStream)
 		sysTrayStream->setEnabled(false);
-		sysTrayStream->setText(ui->streamButton->text());
-	}
 
-	if (!outputHandler->StartStreaming(service)) {
-		DisplayStreamStartError();
-		return;
-	}
+	setStreamText(QTStr("Basic.Main.PreparingStream"));
 
-	if (!autoStartBroadcast) {
-		ui->broadcastButton->setText(
-			QTStr("Basic.Main.StartBroadcast"));
-		ui->broadcastButton->setProperty("broadcastState", "ready");
-		ui->broadcastButton->style()->unpolish(ui->broadcastButton);
-		ui->broadcastButton->style()->polish(ui->broadcastButton);
-		// well, we need to disable button while stream is not active
-		ui->broadcastButton->setEnabled(false);
-	} else {
-		if (!autoStopBroadcast) {
-			ui->broadcastButton->setText(
-				QTStr("Basic.Main.StopBroadcast"));
-		} else {
-			ui->broadcastButton->setText(
-				QTStr("Basic.Main.AutoStopEnabled"));
-			ui->broadcastButton->setEnabled(false);
-		}
-		ui->broadcastButton->setProperty("broadcastState", "active");
-		ui->broadcastButton->style()->unpolish(ui->broadcastButton);
-		ui->broadcastButton->style()->polish(ui->broadcastButton);
-		broadcastActive = true;
-	}
+	outputHandler->SetupStreaming(service).then(
+		this, [&, setStreamText](bool setupStreamingResult) {
+			if (!setupStreamingResult) {
+				DisplayStreamStartError();
+				return;
+			}
 
-	bool recordWhenStreaming = config_get_bool(
-		GetGlobalConfig(), "BasicWindow", "RecordWhenStreaming");
-	if (recordWhenStreaming)
-		StartRecording();
+			if (api)
+				api->on_event(
+					OBS_FRONTEND_EVENT_STREAMING_STARTING);
 
-	bool replayBufferWhileStreaming = config_get_bool(
-		GetGlobalConfig(), "BasicWindow", "ReplayBufferWhileStreaming");
-	if (replayBufferWhileStreaming)
-		StartReplayBuffer();
+			SaveProject();
+
+			setStreamText(QTStr("Basic.Main.Connecting"));
+
+			if (!outputHandler->StartStreaming(service)) {
+				DisplayStreamStartError();
+				return;
+			}
+
+			if (!autoStartBroadcast) {
+				ui->broadcastButton->setText(
+					QTStr("Basic.Main.StartBroadcast"));
+				ui->broadcastButton->setProperty(
+					"broadcastState", "ready");
+				ui->broadcastButton->style()->unpolish(
+					ui->broadcastButton);
+				ui->broadcastButton->style()->polish(
+					ui->broadcastButton);
+				// well, we need to disable button while stream is not active
+				ui->broadcastButton->setEnabled(false);
+			} else {
+				if (!autoStopBroadcast) {
+					ui->broadcastButton->setText(QTStr(
+						"Basic.Main.StopBroadcast"));
+				} else {
+					ui->broadcastButton->setText(QTStr(
+						"Basic.Main.AutoStopEnabled"));
+					ui->broadcastButton->setEnabled(false);
+				}
+				ui->broadcastButton->setProperty(
+					"broadcastState", "active");
+				ui->broadcastButton->style()->unpolish(
+					ui->broadcastButton);
+				ui->broadcastButton->style()->polish(
+					ui->broadcastButton);
+				broadcastActive = true;
+			}
+
+			bool recordWhenStreaming = config_get_bool(
+				GetGlobalConfig(), "BasicWindow",
+				"RecordWhenStreaming");
+			if (recordWhenStreaming)
+				StartRecording();
+
+			bool replayBufferWhileStreaming = config_get_bool(
+				GetGlobalConfig(), "BasicWindow",
+				"ReplayBufferWhileStreaming");
+			if (replayBufferWhileStreaming)
+				StartReplayBuffer();
 
 #ifdef YOUTUBE_ENABLED
-	if (!autoStartBroadcast)
-		OBSBasic::ShowYouTubeAutoStartWarning();
+			if (!autoStartBroadcast)
+				OBSBasic::ShowYouTubeAutoStartWarning();
 #endif
+		});
 }
 
 void OBSBasic::BroadcastButtonClicked()
