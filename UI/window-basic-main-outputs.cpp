@@ -23,15 +23,6 @@ volatile bool virtualcam_active = false;
 #define FTL_PROTOCOL "ftl"
 #define RTMP_PROTOCOL "rtmp"
 
-QFuture<void> CreateFuture()
-{
-	QPromise<void> promise;
-	auto future = promise.future();
-	promise.start();
-	promise.finish();
-	return future;
-}
-
 static void OBSStreamStarting(void *data, calldata_t *params)
 {
 	BasicOutputHandler *output = static_cast<BasicOutputHandler *>(data);

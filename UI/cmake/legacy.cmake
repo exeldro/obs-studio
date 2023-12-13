@@ -304,6 +304,7 @@ target_sources(
           presentmon-csv-capture.hpp
           presentmon-csv-parser.cpp
           presentmon-csv-parser.hpp
+          qt-helpers.cpp
           qt-helpers.hpp
           simulcast-error.cpp
           simulcast-error.hpp
