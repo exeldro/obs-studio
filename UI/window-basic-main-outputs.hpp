@@ -5,6 +5,7 @@
 
 #include <QFuture>
 
+#include "qt-helpers.hpp"
 #include "simulcast-output.hpp"
 
 class OBSBasic;
@@ -61,7 +62,7 @@ struct BasicOutputHandler {
 
 	virtual ~BasicOutputHandler(){};
 
-	virtual QFuture<bool> SetupStreaming(obs_service_t *service) = 0;
+	virtual FutureHolder<bool> SetupStreaming(obs_service_t *service) = 0;
 	virtual bool StartStreaming(obs_service_t *service) = 0;
 	virtual bool StartRecording() = 0;
 	virtual bool StartReplayBuffer() { return false; }
@@ -96,7 +97,8 @@ protected:
 					 bool overwrite, const char *format,
 					 bool ffmpeg);
 
-	QFuture<std::optional<bool>> SetupSimulcast(obs_service_t *service);
+	FutureHolder<std::optional<bool>>
+	SetupSimulcast(obs_service_t *service);
 };
 
 BasicOutputHandler *CreateSimpleOutputHandler(OBSBasic *main);

@@ -1916,7 +1916,8 @@ void OBSBasic::ResetOutputs()
 	const char *mode = config_get_string(basicConfig, "Output", "Mode");
 	bool advOut = astrcmpi(mode, "Advanced") == 0;
 
-	if (!outputHandler || !outputHandler->Active()) {
+	if ((!outputHandler || !outputHandler->Active()) &&
+	    startStreamingFuture.future.isFinished()) {
 		outputHandler.reset();
 		outputHandler.reset(advOut ? CreateAdvancedOutputHandler(this)
 					   : CreateSimpleOutputHandler(this));
@@ -5028,6 +5029,22 @@ void OBSBasic::ClearSceneData()
 
 void OBSBasic::closeEvent(QCloseEvent *event)
 {
+	if (!startStreamingFuture.future.isFinished() &&
+	    !startStreamingFuture.future.isCanceled()) {
+		startStreamingFuture.future.onCanceled(
+			this, [basic = QPointer{this}] {
+				if (basic)
+					basic->close();
+			});
+		startStreamingFuture.cancelAll();
+		event->ignore();
+		return;
+	} else if (startStreamingFuture.future.isCanceled() &&
+		   !startStreamingFuture.future.isFinished()) {
+		event->ignore();
+		return;
+	}
+
 	/* Do not close window if inside of a temporary event loop because we
 	 * could be inside of an Auth::LoadUI call.  Keep trying once per
 	 * second until we've exit any known sub-loops. */
@@ -6961,7 +6978,8 @@ void OBSBasic::StartStreaming()
 	if (api)
 		api->on_event(OBS_FRONTEND_EVENT_STREAMING_PREPARING);
 
-	outputHandler->SetupStreaming(service).then(
+	auto holder = outputHandler->SetupStreaming(service);
+	auto future = holder.future.then(
 		this, [&, setStreamText](bool setupStreamingResult) {
 			if (!setupStreamingResult) {
 				DisplayStreamStartError();
@@ -7027,6 +7045,7 @@ void OBSBasic::StartStreaming()
 				OBSBasic::ShowYouTubeAutoStartWarning();
 #endif
 		});
+	startStreamingFuture = {holder.cancelAll, future};
 }
 
 void OBSBasic::BroadcastButtonClicked()
