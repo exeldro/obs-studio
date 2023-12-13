@@ -17,6 +17,8 @@ struct ReturnValues {
 	bool encodeConfigDownloadedOk;
 };
 
+Qt::ConnectionType BlockingConnectionTypeFor(QObject *object);
+
 void HandleGoLiveApiErrors(QWidget *parent, obs_data_t *config_data)
 {
 	OBSDataAutoRelease status = obs_data_get_obj(config_data, "status");
@@ -35,16 +37,26 @@ void HandleGoLiveApiErrors(QWidget *parent, obs_data_t *config_data)
 		if (obs_data_array_count(encoder_configurations) == 0)
 			throw SimulcastError::warning(html_en_us);
 		else {
-			QMessageBox mb(parent);
-			mb.setIcon(QMessageBox::Warning);
-			mb.setWindowTitle(
-				QTStr("ConfigDownload.WarningMessageTitle"));
-			mb.setTextFormat(Qt::RichText);
-			mb.setText(html_en_us +
-				   QTStr("FailedToStartStream.WarningRetry"));
-			mb.setStandardButtons(QMessageBox::StandardButton::Yes |
-					      QMessageBox::StandardButton::No);
-			if (mb.exec() == QMessageBox::StandardButton::No)
+			bool ret = false;
+			QMetaObject::invokeMethod(
+				parent,
+				[=] {
+					QMessageBox mb(parent);
+					mb.setIcon(QMessageBox::Warning);
+					mb.setWindowTitle(QTStr(
+						"ConfigDownload.WarningMessageTitle"));
+					mb.setTextFormat(Qt::RichText);
+					mb.setText(
+						html_en_us +
+						QTStr("FailedToStartStream.WarningRetry"));
+					mb.setStandardButtons(
+						QMessageBox::StandardButton::Yes |
+						QMessageBox::StandardButton::No);
+					return mb.exec() ==
+					       QMessageBox::StandardButton::No;
+				},
+				BlockingConnectionTypeFor(parent), &ret);
+			if (ret)
 				throw SimulcastError::cancel();
 		}
 	} else if (strncmp(result, "error", 6) == 0) {

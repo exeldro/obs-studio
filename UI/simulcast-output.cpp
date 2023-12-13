@@ -29,6 +29,13 @@
 #include "ivs-events.hpp"
 #include "simulcast-error.hpp"
 
+Qt::ConnectionType BlockingConnectionTypeFor(QObject *object)
+{
+	return object->thread() == QThread::currentThread()
+		       ? Qt::DirectConnection
+		       : Qt::BlockingQueuedConnection;
+}
+
 bool SimulcastDeveloperModeEnabled()
 {
 	static bool developer_mode = [] {
@@ -492,10 +499,18 @@ void SimulcastOutput::PrepareStreaming(
 	std::optional<std::string> custom_config)
 {
 	if (!berryessa_) {
-		berryessa_ = std::make_unique<BerryessaSubmitter>(
-			parent, "https://data.stats.live-video.net/");
-		berryessa_->setAlwaysString("device_id", device_id());
-		berryessa_->setAlwaysString("obs_session_id", obs_session_id());
+		QMetaObject::invokeMethod(
+			parent,
+			[&] {
+				berryessa_ = std::make_unique<BerryessaSubmitter>(
+					parent,
+					"https://data.stats.live-video.net/");
+				berryessa_->setAlwaysString("device_id",
+							    device_id());
+				berryessa_->setAlwaysString("obs_session_id",
+							    obs_session_id());
+			},
+			BlockingConnectionTypeFor(parent));
 	}
 
 	auto attempt_start_time = GenerateStreamAttemptStartTime();
