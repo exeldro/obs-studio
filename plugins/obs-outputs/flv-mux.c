@@ -39,6 +39,12 @@ enum video_frametype_t {
 	FT_INTER = 2 << VIDEO_FRAMETYPE_OFFSET,
 };
 
+#ifdef ENABLE_HEVC
+#define OR_CODEC_HEVC(codec) || codec == CODEC_HEVC
+#else
+#define OR_CODEC_HEVC(codec)
+#endif
+
 // Y2023 spec
 const uint8_t FRAME_HEADER_EX = 8 << VIDEO_FRAMETYPE_OFFSET;
 enum packet_type_t {
@@ -78,12 +84,14 @@ static void s_w4cc(struct serializer *s, enum video_id_t id)
 		s_w8(s, '0');
 		s_w8(s, '1');
 		break;
+#ifdef ENABLE_HEVC
 	case CODEC_HEVC:
 		s_w8(s, 'h');
 		s_w8(s, 'v');
 		s_w8(s, 'c');
 		s_w8(s, '1');
 		break;
+#endif
 	case CODEC_H264:
 		s_w8(s, 'a');
 		s_w8(s, 'v');
@@ -117,8 +125,10 @@ static inline double encoder_bitrate(obs_encoder_t *encoder)
 
 static const double VIDEODATA_AVCVIDEOPACKET = 7.0;
 // Additional FLV onMetaData values for Enhanced RTMP/FLV
-static const double VIDEODATA_AV1VIDEOPACKET = 1635135537.0;  // FourCC "av01"
+static const double VIDEODATA_AV1VIDEOPACKET = 1635135537.0; // FourCC "av01"
+#ifdef ENABLE_HEVC
 static const double VIDEODATA_HEVCVIDEOPACKET = 1752589105.0; // FourCC "hvc1"
+#endif
 
 static inline double encoder_video_codec(obs_encoder_t *encoder)
 {
@@ -131,8 +141,10 @@ static inline double encoder_video_codec(obs_encoder_t *encoder)
 		return VIDEODATA_AVCVIDEOPACKET;
 	if (strcmp(codec, "av1") == 0)
 		return VIDEODATA_AV1VIDEOPACKET;
+#ifdef ENABLE_HEVC
 	if (strcmp(codec, "hevc") == 0)
 		return VIDEODATA_HEVCVIDEOPACKET;
+#endif
 
 	return 0.0;
 }
@@ -381,7 +393,7 @@ void flv_packet_ex(struct encoder_packet *packet, enum video_id_t codec_id,
 	// packet head
 	int header_metadata_size = 5; // w8+w4cc
 	// 3 extra bytes for composition time offset
-	if ((codec_id == CODEC_H264 || codec_id == CODEC_HEVC) &&
+	if ((codec_id == CODEC_H264 OR_CODEC_HEVC(codec_id)) &&
 	    type == PACKETTYPE_FRAMES) {
 		header_metadata_size += 3; // w24
 	}
@@ -409,7 +421,7 @@ void flv_packet_ex(struct encoder_packet *packet, enum video_id_t codec_id,
 	}
 
 	// h264/hevc composition time offset
-	if ((codec_id == CODEC_H264 || codec_id == CODEC_HEVC) &&
+	if ((codec_id == CODEC_H264 OR_CODEC_HEVC(codec_id)) &&
 	    type == PACKETTYPE_FRAMES) {
 		s_wb24(&s, get_ms_time(packet, packet->pts - packet->dts));
 	}
@@ -438,7 +450,7 @@ void flv_packet_frames(struct encoder_packet *packet, enum video_id_t codec,
 	int packet_type = PACKETTYPE_FRAMES;
 	// PACKETTYPE_FRAMESX is an optimization to avoid sending composition
 	// time offsets of 0. See Enhanced RTMP spec.
-	if ((codec == CODEC_H264 || codec == CODEC_HEVC) &&
+	if ((codec == CODEC_H264 OR_CODEC_HEVC(codec)) &&
 	    packet->dts == packet->pts)
 		packet_type = PACKETTYPE_FRAMESX;
 	flv_packet_ex(packet, codec, dts_offset, output, size, packet_type,

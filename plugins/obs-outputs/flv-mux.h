@@ -25,7 +25,9 @@ enum video_id_t {
 	CODEC_NONE = 0, // not valid in rtmp
 	CODEC_H264 = 1, // legacy & Y2023 spec
 	CODEC_AV1,      // Y2023 spec
+#ifdef ENABLE_HEVC
 	CODEC_HEVC,
+#endif
 };
 
 static enum video_id_t to_video_type(const char *codec)
@@ -34,8 +36,10 @@ static enum video_id_t to_video_type(const char *codec)
 		return CODEC_H264;
 	if (strcmp(codec, "av1") == 0)
 		return CODEC_AV1;
+#ifdef ENABLE_HEVC
 	if (strcmp(codec, "hevc") == 0)
 		return CODEC_HEVC;
+#endif
 	return 0;
 }
 
