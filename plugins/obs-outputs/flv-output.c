@@ -36,7 +36,6 @@
 #define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)
 #define info(format, ...) do_log(LOG_INFO, format, ##__VA_ARGS__)
 
-#define OPT_ERTMP_MULTITRACK "ertmp_multitrack"
 struct flv_output {
 	obs_output_t *output;
 	struct dstr path;
@@ -53,8 +52,6 @@ struct flv_output {
 
 	bool got_first_video;
 	int32_t start_dts_offset;
-
-	bool ertmp_multitrack;
 };
 
 /* Adapted from FFmpeg's libavutil/pixfmt.h
@@ -197,11 +194,7 @@ static void *flv_output_create(obs_data_t *settings, obs_output_t *output)
 	stream->output = output;
 	pthread_mutex_init(&stream->mutex, NULL);
 
-	// Whether to enable multitrack ERTMP or use old-style
-	// additionalData method
-	stream->ertmp_multitrack =
-		obs_data_get_bool(settings, OPT_ERTMP_MULTITRACK);
-
+	UNUSED_PARAMETER(settings);
 	return stream;
 }
 
@@ -609,15 +602,7 @@ static obs_properties_t *flv_output_properties(void *unused)
 				obs_module_text("FLVOutput.FilePath"),
 				OBS_TEXT_DEFAULT);
 
-	obs_properties_add_bool(props, "ertmp_multitrack",
-				obs_module_text("FLVOutput.ERTMPMultitrack"));
-
 	return props;
-}
-
-static void flv_output_defaults(obs_data_t *defaults)
-{
-	obs_data_set_default_bool(defaults, OPT_ERTMP_MULTITRACK, false);
 }
 
 struct obs_output_info flv_output_info = {
@@ -635,5 +620,4 @@ struct obs_output_info flv_output_info = {
 	.start = flv_output_start,
 	.stop = flv_output_stop,
 	.encoded_packet = flv_output_data,
-	.get_properties = flv_output_properties,
-	.get_defaults = flv_output_defaults};
+	.get_properties = flv_output_properties};
