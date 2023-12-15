@@ -28,6 +28,7 @@
 #include "goliveapi-network.hpp"
 #include "ivs-events.hpp"
 #include "simulcast-error.hpp"
+#include "qt-helpers.hpp"
 
 Qt::ConnectionType BlockingConnectionTypeFor(QObject *object)
 {
@@ -698,10 +699,24 @@ void SimulcastOutput::StartedStreaming(QWidget *parent, bool success)
 
 	send_start_event = {};
 
-	if (berryessa_)
-		berryessa_every_minute_ =
-			std::make_unique<BerryessaEveryMinute>(
-				parent, berryessa_.get(), VideoEncoders());
+	if (berryessa_) {
+		std::vector<OBSEncoder> video_encoders;
+		video_encoders.reserve(VideoEncoders().size());
+		for (const auto &encoder : VideoEncoders()) {
+			video_encoders.emplace_back(encoder);
+		}
+
+		berryessa_every_minute_initializer_.setFuture(
+			CreateFuture().then(
+				QThreadPool::globalInstance(),
+				[=, bem = berryessa_every_minute_,
+				 berryessa = berryessa_.get(),
+				 main_thread = QThread::currentThread()] {
+					bem->emplace(parent, berryessa,
+						     video_encoders)
+						.moveToThread(main_thread);
+				}));
+	}
 }
 
 void SimulcastOutput::StopStreaming()
@@ -712,7 +727,9 @@ void SimulcastOutput::StopStreaming()
 	submit_event(berryessa_.get(), "ivs_obs_stream_stop",
 		     MakeEvent_ivs_obs_stream_stop());
 
-	berryessa_every_minute_.reset(nullptr);
+	berryessa_every_minute_ =
+		std::make_shared<std::optional<BerryessaEveryMinute>>(
+			std::nullopt);
 
 	if (berryessa_)
 		berryessa_->unsetAlways("config_id");

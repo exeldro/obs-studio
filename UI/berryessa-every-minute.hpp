@@ -39,7 +39,7 @@ class BerryessaEveryMinute : public QObject {
 	Q_OBJECT
 public:
 	BerryessaEveryMinute(QObject *parent, BerryessaSubmitter *berryessa,
-			     const std::vector<OBSEncoderAutoRelease> &outputs);
+			     const std::vector<OBSEncoder> &outputs);
 	virtual ~BerryessaEveryMinute();
 
 private slots:

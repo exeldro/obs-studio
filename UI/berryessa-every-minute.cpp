@@ -13,9 +13,9 @@
 static OBSFrameCounters InitFrameCounters();
 
 BerryessaEveryMinute::BerryessaEveryMinute(
-	QObject *parent, BerryessaSubmitter *berryessa,
-	const std::vector<OBSEncoderAutoRelease> &encoders)
-	: QObject(parent),
+	QObject * /*parent*/, BerryessaSubmitter *berryessa,
+	const std::vector<OBSEncoder> &encoders)
+	: QObject(),
 	  berryessa_(berryessa),
 	  presentmon_(this),
 	  timer_(this),
