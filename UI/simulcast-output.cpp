@@ -548,7 +548,7 @@ void SimulcastOutput::PrepareStreaming(
 
 		go_live_config = DownloadGoLiveConfig(
 			parent, SimulcastAutoConfigURL(), go_live_post);
-		if (!go_live_config && !custom_config.has_value())
+		if (!go_live_config)
 			throw SimulcastError::warning(
 				QTStr("FailedToStartStream.FallbackToDefault"));
 
@@ -561,18 +561,37 @@ void SimulcastOutput::PrepareStreaming(
 				throw SimulcastError::critical(QTStr(
 					"FailedToStartStream.InvalidCustomConfig"));
 
-			// create a new unique ID for this particular usage of
-			// a custom config, before using or logging anything
-			QString uuid = QUuid::createUuid().toString(
-				QUuid::WithoutBraces);
+			// copy unique ID from go live request
+			OBSDataAutoRelease go_live_meta =
+				obs_data_get_obj(go_live_config, "meta");
+			auto uuid =
+				obs_data_get_string(go_live_meta, "config_id");
+
+			QByteArray generated_uuid_storage;
+
+			if (!uuid || !uuid[0]) {
+				QString generated_uuid =
+					QUuid::createUuid().toString(
+						QUuid::WithoutBraces);
+				generated_uuid_storage =
+					generated_uuid.toUtf8();
+				uuid = generated_uuid_storage.constData();
+				blog(LOG_INFO,
+				     "Failed to copy config_id from go live config, using: %s",
+				     uuid);
+			} else {
+				blog(LOG_INFO,
+				     "Using config_id from go live config with custom config: %s",
+				     uuid);
+			}
+
 			OBSDataAutoRelease meta =
 				obs_data_get_obj(custom, "meta");
 			if (!meta) {
 				meta = obs_data_create();
 				obs_data_set_obj(custom, "meta", meta);
 			}
-			obs_data_set_string(meta, "config_id",
-					    uuid.toUtf8().constData());
+			obs_data_set_string(meta, "config_id", uuid);
 
 			blog(LOG_INFO, "Using custom go live config: %s",
 			     obs_data_get_json_pretty(custom));
