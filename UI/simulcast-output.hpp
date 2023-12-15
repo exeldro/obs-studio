@@ -8,6 +8,7 @@
 
 #include <qobject.h>
 #include <QFuture>
+#include <QFutureSynchronizer>
 
 #define NOMINMAX
 
@@ -55,7 +56,11 @@ private:
 	const ImmutableDateTime &GenerateStreamAttemptStartTime();
 
 	std::unique_ptr<BerryessaSubmitter> berryessa_;
-	std::unique_ptr<BerryessaEveryMinute> berryessa_every_minute_;
+	std::shared_ptr<std::optional<BerryessaEveryMinute>>
+		berryessa_every_minute_ =
+			std::make_shared<std::optional<BerryessaEveryMinute>>(
+				std::nullopt);
+	QFutureSynchronizer<void> berryessa_every_minute_initializer_;
 
 	std::function<void(bool success, std::optional<int> connect_time_ms)>
 		send_start_event;
