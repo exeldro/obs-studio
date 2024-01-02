@@ -51,13 +51,17 @@ private:
 	QTimer timer_;
 	QDateTime startTime_;
 
-	std::unique_ptr<os_cpu_usage_info, OSCPUUsageInfoDeleter>
-		obs_cpu_usage_info_;
+	struct UsageInfoCounters {
+		std::unique_ptr<os_cpu_usage_info, OSCPUUsageInfoDeleter>
+			obs_cpu_usage_info_;
 
-	OBSFrameCounters frame_counters_;
-	std::vector<OBSEncoderFrameCounters> encoder_counters_;
+		OBSFrameCounters frame_counters_;
+		std::vector<OBSEncoderFrameCounters> encoder_counters_;
 
 #ifdef _WIN32
-	std::optional<WMIQueries> wmi_queries_;
+		std::optional<WMIQueries> wmi_queries_;
 #endif
+	};
+
+	std::shared_ptr<UsageInfoCounters> shared_counters_;
 };
