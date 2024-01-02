@@ -9,6 +9,8 @@
 #include <QTimer>
 #include <QRandomGenerator>
 #include <QDateTime>
+#include <QThreadPool>
+#include <QPointer>
 
 static OBSFrameCounters InitFrameCounters();
 
@@ -20,15 +22,19 @@ BerryessaEveryMinute::BerryessaEveryMinute(
 	  presentmon_(this),
 	  timer_(this),
 	  startTime_(QDateTime::currentDateTimeUtc()),
-#ifdef WIN32
-	  wmi_queries_(WMIQueries::Create()),
-#endif
-	  frame_counters_(InitFrameCounters())
+	  shared_counters_(std::make_shared<UsageInfoCounters>())
 {
-	encoder_counters_.reserve(encoders.size());
+
+#ifdef WIN32
+	shared_counters_->wmi_queries_ = WMIQueries::Create();
+#endif
+	shared_counters_->frame_counters_ = InitFrameCounters();
+
+	auto &encoder_counters = shared_counters_->encoder_counters_;
+	encoder_counters.reserve(encoders.size());
 	for (const auto &encoder : encoders) {
 		auto video = obs_encoder_video(encoder);
-		encoder_counters_.push_back(OBSEncoderFrameCounters{
+		encoder_counters.push_back(OBSEncoderFrameCounters{
 			OBSWeakEncoderAutoRelease(
 				obs_encoder_get_weak_encoder(encoder)),
 			video_output_get_total_frames(video),
@@ -36,7 +42,7 @@ BerryessaEveryMinute::BerryessaEveryMinute(
 		});
 	}
 
-	obs_cpu_usage_info_.reset(os_cpu_usage_info_start());
+	shared_counters_->obs_cpu_usage_info_.reset(os_cpu_usage_info_start());
 
 	connect(&timer_, &QTimer::timeout, this, &BerryessaEveryMinute::fire);
 
@@ -140,18 +146,30 @@ void BerryessaEveryMinute::fire()
 
 	presentmon_.summarizeAndReset(event);
 
-	AddOBSStats(obs_cpu_usage_info_.get(), frame_counters_,
-		    encoder_counters_, event);
+	QThreadPool::globalInstance()->start(
+		[shared_counters = shared_counters_,
+		 berryessa = QPointer<BerryessaSubmitter>(berryessa_),
+		 event = OBSData{event}] {
+			AddOBSStats(shared_counters->obs_cpu_usage_info_.get(),
+				    shared_counters->frame_counters_,
+				    shared_counters->encoder_counters_, event);
 
 #ifdef _WIN32
-	if (wmi_queries_.has_value())
-		wmi_queries_->SummarizeData(event);
+			if (shared_counters->wmi_queries_.has_value())
+				shared_counters->wmi_queries_->SummarizeData(
+					event);
 #endif
 
-	auto current_time = ImmutableDateTime::CurrentTimeUtc();
-	obs_data_set_string(event, "time_utc", current_time.CStr());
+			auto current_time = ImmutableDateTime::CurrentTimeUtc();
+			obs_data_set_string(event, "time_utc",
+					    current_time.CStr());
 
-	berryessa_->submit("ivs_obs_stream_minute", event);
+			QMetaObject::invokeMethod(berryessa, [event,
+							      berryessa] {
+				berryessa->submit("ivs_obs_stream_minute",
+						  event);
+			});
+		});
 
 	// XXX after the first firing at a random [0.000, 60.000) time, try to fire
 	// every 60 seconds after that correcting for drift
