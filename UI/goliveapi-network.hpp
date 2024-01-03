@@ -4,11 +4,8 @@
 #include <QFuture>
 #include <QString>
 
-#define GO_LIVE_API_PRODUCTION_URL \
-	"https://ingest.twitch.tv/api/v3/GetClientConfiguration"
-
 /** Returns either GO_LIVE_API_PRODUCTION_URL or a command line override. */
-QString SimulcastAutoConfigURL();
+QString SimulcastAutoConfigURL(obs_service_t *service);
 
 class QWidget;
 

@@ -70,6 +70,10 @@ OBSDataAutoRelease DownloadGoLiveConfig(QWidget *parent, QString url,
 	blog(LOG_INFO, "Go live POST data: %s",
 	     censoredJson(postData_).toUtf8().constData());
 
+	if (url.isEmpty())
+		throw SimulcastError::critical(
+			QTStr("FailedToStartStream.MissingConfigURL"));
+
 	// andrew download code start
 	OBSDataAutoRelease encodeConfigObsData;
 
@@ -114,16 +118,17 @@ OBSDataAutoRelease DownloadGoLiveConfig(QWidget *parent, QString url,
 	return OBSData{encodeConfigObsData};
 }
 
-QString SimulcastAutoConfigURL()
+QString SimulcastAutoConfigURL(obs_service_t *service)
 {
-	static const QString url = []() -> QString {
+	static const QString url = [service]() -> QString {
 		auto args = qApp->arguments();
 		for (int i = 0; i < args.length() - 1; i++) {
 			if (args[i] == "--config-url") {
 				return args[i + 1];
 			}
 		}
-		return GO_LIVE_API_PRODUCTION_URL;
+		return obs_service_get_connect_info(
+			service, OBS_SERVICE_CONNECT_INFO_CONFIG_URL);
 	}();
 
 	blog(LOG_INFO, "Go live URL: %s", url.toUtf8().constData());

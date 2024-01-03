@@ -426,7 +426,8 @@ bool AutoConfigStreamPage::validatePage()
 
 		try {
 			auto config = DownloadGoLiveConfig(
-				this, SimulcastAutoConfigURL(), postData);
+				this, SimulcastAutoConfigURL(service),
+				postData);
 			OBSDataArrayAutoRelease encoder_configurations =
 				obs_data_get_array(config,
 						   "encoder_configurations");

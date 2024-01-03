@@ -31,6 +31,7 @@ struct SimulcastOutput {
 
 public:
 	void PrepareStreaming(QWidget *parent, const char *service_name,
+			      obs_service_t *service,
 			      const std::optional<std::string> &rtmp_url,
 			      const QString &stream_key,
 			      bool use_ertmp_multitrack,
