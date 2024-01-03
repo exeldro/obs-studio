@@ -6209,22 +6209,30 @@ extern bool SimulcastDeveloperModeEnabled();
 
 void OBSBasicSettings::UpdateSimulcasting()
 {
+	// technically it should currently be safe to toggle simulcasting
+	// while not streaming (recording should be irrelevant), but practically
+	// output settings aren't currently being tracked with that degree of
+	// flexibility, so just disable everything while outputs are active
+	auto toggle_available = !main->Active();
+
 	// FIXME: protocol is not updated properly for WHIP; what do?
 	auto available = protocol.startsWith("RTMP");
 
 	ui->simulcastInfo->setVisible(available);
 	ui->enableSimulcast->setVisible(available);
 
+	ui->enableSimulcast->setEnabled(toggle_available);
+
 	ui->simulcastMaximumAggregateBitrateLabel->setVisible(available);
 	ui->simulcastMaximumAggregateBitrateAuto->setVisible(available);
 	ui->simulcastMaximumAggregateBitrate->setVisible(available);
 
 	ui->simulcastMaximumAggregateBitrateLabel->setEnabled(
-		ui->enableSimulcast->isChecked());
+		toggle_available && ui->enableSimulcast->isChecked());
 	ui->simulcastMaximumAggregateBitrateAuto->setEnabled(
-		ui->enableSimulcast->isChecked());
+		toggle_available && ui->enableSimulcast->isChecked());
 	ui->simulcastMaximumAggregateBitrate->setEnabled(
-		ui->enableSimulcast->isChecked() &&
+		toggle_available && ui->enableSimulcast->isChecked() &&
 		!ui->simulcastMaximumAggregateBitrateAuto->isChecked());
 
 	ui->simulcastReservedEncoderSessionsLabel->setVisible(available);
@@ -6232,11 +6240,11 @@ void OBSBasicSettings::UpdateSimulcasting()
 	ui->simulcastReservedEncoderSessions->setVisible(available);
 
 	ui->simulcastReservedEncoderSessionsLabel->setEnabled(
-		ui->enableSimulcast->isChecked());
+		toggle_available && ui->enableSimulcast->isChecked());
 	ui->simulcastReservedEncoderSessionsAuto->setEnabled(
-		ui->enableSimulcast->isChecked());
+		toggle_available && ui->enableSimulcast->isChecked());
 	ui->simulcastReservedEncoderSessions->setEnabled(
-		ui->enableSimulcast->isChecked() &&
+		toggle_available && ui->enableSimulcast->isChecked() &&
 		!ui->simulcastReservedEncoderSessionsAuto->isChecked());
 
 	ui->simulcastConfigOverrideEnable->setVisible(
@@ -6247,12 +6255,12 @@ void OBSBasicSettings::UpdateSimulcasting()
 		available && SimulcastDeveloperModeEnabled());
 
 	ui->simulcastConfigOverrideEnable->setEnabled(
-		ui->enableSimulcast->isChecked());
+		toggle_available && ui->enableSimulcast->isChecked());
 	ui->simulcastConfigOverrideLabel->setEnabled(
-		ui->enableSimulcast->isChecked() &&
+		toggle_available && ui->enableSimulcast->isChecked() &&
 		ui->simulcastConfigOverrideEnable->isChecked());
 	ui->simulcastConfigOverride->setEnabled(
-		ui->enableSimulcast->isChecked() &&
+		toggle_available && ui->enableSimulcast->isChecked() &&
 		ui->simulcastConfigOverrideEnable->isChecked());
 
 	if (available) {
