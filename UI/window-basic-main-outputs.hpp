@@ -98,7 +98,8 @@ protected:
 					 bool ffmpeg);
 
 	FutureHolder<std::optional<bool>>
-	SetupSimulcast(obs_service_t *service);
+	SetupSimulcast(obs_service_t *service, std::string audio_encoder_id,
+		       int audio_bitrate);
 };
 
 BasicOutputHandler *CreateSimpleOutputHandler(OBSBasic *main);
