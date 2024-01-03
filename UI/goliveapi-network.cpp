@@ -85,7 +85,7 @@ OBSDataAutoRelease DownloadGoLiveConfig(QWidget *parent, QString url,
 		nullptr, // out params (response code and content type)
 		"POST", obs_data_get_json(postData_), headers,
 		nullptr, // signature
-		3);      // timeout in seconds
+		5);      // timeout in seconds
 
 	if (!encodeConfigDownloadedOk)
 		throw SimulcastError::warning(
