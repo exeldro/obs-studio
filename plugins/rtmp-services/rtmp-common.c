@@ -1059,6 +1059,13 @@ static const char *rtmp_common_get_protocol(void *data)
 	return service->protocol ? service->protocol : "RTMP";
 }
 
+static const char *rtmp_common_get_config_url(struct rtmp_common *service)
+{
+	if (service->service && strcmp(service->service, "Twitch") == 0)
+		return "https://ingest.twitch.tv/api/v3/GetClientConfiguration";
+	return NULL;
+}
+
 static const char *rtmp_common_get_connect_info(void *data, uint32_t type)
 {
 	switch ((enum obs_service_connect_info)type) {
@@ -1082,6 +1089,8 @@ static const char *rtmp_common_get_connect_info(void *data, uint32_t type)
 	}
 	case OBS_SERVICE_CONNECT_INFO_BEARER_TOKEN:
 		return NULL;
+	case OBS_SERVICE_CONNECT_INFO_CONFIG_URL:
+		return rtmp_common_get_config_url(data);
 	}
 
 	return NULL;

@@ -492,7 +492,7 @@ struct OutputObjects {
 };
 
 void SimulcastOutput::PrepareStreaming(
-	QWidget *parent, const char *service_name,
+	QWidget *parent, const char *service_name, obs_service_t *service,
 	const std::optional<std::string> &rtmp_url, const QString &stream_key,
 	bool use_ertmp_multitrack,
 	std::optional<uint32_t> maximum_aggregate_bitrate,
@@ -519,12 +519,16 @@ void SimulcastOutput::PrepareStreaming(
 	OBSDataAutoRelease go_live_config;
 	quint64 download_time_elapsed = 0;
 	bool is_custom_config = custom_config.has_value();
+	auto auto_config_url = SimulcastAutoConfigURL(service);
+
+	auto auto_config_url_data = auto_config_url.toUtf8();
 
 	blog(LOG_INFO,
 	     "Preparing enhanced broadcasting stream for:\n"
 	     "    device_id:      %s\n"
 	     "    obs_session_id: %s\n"
 	     "    custom config:  %s\n"
+	     "    config url:     %s\n"
 	     "  settings:\n"
 	     "    service:                   %s\n"
 	     "    max aggregate bitrate:     %s (%" PRIu32 ")\n"
@@ -533,6 +537,8 @@ void SimulcastOutput::PrepareStreaming(
 	     device_id().toUtf8().constData(),
 	     obs_session_id().toUtf8().constData(),
 	     is_custom_config ? "Yes" : "No", service_name,
+	     !auto_config_url.isEmpty() ? auto_config_url_data.constData()
+					: "(null)",
 	     maximum_aggregate_bitrate.has_value() ? "Set" : "Auto",
 	     maximum_aggregate_bitrate.value_or(0),
 	     reserved_encoder_sessions.has_value() ? "Set" : "Auto",
@@ -546,8 +552,8 @@ void SimulcastOutput::PrepareStreaming(
 						   maximum_aggregate_bitrate,
 						   reserved_encoder_sessions);
 
-		go_live_config = DownloadGoLiveConfig(
-			parent, SimulcastAutoConfigURL(), go_live_post);
+		go_live_config = DownloadGoLiveConfig(parent, auto_config_url,
+						      go_live_post);
 		if (!go_live_config)
 			throw SimulcastError::warning(
 				QTStr("FailedToStartStream.FallbackToDefault"));

@@ -2592,11 +2592,12 @@ BasicOutputHandler::SetupSimulcast(obs_service_t *service)
 	auto firstFuture = CreateFuture().then(
 		QThreadPool::globalInstance(),
 		[=, simulcast = simulcast.get(),
-		 service_name = std::string{
-			 service_name}]() -> std::optional<SimulcastError> {
+		 service_name = std::string{service_name},
+		 service = OBSService{
+			 service}]() -> std::optional<SimulcastError> {
 			try {
 				simulcast->PrepareStreaming(
-					main, service_name.c_str(),
+					main, service_name.c_str(), service,
 					custom_rtmp_url, key, true,
 					maximum_aggregate_bitrate,
 					reserved_encoder_sessions,
