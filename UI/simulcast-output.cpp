@@ -464,10 +464,18 @@ static OBSEncoderAutoRelease create_video_encoder(DStr &name_buffer,
 	return video_encoder;
 }
 
-static OBSEncoderAutoRelease create_audio_encoder()
+static OBSEncoderAutoRelease
+create_audio_encoder(const char *audio_encoder_id,
+		     std::optional<int> audio_bitrate)
 {
+	OBSDataAutoRelease settings = nullptr;
+	if (audio_bitrate.has_value()) {
+		settings = obs_data_create();
+		obs_data_set_int(settings, "bitrate", *audio_bitrate);
+	}
+
 	OBSEncoderAutoRelease audio_encoder = obs_audio_encoder_create(
-		"ffmpeg_aac", "simulcast aac", nullptr, 0, nullptr);
+		audio_encoder_id, "simulcast aac", settings, 0, nullptr);
 	if (!audio_encoder) {
 		blog(LOG_ERROR, "failed to create audio encoder");
 		throw SimulcastError::warning(QTStr(
@@ -480,7 +488,9 @@ static OBSEncoderAutoRelease create_audio_encoder()
 static OBSOutputAutoRelease
 SetupOBSOutput(bool recording, obs_data_t *go_live_config,
 	       std::vector<OBSEncoderAutoRelease> &video_encoders,
-	       OBSEncoderAutoRelease &audio_encoder, bool use_ertmp_multitrack);
+	       OBSEncoderAutoRelease &audio_encoder,
+	       const char *audio_encoder_id, std::optional<int> audio_bitrate,
+	       bool use_ertmp_multitrack);
 static void SetupSignalHandlers(bool recording, SimulcastOutput *self,
 				obs_output_t *output);
 
@@ -494,6 +504,7 @@ struct OutputObjects {
 void SimulcastOutput::PrepareStreaming(
 	QWidget *parent, const char *service_name, obs_service_t *service,
 	const std::optional<std::string> &rtmp_url, const QString &stream_key,
+	const char *audio_encoder_id, int audio_bitrate,
 	bool use_ertmp_multitrack,
 	std::optional<uint32_t> maximum_aggregate_bitrate,
 	std::optional<uint32_t> reserved_encoder_sessions,
@@ -625,6 +636,7 @@ void SimulcastOutput::PrepareStreaming(
 		OBSEncoderAutoRelease audio_encoder = nullptr;
 		auto output = SetupOBSOutput(false, go_live_config,
 					     video_encoders_, audio_encoder,
+					     audio_encoder_id, audio_bitrate,
 					     use_ertmp_multitrack);
 		if (!output)
 			throw SimulcastError::warning(
@@ -791,6 +803,7 @@ bool SimulcastOutput::StartRecording(obs_data_t *go_live_config,
 	video_encoders_.clear();
 	recording_output_ = SetupOBSOutput(true, go_live_config,
 					   video_encoders_, audio_encoder_,
+					   "ffmpeg_aac", std::nullopt,
 					   use_ertmp_multitrack);
 	if (!recording_output_)
 		return false;
@@ -831,7 +844,9 @@ const std::vector<OBSEncoderAutoRelease> &SimulcastOutput::VideoEncoders() const
 static OBSOutputAutoRelease
 SetupOBSOutput(bool recording, obs_data_t *go_live_config,
 	       std::vector<OBSEncoderAutoRelease> &video_encoders,
-	       OBSEncoderAutoRelease &audio_encoder, bool use_ermtp_multitrack)
+	       OBSEncoderAutoRelease &audio_encoder,
+	       const char *audio_encoder_id, std::optional<int> audio_bitrate,
+	       bool use_ermtp_multitrack)
 {
 
 	auto output = !recording
@@ -866,7 +881,7 @@ SetupOBSOutput(bool recording, obs_data_t *go_live_config,
 		video_encoders.emplace_back(std::move(encoder));
 	}
 
-	audio_encoder = create_audio_encoder();
+	audio_encoder = create_audio_encoder(audio_encoder_id, audio_bitrate);
 	obs_output_set_audio_encoder(output, audio_encoder, 0);
 
 	return output;

@@ -1117,7 +1117,10 @@ FutureHolder<bool> SimpleOutput::SetupStreaming(obs_service_t *service)
 	if (!type)
 		return {[] {}, CreateFuture().then([] { return false; })};
 
-	auto holder = SetupSimulcast(service);
+	auto audio_bitrate = GetAudioBitrate();
+	auto holder = SetupSimulcast(
+		service, GetSimpleAACEncoderForBitrate(audio_bitrate),
+		audio_bitrate);
 	auto future = holder.future.then(main, [&](std::optional<bool>
 							   simulcastResult) {
 		if (simulcastResult.has_value())
@@ -2143,7 +2146,11 @@ FutureHolder<bool> AdvancedOutput::SetupStreaming(obs_service_t *service)
 	if (!type)
 		return {[] {}, CreateFuture().then(main, [] { return false; })};
 
-	auto holder = SetupSimulcast(service);
+	const char *audio_encoder_id =
+		config_get_string(main->Config(), "AdvOut", "AudioEncoder");
+
+	auto holder = SetupSimulcast(service, audio_encoder_id,
+				     GetAudioBitrate(0, audio_encoder_id));
 	auto future = holder.future.then(main, [&](std::optional<bool>
 							   simulcastResult) {
 		if (simulcastResult.has_value())
@@ -2508,8 +2515,8 @@ std::string BasicOutputHandler::GetRecordingFilename(
 
 extern std::string DeserializeConfigText(const char *text);
 
-FutureHolder<std::optional<bool>>
-BasicOutputHandler::SetupSimulcast(obs_service_t *service)
+FutureHolder<std::optional<bool>> BasicOutputHandler::SetupSimulcast(
+	obs_service_t *service, std::string audio_encoder_id, int audio_bitrate)
 {
 	if (!simulcast)
 		return {[] {}, CreateFuture().then([] {
@@ -2598,8 +2605,9 @@ BasicOutputHandler::SetupSimulcast(obs_service_t *service)
 			try {
 				simulcast->PrepareStreaming(
 					main, service_name.c_str(), service,
-					custom_rtmp_url, key, true,
-					maximum_aggregate_bitrate,
+					custom_rtmp_url, key,
+					audio_encoder_id.c_str(), audio_bitrate,
+					true, maximum_aggregate_bitrate,
 					reserved_encoder_sessions,
 					custom_config);
 			} catch (const SimulcastError &error) {
