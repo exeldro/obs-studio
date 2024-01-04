@@ -2024,7 +2024,7 @@ check_encoder_group_keyframe_alignment(obs_output_t *output,
 	for (; idx < output->keyframe_group_tracking.num;) {
 		struct keyframe_group_data *data =
 			&output->keyframe_group_tracking.array[idx];
-		if (data->dts_usec > packet->dts_usec)
+		if (data->pts > packet->pts)
 			break;
 		if (data->group_id !=
 		    (uintptr_t)packet->encoder->encoder_group) {
@@ -2032,14 +2032,13 @@ check_encoder_group_keyframe_alignment(obs_output_t *output,
 			continue;
 		}
 
-		if (data->dts_usec < packet->dts_usec) {
+		if (data->pts < packet->pts) {
 			if (data->seen_on_track[packet->track_idx] ==
 			    KEYFRAME_TRACK_STATUS_NOT_SEEN) {
 				blog(LOG_WARNING,
-				     "obs-output '%s': Missing keyframe with dts_usec %" PRIi64
+				     "obs-output '%s': Missing keyframe with pts %" PRIi64
 				     " for encoder '%s' (track: %zu)",
-				     obs_output_get_name(output),
-				     data->dts_usec,
+				     obs_output_get_name(output), data->pts,
 				     obs_encoder_get_name(packet->encoder),
 				     packet->track_idx);
 			}
@@ -2059,7 +2058,7 @@ check_encoder_group_keyframe_alignment(obs_output_t *output,
 	}
 
 	insert_data.group_id = (uintptr_t)packet->encoder->encoder_group;
-	insert_data.dts_usec = packet->dts_usec;
+	insert_data.pts = packet->pts;
 	insert_data.seen_on_track[packet->track_idx] =
 		KEYFRAME_TRACK_STATUS_SEEN;
 
