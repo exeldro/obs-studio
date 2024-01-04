@@ -65,6 +65,11 @@ class AutoConfig : public QWizard {
 		fps60,
 	};
 
+	struct StreamServer {
+		std::string name;
+		std::string address;
+	};
+
 	static inline const char *GetEncoderId(Encoder enc);
 
 	AutoConfigStreamPage *streamPage = nullptr;
@@ -90,6 +95,7 @@ class AutoConfig : public QWizard {
 	std::string serviceName;
 	std::string serverName;
 	std::string server;
+	std::vector<StreamServer> serviceConfigServers;
 	std::string key;
 
 	bool hardwareEncodingAvailable = false;

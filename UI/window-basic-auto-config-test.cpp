@@ -280,6 +280,34 @@ void AutoConfigTestPage::TestBandwidthThread()
 		servers.resize(2);
 	}
 
+	if (!wiz->serviceConfigServers.empty()) {
+		if (wiz->service == AutoConfig::Service::Twitch &&
+		    wiz->twitchAuto) {
+			// servers from Twitch service config replace the "auto" entry
+			servers.erase(servers.begin());
+		}
+
+		for (auto it = std::rbegin(wiz->serviceConfigServers);
+		     it != std::rend(wiz->serviceConfigServers); it++) {
+			auto same_server = std::find_if(
+				std::begin(servers), std::end(servers),
+				[&](const ServerInfo &si) {
+					return si.address == it->address;
+				});
+			if (same_server != std::end(servers))
+				servers.erase(same_server);
+			servers.emplace(std::begin(servers), it->name.c_str(),
+					it->address.c_str());
+		}
+
+		if (wiz->service == AutoConfig::Service::Twitch &&
+		    wiz->twitchAuto) {
+			// see above, only test 3 servers
+			// rtmps urls are currently counted as separate servers
+			servers.resize(3);
+		}
+	}
+
 	/* -----------------------------------*/
 	/* apply service settings             */
 
