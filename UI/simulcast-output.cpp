@@ -547,9 +547,10 @@ void SimulcastOutput::PrepareStreaming(
 	     "    custom rtmp url:           %s ('%s')",
 	     device_id().toUtf8().constData(),
 	     obs_session_id().toUtf8().constData(),
-	     is_custom_config ? "Yes" : "No", service_name,
+	     is_custom_config ? "Yes" : "No",
 	     !auto_config_url.isEmpty() ? auto_config_url_data.constData()
 					: "(null)",
+	     service_name,
 	     maximum_aggregate_bitrate.has_value() ? "Set" : "Auto",
 	     maximum_aggregate_bitrate.value_or(0),
 	     reserved_encoder_sessions.has_value() ? "Set" : "Auto",
