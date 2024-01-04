@@ -1283,7 +1283,7 @@ struct obs_encoder {
 	uint64_t first_raw_ts;
 	uint64_t start_ts;
 
-	/* track encoders that are part of a gop-aligned simulcast group */
+	/* track encoders that are part of a gop-aligned multi track group */
 	struct encoder_group *encoder_group;
 
 	pthread_mutex_t outputs_mutex;

@@ -1913,13 +1913,13 @@ uint64_t obs_encoder_get_pause_offset(const obs_encoder_t *encoder)
 	return encoder ? encoder->pause.ts_offset : 0;
 }
 
-bool obs_encoder_group_simulcast_encoder(obs_encoder_t *encoder,
-					 obs_encoder_t *bonded_encoder)
+bool obs_encoder_group_multi_track_encoders(obs_encoder_t *encoder,
+					    obs_encoder_t *bonded_encoder)
 {
 	if (!obs_encoder_valid(encoder,
-			       "obs_encoder_group_simulcast_encoder") ||
+			       "obs_encoder_group_multi_track_encoders") ||
 	    !obs_encoder_valid(bonded_encoder,
-			       "obs_encoder_group_simulcast_encoder"))
+			       "obs_encoder_group_multi_track_encoders"))
 		return false;
 
 	if (obs_encoder_active(encoder) || obs_encoder_active(bonded_encoder)) {
@@ -1928,14 +1928,14 @@ bool obs_encoder_group_simulcast_encoder(obs_encoder_t *encoder,
 		obs_encoder_t *other = active == encoder ? bonded_encoder
 							 : encoder;
 		blog(LOG_ERROR,
-		     "obs_encoder_group_simulcast_encoder: encoder '%s' is already active, could not group with '%s'",
+		     "obs_encoder_group_multi_track_encoders: encoder '%s' is already active, could not group with '%s'",
 		     obs_encoder_get_name(active), obs_encoder_get_name(other));
 		return false;
 	}
 
 	if (bonded_encoder->encoder_group) {
 		blog(LOG_ERROR,
-		     "encoder '%s' is already part of a simulcast group while trying to group with encoder '%s'",
+		     "encoder '%s' is already part of a multi track group while trying to group with encoder '%s'",
 		     obs_encoder_get_name(bonded_encoder),
 		     obs_encoder_get_name(encoder));
 		return false;

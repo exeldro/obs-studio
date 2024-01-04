@@ -874,8 +874,8 @@ SetupOBSOutput(bool recording, obs_data_t *go_live_config,
 		if (!first_encoder)
 			first_encoder = encoder;
 		else
-			obs_encoder_group_simulcast_encoder(first_encoder,
-							    encoder);
+			obs_encoder_group_multi_track_encoders(first_encoder,
+							       encoder);
 
 		obs_output_set_video_encoder2(output, encoder, i);
 		video_encoders.emplace_back(std::move(encoder));
