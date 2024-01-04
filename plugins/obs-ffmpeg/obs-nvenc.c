@@ -460,6 +460,8 @@ static bool init_encoder_base(struct nvenc_data *enc, obs_data_t *settings,
 	enc->cx = obs_encoder_get_width(enc->encoder);
 	enc->cy = obs_encoder_get_height(enc->encoder);
 
+	bool disable_scenecut = obs_data_get_bool(settings, "disable_scenecut");
+
 	/* -------------------------- */
 	/* get preset                 */
 
@@ -634,6 +636,8 @@ static bool init_encoder_base(struct nvenc_data *enc, obs_data_t *settings,
 			lookahead = false;
 		}
 	}
+
+	enc->config.rcParams.disableIadapt = disable_scenecut;
 
 	/* psycho aq */
 	if (!compatibility) {
