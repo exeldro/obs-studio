@@ -428,6 +428,30 @@ bool AutoConfigStreamPage::validatePage()
 			auto config = DownloadGoLiveConfig(
 				this, SimulcastAutoConfigURL(service),
 				postData);
+
+			OBSDataArrayAutoRelease ingest_endpoints =
+				obs_data_get_array(config, "ingest_endpoints");
+			auto count = obs_data_array_count(ingest_endpoints);
+			for (size_t i = 0; i < count; i++) {
+				OBSDataAutoRelease item = obs_data_array_item(
+					ingest_endpoints, i);
+
+				std::string address = obs_data_get_string(
+					item, "url_template");
+				auto pos = address.find("/{stream_key}");
+				if (pos != address.npos)
+					address.erase(pos);
+
+				const char *name = address.c_str();
+				if (obs_data_has_user_value(item, "name")) {
+					name = obs_data_get_string(item,
+								   "name");
+				}
+
+				wiz->serviceConfigServers.push_back(
+					{name, std::move(address)});
+			}
+
 			OBSDataArrayAutoRelease encoder_configurations =
 				obs_data_get_array(config,
 						   "encoder_configurations");
@@ -443,8 +467,6 @@ bool AutoConfigStreamPage::validatePage()
 			}
 
 			// grab a streamkey from the go live config if we can
-			OBSDataArrayAutoRelease ingest_endpoints =
-				obs_data_get_array(config, "ingest_endpoints");
 			for (size_t i = 0;
 			     i < obs_data_array_count(ingest_endpoints); i++) {
 				OBSDataAutoRelease item = obs_data_array_item(
