@@ -111,10 +111,6 @@ struct nvenc_data {
 	int64_t packet_pts;
 	bool packet_keyframe;
 
-	bool disable_scenecut;
-	uint32_t gop_length;
-	uint32_t gop_counter;
-
 	ID3D11Device *device;
 	ID3D11DeviceContext *context;
 
@@ -464,7 +460,7 @@ static bool init_encoder_base(struct nvenc_data *enc, obs_data_t *settings,
 	enc->cx = obs_encoder_get_width(enc->encoder);
 	enc->cy = obs_encoder_get_height(enc->encoder);
 
-	enc->disable_scenecut = obs_data_get_bool(settings, "disable_scenecut");
+	bool disable_scenecut = obs_data_get_bool(settings, "disable_scenecut");
 
 	/* -------------------------- */
 	/* get preset                 */
@@ -600,8 +596,6 @@ static bool init_encoder_base(struct nvenc_data *enc, obs_data_t *settings,
 	initialize_params(enc, &nv_preset, nv_tuning, voi->width, voi->height,
 			  voi->fps_num, voi->fps_den);
 
-	enc->gop_length = gop_size;
-	enc->gop_counter = gop_size;
 	config->gopLength = gop_size;
 	config->frameIntervalP = 1 + bf;
 
@@ -642,6 +636,8 @@ static bool init_encoder_base(struct nvenc_data *enc, obs_data_t *settings,
 			lookahead = false;
 		}
 	}
+
+	enc->config.rcParams.disableIadapt = disable_scenecut;
 
 	/* psycho aq */
 	if (!compatibility) {
@@ -733,8 +729,7 @@ static bool init_encoder_h264(struct nvenc_data *enc, obs_data_t *settings,
 	uint32_t gop_size =
 		(keyint_sec) ? keyint_sec * voi->fps_num / voi->fps_den : 250;
 
-	h264_config->idrPeriod =
-		enc->disable_scenecut ? NVENC_INFINITE_GOPLENGTH : gop_size;
+	h264_config->idrPeriod = gop_size;
 
 	bool repeat_headers = obs_data_get_bool(settings, "repeat_headers");
 	if (repeat_headers) {
@@ -823,8 +818,7 @@ static bool init_encoder_hevc(struct nvenc_data *enc, obs_data_t *settings,
 	uint32_t gop_size =
 		(keyint_sec) ? keyint_sec * voi->fps_num / voi->fps_den : 250;
 
-	hevc_config->idrPeriod =
-		enc->disable_scenecut ? NVENC_INFINITE_GOPLENGTH : gop_size;
+	hevc_config->idrPeriod = gop_size;
 
 	bool repeat_headers = obs_data_get_bool(settings, "repeat_headers");
 	if (repeat_headers) {
@@ -927,8 +921,7 @@ static bool init_encoder_av1(struct nvenc_data *enc, obs_data_t *settings,
 	uint32_t gop_size =
 		(keyint_sec) ? keyint_sec * voi->fps_num / voi->fps_den : 250;
 
-	av1_config->idrPeriod = enc->disable_scenecut ? NVENC_INFINITE_GOPLENGTH
-						      : gop_size;
+	av1_config->idrPeriod = gop_size;
 
 	av1_config->useBFramesAsRef = NV_ENC_BFRAME_REF_MODE_DISABLED;
 
@@ -1457,11 +1450,6 @@ static bool nvenc_encode_tex(void *data, uint32_t handle, int64_t pts,
 	params.inputHeight = enc->cy;
 	params.inputPitch = enc->cx;
 	params.outputBitstream = bs->ptr;
-
-	if (enc->disable_scenecut && ++enc->gop_counter >= enc->gop_length) {
-		params.encodePicFlags = NV_ENC_PIC_FLAG_FORCEIDR;
-		enc->gop_counter = 0;
-	}
 
 	err = nv.nvEncEncodePicture(enc->session, &params);
 	if (err != NV_ENC_SUCCESS && err != NV_ENC_ERR_NEED_MORE_INPUT) {
