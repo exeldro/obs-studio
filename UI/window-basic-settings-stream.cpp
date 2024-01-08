@@ -356,7 +356,7 @@ void OBSBasicSettings::SaveStream1Settings()
 	SaveSpinBox(ui->simulcastMaximumAggregateBitrate, "Stream1",
 		    "SimulcastMaximumAggregateBitrate");
 	SaveCheckBox(ui->simulcastReservedEncoderSessionsAuto, "Stream1",
-		     "SimulcastReserverEncoderSessionsAuto");
+		     "SimulcastReservedEncoderSessionsAuto");
 	SaveSpinBox(ui->simulcastReservedEncoderSessions, "Stream1",
 		    "SimulcastReservedEncoderSessions");
 	SaveCheckBox(ui->simulcastConfigOverrideEnable, "Stream1",
