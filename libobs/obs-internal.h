@@ -1080,7 +1080,7 @@ enum keyframe_group_track_status {
 
 struct keyframe_group_data {
 	uintptr_t group_id;
-	int64_t dts_usec;
+	int64_t pts;
 	uint32_t required_tracks;
 	enum keyframe_group_track_status
 		seen_on_track[MAX_OUTPUT_VIDEO_ENCODERS];
