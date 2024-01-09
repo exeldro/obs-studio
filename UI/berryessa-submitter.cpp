@@ -102,7 +102,7 @@ void SubmissionWorker::AttemptSubmission()
 		nullptr, // out params (response code and content type)
 		"POST", postEncoded.constData(), headers,
 		nullptr, // signature
-		5);      // timeout in seconds
+		20);     // timeout in seconds
 
 	// XXX parse response from berryessa, check response code?
 
