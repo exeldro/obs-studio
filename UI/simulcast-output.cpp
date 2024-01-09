@@ -525,6 +525,18 @@ void SimulcastOutput::PrepareStreaming(
 			BlockingConnectionTypeFor(parent));
 	}
 
+	if (berryessa_every_minute_ && berryessa_every_minute_->has_value()) {
+		// destruct berryessa_every_minute on main thread
+		QMetaObject::invokeMethod(
+			parent, [bem = std::move(berryessa_every_minute_)] {});
+	}
+
+	if (!berryessa_every_minute_) {
+		berryessa_every_minute_ =
+			std::make_shared<std::optional<BerryessaEveryMinute>>(
+				std::nullopt);
+	}
+
 	auto attempt_start_time = GenerateStreamAttemptStartTime();
 	OBSDataAutoRelease go_live_post;
 	OBSDataAutoRelease go_live_config;
@@ -634,9 +646,10 @@ void SimulcastOutput::PrepareStreaming(
 				is_custom_config);
 
 		video_encoders_.clear();
+		auto video_encoders = std::move(video_encoders_);
 		OBSEncoderAutoRelease audio_encoder = nullptr;
 		auto output = SetupOBSOutput(false, go_live_config,
-					     video_encoders_, audio_encoder,
+					     video_encoders, audio_encoder,
 					     audio_encoder_id, audio_bitrate,
 					     use_ertmp_multitrack);
 		if (!output)
@@ -656,6 +669,7 @@ void SimulcastOutput::PrepareStreaming(
 
 		output_ = std::move(output);
 		weak_output_ = obs_output_get_weak_output(output_);
+		video_encoders_ = std::move(video_encoders);
 		audio_encoder_ = std::move(audio_encoder);
 		simulcast_service_ = std::move(simulcast_service);
 
@@ -714,6 +728,11 @@ void SimulcastOutput::PrepareStreaming(
 			download_time_elapsed, start_streaming_returned);
 		submit_event(berryessa_.get(), "ivs_obs_stream_start_failed",
 			     event);
+
+		if (berryessa_) {
+			berryessa_->unsetAlways("config_id");
+			berryessa_->unsetAlways("stream_attempt_start_time");
+		}
 		throw;
 	}
 }
@@ -765,16 +784,7 @@ void SimulcastOutput::StopStreaming()
 	submit_event(berryessa_.get(), "ivs_obs_stream_stop",
 		     MakeEvent_ivs_obs_stream_stop());
 
-	berryessa_every_minute_ =
-		std::make_shared<std::optional<BerryessaEveryMinute>>(
-			std::nullopt);
-
-	if (berryessa_)
-		berryessa_->unsetAlways("config_id");
-
 	output_ = nullptr;
-	video_encoders_.clear();
-	audio_encoder_ = nullptr;
 
 	streaming_ = false;
 }
@@ -920,6 +930,23 @@ void StreamStopHandler(void *arg, calldata_t * /* data */)
 	auto self = static_cast<SimulcastOutput *>(arg);
 	self->streaming_ = false;
 	self->weak_output_ = nullptr;
+	self->video_encoders_.clear();
+	self->audio_encoder_ = nullptr;
+
+	QMetaObject::invokeMethod(
+		QApplication::instance()->thread(),
+		[self] {
+			self->berryessa_every_minute_ = std::make_shared<
+				std::optional<BerryessaEveryMinute>>(
+				std::nullopt);
+
+			if (self->berryessa_) {
+				self->berryessa_->unsetAlways("config_id");
+				self->berryessa_->unsetAlways(
+					"stream_attempt_start_time");
+			}
+		},
+		Qt::QueuedConnection);
 }
 
 void RecordingStartHandler(void *arg, calldata_t * /* data */)
