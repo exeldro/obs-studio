@@ -3,6 +3,8 @@
 
 #include "immutable-date-time.hpp"
 
+#include <util/dstr.hpp>
+
 OBSDataAutoRelease MakeEvent_ivs_obs_stream_start(
 	obs_data_t *postData, obs_data_t *goLiveConfig,
 	const ImmutableDateTime &stream_attempt_start_time,
@@ -54,9 +56,29 @@ OBSDataAutoRelease MakeEvent_ivs_obs_stream_start_failed(
 
 OBSDataAutoRelease MakeEvent_ivs_obs_stream_stop()
 {
+	return OBSDataAutoRelease{obs_data_create()};
+}
+
+OBSDataAutoRelease MakeEvent_ivs_obs_stream_stopped(long long *error_code,
+						    const char *error_string)
+{
+	DStr client_error;
+	if (error_code && !error_string)
+		dstr_printf(client_error, "%lld", *error_code);
+	else if (error_code && error_string)
+		dstr_printf(client_error, "%lld: %s", *error_code,
+			    error_string);
+
 	OBSDataAutoRelease event = obs_data_create();
-	obs_data_set_string(event, "client_error", "");
+	obs_data_set_string(event, "client_error",
+			    client_error->array ? client_error->array : "");
 	obs_data_set_string(event, "server_error", "");
+
+	if (error_code)
+		obs_data_set_int(event, "error_code", *error_code);
+	if (error_string)
+		obs_data_set_string(event, "error_string", error_string);
+
 	return event;
 }
 

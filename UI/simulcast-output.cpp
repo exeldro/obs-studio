@@ -925,7 +925,7 @@ void StreamStartHandler(void *arg, calldata_t * /* data */)
 	self->berryessa_->submit("ivs_obs_stream_started", event);
 }
 
-void StreamStopHandler(void *arg, calldata_t * /* data */)
+void StreamStopHandler(void *arg, calldata_t *params)
 {
 	auto self = static_cast<SimulcastOutput *>(arg);
 	self->streaming_ = false;
@@ -933,9 +933,18 @@ void StreamStopHandler(void *arg, calldata_t * /* data */)
 	self->video_encoders_.clear();
 	self->audio_encoder_ = nullptr;
 
+	auto code = calldata_int(params, "code");
+	auto last_error = calldata_string(params, "last_error");
+
+	auto stopped_event = MakeEvent_ivs_obs_stream_stopped(
+		code == OBS_OUTPUT_SUCCESS ? nullptr : &code, last_error);
+
 	QMetaObject::invokeMethod(
 		QApplication::instance()->thread(),
-		[self] {
+		[self, stopped_event = std::move(stopped_event)] {
+			submit_event(self->berryessa_.get(),
+				     "ivs_obs_stream_stopped", stopped_event);
+
 			self->berryessa_every_minute_ = std::make_shared<
 				std::optional<BerryessaEveryMinute>>(
 				std::nullopt);
