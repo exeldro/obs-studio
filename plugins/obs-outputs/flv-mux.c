@@ -17,7 +17,6 @@
 
 #include <obs.h>
 #include <stdio.h>
-#include <util/darray.h>
 #include <util/dstr.h>
 #include <util/array-serializer.h>
 #include "flv-mux.h"
@@ -39,6 +38,12 @@ enum video_frametype_t {
 	FT_KEY = 1 << VIDEO_FRAMETYPE_OFFSET,
 	FT_INTER = 2 << VIDEO_FRAMETYPE_OFFSET,
 };
+
+#ifdef ENABLE_HEVC
+#define OR_CODEC_HEVC(codec) || codec == CODEC_HEVC
+#else
+#define OR_CODEC_HEVC(codec)
+#endif
 
 // Y2023 spec
 const uint8_t FRAME_HEADER_EX = 8 << VIDEO_FRAMETYPE_OFFSET;
@@ -79,12 +84,14 @@ static void s_w4cc(struct serializer *s, enum video_id_t id)
 		s_w8(s, '0');
 		s_w8(s, '1');
 		break;
+#ifdef ENABLE_HEVC
 	case CODEC_HEVC:
 		s_w8(s, 'h');
 		s_w8(s, 'v');
 		s_w8(s, 'c');
 		s_w8(s, '1');
 		break;
+#endif
 	case CODEC_H264:
 		s_w8(s, 'a');
 		s_w8(s, 'v');
@@ -118,8 +125,10 @@ static inline double encoder_bitrate(obs_encoder_t *encoder)
 
 static const double VIDEODATA_AVCVIDEOPACKET = 7.0;
 // Additional FLV onMetaData values for Enhanced RTMP/FLV
-static const double VIDEODATA_AV1VIDEOPACKET = 1635135537.0;  // FourCC "av01"
+static const double VIDEODATA_AV1VIDEOPACKET = 1635135537.0; // FourCC "av01"
+#ifdef ENABLE_HEVC
 static const double VIDEODATA_HEVCVIDEOPACKET = 1752589105.0; // FourCC "hvc1"
+#endif
 
 static inline double encoder_video_codec(obs_encoder_t *encoder)
 {
@@ -132,8 +141,10 @@ static inline double encoder_video_codec(obs_encoder_t *encoder)
 		return VIDEODATA_AVCVIDEOPACKET;
 	if (strcmp(codec, "av1") == 0)
 		return VIDEODATA_AV1VIDEOPACKET;
+#ifdef ENABLE_HEVC
 	if (strcmp(codec, "hevc") == 0)
 		return VIDEODATA_HEVCVIDEOPACKET;
+#endif
 
 	return 0.0;
 }
@@ -382,7 +393,7 @@ void flv_packet_ex(struct encoder_packet *packet, enum video_id_t codec_id,
 	// packet head
 	int header_metadata_size = 5; // w8+w4cc
 	// 3 extra bytes for composition time offset
-	if ((codec_id == CODEC_H264 || codec_id == CODEC_HEVC) &&
+	if ((codec_id == CODEC_H264 OR_CODEC_HEVC(codec_id)) &&
 	    type == PACKETTYPE_FRAMES) {
 		header_metadata_size += 3; // w24
 	}
@@ -410,7 +421,7 @@ void flv_packet_ex(struct encoder_packet *packet, enum video_id_t codec_id,
 	}
 
 	// h264/hevc composition time offset
-	if ((codec_id == CODEC_H264 || codec_id == CODEC_HEVC) &&
+	if ((codec_id == CODEC_H264 OR_CODEC_HEVC(codec_id)) &&
 	    type == PACKETTYPE_FRAMES) {
 		s_wb24(&s, get_ms_time(packet, packet->pts - packet->dts));
 	}
@@ -439,7 +450,7 @@ void flv_packet_frames(struct encoder_packet *packet, enum video_id_t codec,
 	int packet_type = PACKETTYPE_FRAMES;
 	// PACKETTYPE_FRAMESX is an optimization to avoid sending composition
 	// time offsets of 0. See Enhanced RTMP spec.
-	if ((codec == CODEC_H264 || codec == CODEC_HEVC) &&
+	if ((codec == CODEC_H264 OR_CODEC_HEVC(codec)) &&
 	    packet->dts == packet->pts)
 		packet_type = PACKETTYPE_FRAMESX;
 	flv_packet_ex(packet, codec, dts_offset, output, size, packet_type,
@@ -568,13 +579,6 @@ void flv_packet_metadata(enum video_id_t codec_id, uint8_t **output,
 		serialize(s, str, len);             \
 	} while (false)
 
-#define s_amf_string(s, str)                    \
-	do {                                    \
-		const size_t len = strlen(str); \
-		s_wb16(s, (uint16_t)len);       \
-		serialize(s, str, len);         \
-	} while (false)
-
 #define s_amf_double(s, d)                            \
 	do {                                          \
 		double d_val = d;                     \
@@ -582,77 +586,7 @@ void flv_packet_metadata(enum video_id_t codec_id, uint8_t **output,
 		s_wb64(s, u_val);                     \
 	} while (false)
 
-static void flv_build_media_labels(struct serializer *s, struct darray *items)
-
-{
-	s_amf_conststring(s, "mediaLabels");
-	s_w8(s, AMF_OBJECT);
-	{
-		flv_media_label_t *array = items->array;
-		for (size_t i = 0; i < items->num; i++) {
-
-			flv_media_label_t *item = array + i;
-			s_amf_string(s, (char *)item->property);
-
-			switch (item->type) {
-			case FLV_MEDIA_LABEL_TYPE_NUMBER: {
-				s_w8(s, AMF_NUMBER);
-				s_amf_double(s,
-					     flv_media_label_get_number(item));
-				break;
-			}
-			case FLV_MEDIA_LABEL_TYPE_STRING: {
-				s_w8(s, AMF_STRING);
-				s_amf_string(s,
-					     (char *)flv_media_label_get_string(
-						     item));
-				break;
-			}
-			default: {
-			}
-			}
-		}
-	}
-	s_wb24(s, AMF_OBJECT_END);
-}
-
-static void
-flv_build_additional_media_data_item(struct serializer *s,
-				     flv_additional_media_data_t *md)
-{
-	s_amf_conststring(s, md->stream_name.array);
-
-	s_w8(s, AMF_OBJECT);
-	{
-		s_amf_conststring(s, "type");
-
-		s_w8(s, AMF_NUMBER);
-		s_amf_double(s, md->type == OBS_ENCODER_AUDIO
-					? RTMP_PACKET_TYPE_AUDIO
-					: RTMP_PACKET_TYPE_VIDEO);
-
-		/* ---- */
-
-		flv_build_media_labels(s, &md->media_labels.da);
-	}
-	s_wb24(s, AMF_OBJECT_END);
-}
-
-static void flv_build_default_media_item_default_object(struct serializer *s,
-							const char *type,
-							struct darray *items)
-
-{
-	s_amf_string(s, (char *)type);
-	s_w8(s, AMF_OBJECT);
-	{
-		flv_build_media_labels(s, items);
-	}
-	s_wb24(s, AMF_OBJECT_END);
-}
-
-static void flv_build_additional_meta_data(flv_additional_meta_data_t *amd,
-					   uint8_t **data, size_t *size)
+static void flv_build_additional_meta_data(uint8_t **data, size_t *size)
 {
 	struct array_output_data out;
 	struct serializer s;
@@ -670,10 +604,10 @@ static void flv_build_additional_meta_data(flv_additional_meta_data_t *amd,
 		s_amf_conststring(&s, "processingIntents");
 
 		s_w8(&s, AMF_STRICT_ARRAY);
-		s_wb32(&s, (uint32_t)amd->processing_intents.num);
-		for (size_t i = 0; i < amd->processing_intents.num; i++) {
+		s_wb32(&s, 1);
+		{
 			s_w8(&s, AMF_STRING);
-			s_amf_string(&s, amd->processing_intents.array[i]);
+			s_amf_conststring(&s, "ArchiveProgramNarrationAudio");
 		}
 
 		/* ---- */
@@ -681,18 +615,30 @@ static void flv_build_additional_meta_data(flv_additional_meta_data_t *amd,
 		s_amf_conststring(&s, "additionalMedia");
 
 		s_w8(&s, AMF_OBJECT);
+		{
+			s_amf_conststring(&s, "stream0");
 
-		for (size_t i = 0; i < MAX_OUTPUT_AUDIO_ENCODERS; i++) {
-			if (amd->additional_audio_media_data[i].active)
-				flv_build_additional_media_data_item(
-					&s,
-					&amd->additional_audio_media_data[i]);
-		}
-		for (size_t i = 0; i < MAX_OUTPUT_VIDEO_ENCODERS; i++) {
-			if (amd->additional_video_media_data[i].active)
-				flv_build_additional_media_data_item(
-					&s,
-					&amd->additional_video_media_data[i]);
+			s_w8(&s, AMF_OBJECT);
+			{
+				s_amf_conststring(&s, "type");
+
+				s_w8(&s, AMF_NUMBER);
+				s_amf_double(&s, RTMP_PACKET_TYPE_AUDIO);
+
+				/* ---- */
+
+				s_amf_conststring(&s, "mediaLabels");
+
+				s_w8(&s, AMF_OBJECT);
+				{
+					s_amf_conststring(&s, "contentType");
+
+					s_w8(&s, AMF_STRING);
+					s_amf_conststring(&s, "PNAR");
+				}
+				s_wb24(&s, AMF_OBJECT_END);
+			}
+			s_wb24(&s, AMF_OBJECT_END);
 		}
 		s_wb24(&s, AMF_OBJECT_END);
 
@@ -702,17 +648,22 @@ static void flv_build_additional_meta_data(flv_additional_meta_data_t *amd,
 
 		s_w8(&s, AMF_OBJECT);
 		{
-			if (amd->default_audio_media_labels.num > 0)
-				flv_build_default_media_item_default_object(
-					&s, "audio",
-					&amd->default_audio_media_labels.da);
+			s_amf_conststring(&s, "audio");
 
-			/* ---- */
+			s_w8(&s, AMF_OBJECT);
+			{
+				s_amf_conststring(&s, "mediaLabels");
 
-			if (amd->default_video_media_labels.num > 0)
-				flv_build_default_media_item_default_object(
-					&s, "video",
-					&amd->default_video_media_labels.da);
+				s_w8(&s, AMF_OBJECT);
+				{
+					s_amf_conststring(&s, "contentType");
+
+					s_w8(&s, AMF_STRING);
+					s_amf_conststring(&s, "PRM");
+				}
+				s_wb24(&s, AMF_OBJECT_END);
+			}
+			s_wb24(&s, AMF_OBJECT_END);
 		}
 		s_wb24(&s, AMF_OBJECT_END);
 	}
@@ -722,9 +673,8 @@ static void flv_build_additional_meta_data(flv_additional_meta_data_t *amd,
 	*size = out.bytes.num;
 }
 
-void flv_additional_meta_data(obs_output_t *context,
-			      flv_additional_meta_data_t *additional_meta_data,
-			      uint8_t **data, size_t *size)
+void flv_additional_meta_data(obs_output_t *context, uint8_t **data,
+			      size_t *size)
 {
 	UNUSED_PARAMETER(context);
 	struct array_output_data out;
@@ -732,8 +682,7 @@ void flv_additional_meta_data(obs_output_t *context,
 	uint8_t *meta_data = NULL;
 	size_t meta_data_size;
 
-	flv_build_additional_meta_data(additional_meta_data, &meta_data,
-				       &meta_data_size);
+	flv_build_additional_meta_data(&meta_data, &meta_data_size);
 
 	array_output_serializer_init(&s, &out);
 
@@ -776,11 +725,11 @@ static inline void s_u29b_value(struct serializer *s, uint32_t val)
 	s_u29(s, 1 | ((val & 0xFFFFFFF) << 1));
 }
 
-static void
-flv_build_additional_media_data(uint8_t **data, size_t *size,
-				struct encoder_packet *packet, bool is_header,
-				flv_additional_media_data_t *media_data)
+static void flv_build_additional_audio(uint8_t **data, size_t *size,
+				       struct encoder_packet *packet,
+				       bool is_header, size_t index)
 {
+	UNUSED_PARAMETER(index);
 	struct array_output_data out;
 	struct serializer s;
 
@@ -794,7 +743,7 @@ flv_build_additional_media_data(uint8_t **data, size_t *size,
 		s_amf_conststring(&s, "id");
 
 		s_w8(&s, AMF_STRING);
-		s_amf_string(&s, media_data->stream_name.array);
+		s_amf_conststring(&s, "stream0");
 
 		/* ----- */
 
@@ -802,19 +751,9 @@ flv_build_additional_media_data(uint8_t **data, size_t *size,
 
 		s_w8(&s, AMF_AVMPLUS);
 		s_w8(&s, AMF3_BYTE_ARRAY);
-
-		if (packet->type == OBS_ENCODER_AUDIO) {
-			s_u29b_value(&s, (uint32_t)packet->size + 2);
-			s_w8(&s, 0xaf);
-			s_w8(&s, is_header ? 0 : 1);
-		} else {
-			int64_t offset = packet->pts - packet->dts;
-			/* these are the 5 extra bytes mentioned above */
-			s_u29b_value(&s, (uint32_t)packet->size + 5);
-			s_w8(&s, packet->keyframe ? 0x17 : 0x27);
-			s_w8(&s, is_header ? 0 : 1);
-			s_wb24(&s, get_ms_time(packet, offset));
-		}
+		s_u29b_value(&s, (uint32_t)packet->size + 2);
+		s_w8(&s, 0xaf);
+		s_w8(&s, is_header ? 0 : 1);
 		s_write(&s, packet->data, packet->size);
 	}
 	s_wb24(&s, AMF_OBJECT_END);
@@ -823,9 +762,9 @@ flv_build_additional_media_data(uint8_t **data, size_t *size,
 	*size = out.bytes.num;
 }
 
-static void flv_additional_stream(struct serializer *s, int32_t dts_offset,
-				  struct encoder_packet *packet, bool is_header,
-				  flv_additional_media_data_t *media_data)
+static void flv_additional_audio(struct serializer *s, int32_t dts_offset,
+				 struct encoder_packet *packet, bool is_header,
+				 size_t index)
 {
 	int32_t time_ms = get_ms_time(packet, packet->dts) - dts_offset;
 	uint8_t *data;
@@ -834,8 +773,7 @@ static void flv_additional_stream(struct serializer *s, int32_t dts_offset,
 	if (!packet->data || !packet->size)
 		return;
 
-	flv_build_additional_media_data(&data, &size, packet, is_header,
-					media_data);
+	flv_build_additional_audio(&data, &size, packet, is_header, index);
 
 	s_w8(s, RTMP_PACKET_TYPE_INFO); //18
 
@@ -861,254 +799,20 @@ static void flv_additional_stream(struct serializer *s, int32_t dts_offset,
 
 void flv_additional_packet_mux(struct encoder_packet *packet,
 			       int32_t dts_offset, uint8_t **data, size_t *size,
-			       bool is_header,
-			       flv_additional_media_data_t *media_data)
+			       bool is_header, size_t index)
 {
 	struct array_output_data out;
 	struct serializer s;
 
 	array_output_serializer_init(&s, &out);
 
-	flv_additional_stream(&s, dts_offset, packet, is_header, media_data);
-
-	*data = out.bytes.array;
-	*size = out.bytes.num;
-}
-
-static void
-flv_build_additional_media_data_ex(uint8_t **data, size_t *size,
-				   struct encoder_packet *packet,
-				   flv_additional_media_data_t *media_data,
-				   int type, enum video_id_t codec_id)
-{
-	struct array_output_data out;
-	struct serializer s;
-
-	assert(packet->type == OBS_ENCODER_VIDEO);
-
-	array_output_serializer_init(&s, &out);
-
-	s_w8(&s, AMF_STRING);
-	s_amf_conststring(&s, "additionalMedia");
-
-	s_w8(&s, AMF_OBJECT);
-	{
-		s_amf_conststring(&s, "id");
-
-		s_w8(&s, AMF_STRING);
-		s_amf_string(&s, media_data->stream_name.array);
-
-		/* ----- */
-
-		s_amf_conststring(&s, "media");
-
-		s_w8(&s, AMF_AVMPLUS);
-		s_w8(&s, AMF3_BYTE_ARRAY);
-
-		int header_metadata_size = 5;
-		// 3 extra bytes for composition time offset
-		if ((codec_id == CODEC_H264 || codec_id == CODEC_HEVC) &&
-		    type == PACKETTYPE_FRAMES) {
-			header_metadata_size = 8;
-		}
-
-		int64_t offset = packet->pts - packet->dts;
-		int32_t time_ms = get_ms_time(packet, packet->dts) - offset;
-
-		s_u29b_value(&s, (uint32_t)packet->size + header_metadata_size);
-		s_wtimestamp(&s, time_ms);
-		s_wb24(&s, 0);
-
-		// packet ext header
-		s_w8(&s, FRAME_HEADER_EX | type |
-				 (packet->keyframe ? FT_KEY : FT_INTER));
-		s_w4cc(&s, codec_id);
-
-		// h264/hevc composition time offset
-		if ((codec_id == CODEC_H264 || codec_id == CODEC_HEVC) &&
-		    type == PACKETTYPE_FRAMES) {
-			s_wb24(&s,
-			       get_ms_time(packet, packet->pts - packet->dts));
-		}
-
-		s_write(&s, packet->data, packet->size);
-	}
-	s_wb24(&s, AMF_OBJECT_END);
-
-	*data = out.bytes.array;
-	*size = out.bytes.num;
-}
-
-static void flv_additional_stream_ex(struct serializer *s, int32_t dts_offset,
-				     struct encoder_packet *packet,
-				     flv_additional_media_data_t *media_data,
-				     int type, enum video_id_t codec_id)
-{
-	int32_t time_ms = get_ms_time(packet, packet->dts) - dts_offset;
-	uint8_t *data;
-	size_t size;
-
-	if (!packet->data || !packet->size)
-		return;
-
-	flv_build_additional_media_data_ex(&data, &size, packet, media_data,
-					   type, codec_id);
-
-	s_w8(s, RTMP_PACKET_TYPE_INFO); //18
-
-#ifdef DEBUG_TIMESTAMPS
-	blog(LOG_DEBUG, "Audio2: %lu", time_ms);
-
-	if (last_time > time_ms)
-		blog(LOG_DEBUG, "Non-monotonic");
-
-	last_time = time_ms;
-#endif
-
-	s_wb24(s, (uint32_t)size);
-	s_wb24(s, (uint32_t)time_ms);
-	s_w8(s, (time_ms >> 24) & 0x7F);
-	s_wb24(s, 0);
-
-	serialize(s, data, size);
-	bfree(data);
-
-	write_previous_tag_size(s);
-}
-
-void flv_additional_packet_mux_ex(struct encoder_packet *packet,
-				  int32_t dts_offset, uint8_t **data,
-				  size_t *size,
-				  flv_additional_media_data_t *media_data,
-				  int type, enum video_id_t codec_id)
-{
-	struct array_output_data out;
-	struct serializer s;
-
-	array_output_serializer_init(&s, &out);
-
-	flv_additional_stream_ex(&s, dts_offset, packet, media_data, type,
-				 codec_id);
-
-	*data = out.bytes.array;
-	*size = out.bytes.num;
-}
-
-void flv_additional_packet_start_ex(struct encoder_packet *packet,
-				    flv_additional_media_data_t *media_data,
-				    enum video_id_t codec, uint8_t **output,
-				    size_t *size)
-{
-	flv_additional_packet_mux_ex(packet, 0, output, size, media_data,
-				     PACKETTYPE_SEQ_START, codec);
-}
-
-void flv_additional_packet_frames_ex(struct encoder_packet *packet,
-				     flv_additional_media_data_t *media_data,
-				     enum video_id_t codec, int32_t dts_offset,
-				     uint8_t **output, size_t *size)
-{
-	int packet_type = PACKETTYPE_FRAMES;
-	// PACKETTYPE_FRAMESX is an optimization to avoid sending composition
-	// time offsets of 0. See Enhanced RTMP spec.
-	if ((codec == CODEC_H264 || codec == CODEC_HEVC) &&
-	    packet->dts == packet->pts)
-		packet_type = PACKETTYPE_FRAMESX;
-	flv_additional_packet_mux_ex(packet, dts_offset, output, size,
-				     media_data, packet_type, codec);
-}
-
-void flv_additional_packet_end_ex(struct encoder_packet *packet,
-				  flv_additional_media_data_t *media_data,
-				  enum video_id_t codec, uint8_t **output,
-				  size_t *size)
-{
-	flv_additional_packet_mux_ex(packet, 0, output, size, media_data,
-				     PACKETTYPE_SEQ_END, codec);
-}
-
-void flv_additional_packet_metadata_ex(flv_additional_media_data_t *media_data,
-				       enum video_id_t codec_id,
-				       uint8_t **output, size_t *size,
-				       int bits_per_raw_sample,
-				       uint8_t color_primaries, int color_trc,
-				       int color_space, int min_luminance,
-				       int max_luminance)
-{
-	// metadata array
-	struct array_output_data data;
-	struct array_output_data metadata;
-	struct serializer s;
-	array_output_serializer_init(&s, &data);
-
-	// metadata data array
-	{
-		struct serializer s;
-		array_output_serializer_init(&s, &metadata);
-
-		s_w8(&s, DATA_TYPE_STRING);
-		s_wstring(&s, "colorInfo");
-		s_w8(&s, DATA_TYPE_OBJECT);
-		{
-			// colorConfig:
-			s_wstring(&s, "colorConfig");
-			s_w8(&s, DATA_TYPE_OBJECT);
-			{
-				s_wstring(&s, "bitDepth");
-				s_w8(&s, DATA_TYPE_NUMBER);
-				s_wbd(&s, bits_per_raw_sample);
-
-				s_wstring(&s, "colorPrimaries");
-				s_w8(&s, DATA_TYPE_NUMBER);
-				s_wbd(&s, color_primaries);
-
-				s_wstring(&s, "transferCharacteristics");
-				s_w8(&s, DATA_TYPE_NUMBER);
-				s_wbd(&s, color_trc);
-
-				s_wstring(&s, "matrixCoefficients");
-				s_w8(&s, DATA_TYPE_NUMBER);
-				s_wbd(&s, color_space);
-			}
-			s_w8(&s, 0);
-			s_w8(&s, 0);
-			s_w8(&s, DATA_TYPE_OBJECT_END);
-
-			if (max_luminance != 0) {
-				// hdrMdcv
-				s_wstring(&s, "hdrMdcv");
-				s_w8(&s, DATA_TYPE_OBJECT);
-				{
-					s_wstring(&s, "maxLuminance");
-					s_w8(&s, DATA_TYPE_NUMBER);
-					s_wbd(&s, max_luminance);
-
-					s_wstring(&s, "minLuminance");
-					s_w8(&s, DATA_TYPE_NUMBER);
-					s_wbd(&s, min_luminance);
-				}
-				s_w8(&s, 0);
-				s_w8(&s, 0);
-				s_w8(&s, DATA_TYPE_OBJECT_END);
-			}
-		}
-		s_w8(&s, 0);
-		s_w8(&s, 0);
-		s_w8(&s, DATA_TYPE_OBJECT_END);
+	if (packet->type == OBS_ENCODER_VIDEO) {
+		//currently unsupported
+		bcrash("who said you could output an additional video packet?");
+	} else {
+		flv_additional_audio(&s, dts_offset, packet, is_header, index);
 	}
 
-	struct encoder_packet p = {.type = OBS_ENCODER_VIDEO,
-				   .keyframe = 1,
-				   .data = metadata.bytes.array,
-				   .size = metadata.bytes.num};
-
-	flv_additional_stream_ex(&s, 0, &p, media_data, PACKETTYPE_METADATA,
-				 codec_id);
-	array_output_serializer_free(&metadata); // must be freed
-
-	// packet tail
-	write_previous_tag_size(&s);
-
-	*output = data.bytes.array;
-	*size = data.bytes.num;
+	*data = out.bytes.array;
+	*size = out.bytes.num;
 }

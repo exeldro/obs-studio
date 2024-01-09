@@ -119,8 +119,6 @@ static void rtmp_stream_destroy(void *data)
 		}
 	}
 
-	flv_additional_meta_data_free(&stream->additional_metadata);
-
 	RTMP_TLS_Free(&stream->rtmp);
 	free_packets(stream);
 	dstr_free(&stream->path);
@@ -420,17 +418,10 @@ static int send_packet(struct rtmp_stream *stream,
 	if (handle_socket_read(stream))
 		return -1;
 
-	flv_additional_media_data_t *media_data =
-		packet->type == OBS_ENCODER_AUDIO
-			? &stream->additional_metadata
-				   .additional_audio_media_data[idx]
-			: &stream->additional_metadata
-				   .additional_video_media_data[idx];
-
-	if (media_data->active) {
+	if (idx > 0) {
 		flv_additional_packet_mux(
 			packet, is_header ? 0 : stream->start_dts_offset, &data,
-			&size, is_header, media_data);
+			&size, is_header, idx);
 	} else {
 		flv_packet_mux(packet, is_header ? 0 : stream->start_dts_offset,
 			       &data, &size, is_header);
@@ -463,39 +454,15 @@ static int send_packet_ex(struct rtmp_stream *stream,
 	if (handle_socket_read(stream))
 		return -1;
 
-	flv_additional_media_data_t *media_data =
-		packet->type == OBS_ENCODER_AUDIO
-			? &stream->additional_metadata
-				   .additional_audio_media_data[idx]
-			: &stream->additional_metadata
-				   .additional_video_media_data[idx];
-
-	if (!stream->ertmp_multitrack && media_data->active) {
-		if (is_header) {
-			flv_additional_packet_start_ex(packet, media_data,
-						       stream->video_codec[idx],
-						       &data, &size);
-		} else if (is_footer) {
-			flv_additional_packet_end_ex(packet, media_data,
-						     stream->video_codec[idx],
-						     &data, &size);
-		} else {
-			flv_additional_packet_frames_ex(
-				packet, media_data, stream->video_codec[idx],
-				stream->start_dts_offset, &data, &size);
-		}
+	if (is_header) {
+		flv_packet_start(packet, stream->video_codec[idx], &data, &size,
+				 idx);
+	} else if (is_footer) {
+		flv_packet_end(packet, stream->video_codec[idx], &data, &size,
+			       idx);
 	} else {
-		if (is_header) {
-			flv_packet_start(packet, stream->video_codec[idx],
-					 &data, &size, idx);
-		} else if (is_footer) {
-			flv_packet_end(packet, stream->video_codec[idx], &data,
-				       &size, idx);
-		} else {
-			flv_packet_frames(packet, stream->video_codec[idx],
-					  stream->start_dts_offset, &data,
-					  &size, idx);
-		}
+		flv_packet_frames(packet, stream->video_codec[idx],
+				  stream->start_dts_offset, &data, &size, idx);
 	}
 
 #ifdef TEST_FRAMEDROPS
@@ -706,8 +673,7 @@ static void *send_thread(void *data)
 		int sent;
 		if (packet.type == OBS_ENCODER_VIDEO &&
 		    (stream->video_codec[packet.track_idx] != CODEC_H264 ||
-		     (stream->ertmp_multitrack &&
-		      stream->video_codec[packet.track_idx] == CODEC_H264 &&
+		     (stream->video_codec[packet.track_idx] == CODEC_H264 &&
 		      packet.track_idx != 0))) {
 			sent = send_packet_ex(stream, &packet, false, false,
 					      packet.track_idx);
@@ -789,8 +755,7 @@ static bool send_additional_meta_data(struct rtmp_stream *stream)
 	size_t meta_data_size;
 	bool success = true;
 
-	flv_additional_meta_data(stream->output, &stream->additional_metadata,
-				 &meta_data, &meta_data_size);
+	flv_additional_meta_data(stream->output, &meta_data, &meta_data_size);
 	success = RTMP_Write(&stream->rtmp, (char *)meta_data,
 			     (int)meta_data_size, 0) >= 0;
 	bfree(meta_data);
@@ -860,7 +825,7 @@ static bool send_video_header(struct rtmp_stream *stream, size_t idx)
 	case CODEC_H264:
 		packet.size = obs_parse_avc_header(&packet.data, header, size);
 		// Always send H264 on track 0 as old style for compat
-		if (!stream->ertmp_multitrack || idx == 0) {
+		if (idx == 0) {
 			return send_packet(stream, &packet, true, idx) >= 0;
 		} else {
 			return send_packet_ex(stream, &packet, true, false,
@@ -901,14 +866,14 @@ static bool send_video_metadata(struct rtmp_stream *stream, size_t idx)
 	if (handle_socket_read(stream))
 		return false;
 
-	flv_additional_media_data_t *media_data =
-		&stream->additional_metadata.additional_video_media_data[idx];
-
 	// Y2023 spec
 	if (stream->video_codec[idx] != CODEC_H264) {
 		uint8_t *data;
 		size_t size;
 
+		video_t *video = obs_get_video();
+		const struct video_output_info *info =
+			video_output_get_info(video);
 		enum video_format format = info->format;
 		enum video_colorspace colorspace = info->colorspace;
 
@@ -963,16 +928,9 @@ static bool send_video_metadata(struct rtmp_stream *stream, size_t idx)
 			max_luminance =
 				(int)obs_get_video_hdr_nominal_peak_level();
 
-		if (!stream->ertmp_multitrack && media_data->active) {
-			flv_additional_packet_metadata_ex(
-				media_data, stream->video_codec[idx], &data,
-				&size, bits_per_raw_sample, pri, trc, spc, 0,
-				max_luminance);
-		} else {
-			flv_packet_metadata(stream->video_codec[idx], &data,
-					    &size, bits_per_raw_sample, pri,
-					    trc, spc, 0, max_luminance, idx);
-		}
+		flv_packet_metadata(stream->video_codec[idx], &data, &size,
+				    bits_per_raw_sample, pri, trc, spc, 0,
+				    max_luminance, idx);
 
 		int ret = RTMP_Write(&stream->rtmp, (char *)data, (int)size, 0);
 		bfree(data);
@@ -998,16 +956,15 @@ static inline bool send_headers(struct rtmp_stream *stream)
 {
 	stream->sent_headers = true;
 	size_t i = 0;
-	bool next_audio = true;
+	bool next = true;
 
-	if (!send_audio_header(stream, 0, &next_audio))
+	if (!send_audio_header(stream, i++, &next))
 		return false;
 	if (!send_video_header(stream, 0) || !send_video_metadata(stream, 0))
 		return false;
 
-	i = 1;
-	while (next_audio) {
-		if (!send_audio_header(stream, i++, &next_audio))
+	while (next) {
+		if (!send_audio_header(stream, i++, &next))
 			return false;
 	}
 
@@ -1154,10 +1111,8 @@ static int init_send(struct rtmp_stream *stream)
 		return OBS_OUTPUT_DISCONNECTED;
 	}
 
-	bool has_additional_media =
-		stream->additional_metadata.processing_intents.num > 0 &&
-		!stream->ertmp_multitrack;
-	if (has_additional_media && !send_additional_meta_data(stream)) {
+	obs_encoder_t *aencoder = obs_output_get_audio_encoder(context, 1);
+	if (aencoder && !send_additional_meta_data(stream)) {
 		warn("Disconnected while attempting to send additional "
 		     "metadata");
 		return OBS_OUTPUT_DISCONNECTED;
@@ -1369,13 +1324,10 @@ static bool init_connect(struct rtmp_stream *stream)
 	stream->max_shutdown_time_sec =
 		(int)obs_data_get_int(settings, OPT_MAX_SHUTDOWN_TIME_SEC);
 
-	obs_encoder_t *venc = NULL;
-	obs_encoder_t *aenc = NULL;
+	obs_encoder_t *venc = obs_output_get_video_encoder(stream->output);
+	obs_encoder_t *aenc = obs_output_get_audio_encoder(stream->output, 0);
 	obs_data_t *vsettings = obs_encoder_get_settings(venc);
 	obs_data_t *asettings = obs_encoder_get_settings(aenc);
-	bool additional_audio = false;
-	bool additional_video = false;
-
 	for (size_t i = 0; i < MAX_OUTPUT_VIDEO_ENCODERS; i++) {
 		obs_encoder_t *enc =
 			obs_output_get_video_encoder2(stream->output, i);
@@ -1384,98 +1336,7 @@ static bool init_connect(struct rtmp_stream *stream)
 			const char *codec = obs_encoder_get_codec(enc);
 			stream->video_codec[i] = to_video_type(codec);
 		}
-
-		if (enc && !venc) {
-			venc = enc;
-			vsettings = obs_encoder_get_settings(venc);
-			continue;
-		}
-
-		if (enc && enc != venc) {
-			additional_video = true;
-		}
 	}
-
-	for (size_t i = 0; i < MAX_OUTPUT_AUDIO_ENCODERS; i++) {
-		obs_encoder_t *enc =
-			obs_output_get_audio_encoder(stream->output, i);
-		if (enc && !aenc) {
-			aenc = enc;
-			asettings = obs_encoder_get_settings(aenc);
-			continue;
-		}
-
-		if (enc && enc != aenc) {
-			additional_audio = true;
-			break;
-		}
-	}
-
-	flv_additional_meta_data_free(&stream->additional_metadata);
-	flv_additional_meta_data_init(&stream->additional_metadata);
-
-	int stream_index = 0;
-	if (additional_audio) {
-		// Add our processing intent for audio
-		char *intent = bstrdup("ArchiveProgramNarrationAudio");
-		da_push_back(stream->additional_metadata.processing_intents,
-			     &intent);
-
-		for (size_t i = 0; i < MAX_OUTPUT_AUDIO_ENCODERS; i++) {
-			obs_encoder_t *enc =
-				obs_output_get_audio_encoder(stream->output, i);
-			flv_additional_media_data_t *amd =
-				&stream->additional_metadata
-					 .additional_audio_media_data[i];
-
-			// Skip primary audio or null encoders
-			if (!enc || enc == aenc)
-				continue;
-
-			amd->active = true;
-
-			dstr_printf(&amd->stream_name, "stream%d",
-				    stream_index++);
-			flv_media_label_t content_type =
-				flv_media_label_create_string("contentType",
-							      "PNAR");
-			da_push_back(amd->media_labels, &content_type);
-		}
-	}
-
-	if (additional_video) {
-		// Add our processing intent for video
-		char *intent = bstrdup("SimulcastVideo");
-		da_push_back(stream->additional_metadata.processing_intents,
-			     &intent);
-
-		for (size_t i = 0; i < MAX_OUTPUT_VIDEO_ENCODERS; i++) {
-			obs_encoder_t *enc = obs_output_get_video_encoder2(
-				stream->output, i);
-			flv_additional_media_data_t *amd =
-				&stream->additional_metadata
-					 .additional_video_media_data[i];
-
-			// Skip primary video or null encoders
-			if (!enc || enc == venc)
-				continue;
-
-			amd->active = true;
-
-			dstr_printf(&amd->stream_name, "stream%d",
-				    stream_index++);
-		}
-	}
-
-	flv_media_label_t audio_content_type =
-		flv_media_label_create_string("contentType", "PRM");
-	flv_media_label_t video_content_type =
-		flv_media_label_create_string("contentType", "PRM");
-
-	da_push_back(stream->additional_metadata.default_audio_media_labels,
-		     &audio_content_type);
-	da_push_back(stream->additional_metadata.default_video_media_labels,
-		     &video_content_type);
 
 	circlebuf_free(&stream->dbr_frames);
 	stream->audio_bitrate = (long)obs_data_get_int(asettings, "bitrate");
@@ -1542,11 +1403,6 @@ static bool init_connect(struct rtmp_stream *stream)
 	stream->new_socket_loop = false;
 	stream->low_latency_mode = false;
 #endif
-
-	// Whether to enable multitrack ERTMP or use old-style
-	// additionalData method
-	stream->ertmp_multitrack =
-		obs_data_get_bool(settings, OPT_ERTMP_MULTITRACK);
 
 	obs_data_release(settings);
 	return true;
@@ -1937,7 +1793,6 @@ static void rtmp_stream_defaults(obs_data_t *defaults)
 	obs_data_set_default_bool(defaults, OPT_NEWSOCKETLOOP_ENABLED, false);
 	obs_data_set_default_bool(defaults, OPT_LOWLATENCY_ENABLED, false);
 #endif
-	obs_data_set_default_bool(defaults, OPT_ERTMP_MULTITRACK, false);
 }
 
 static obs_properties_t *rtmp_stream_properties(void *unused)
