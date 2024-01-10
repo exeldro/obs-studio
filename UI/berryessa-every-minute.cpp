@@ -12,6 +12,8 @@
 #include <QThreadPool>
 #include <QPointer>
 
+#include <chrono>
+
 static OBSFrameCounters InitFrameCounters();
 
 BerryessaEveryMinute::BerryessaEveryMinute(
@@ -140,6 +142,14 @@ static void AddOBSStats(os_cpu_usage_info *info,
 
 void BerryessaEveryMinute::fire()
 {
+	if (timer_.isSingleShot()) {
+		timer_.setSingleShot(false);
+		// precise timers are supposed to produce timer stability
+		// with low jitter and stability over time
+		timer_.setTimerType(Qt::PreciseTimer);
+		timer_.start(std::chrono::minutes(1));
+	}
+
 	blog(LOG_INFO, "BerryessaEveryMinute::fire called");
 
 	OBSDataAutoRelease event = obs_data_create();
@@ -170,8 +180,4 @@ void BerryessaEveryMinute::fire()
 						  event);
 			});
 		});
-
-	// XXX after the first firing at a random [0.000, 60.000) time, try to fire
-	// every 60 seconds after that correcting for drift
-	timer_.start(60000);
 }
