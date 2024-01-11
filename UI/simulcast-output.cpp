@@ -941,21 +941,23 @@ void StreamStopHandler(void *arg, calldata_t *params)
 
 	QMetaObject::invokeMethod(
 		QApplication::instance()->thread(),
-		[self, stopped_event = std::move(stopped_event)] {
-			submit_event(self->berryessa_.get(),
-				     "ivs_obs_stream_stopped", stopped_event);
+		[berryessa = QPointer{self->berryessa_.get()},
+		 bem = std::move(self->berryessa_every_minute_),
+		 stopped_event = std::move(stopped_event)] {
+			submit_event(berryessa, "ivs_obs_stream_stopped",
+				     stopped_event);
 
-			self->berryessa_every_minute_ = std::make_shared<
-				std::optional<BerryessaEveryMinute>>(
-				std::nullopt);
-
-			if (self->berryessa_) {
-				self->berryessa_->unsetAlways("config_id");
-				self->berryessa_->unsetAlways(
+			if (berryessa) {
+				berryessa->unsetAlways("config_id");
+				berryessa->unsetAlways(
 					"stream_attempt_start_time");
 			}
 		},
 		Qt::QueuedConnection);
+
+	self->berryessa_every_minute_ =
+		std::make_shared<std::optional<BerryessaEveryMinute>>(
+			std::nullopt);
 }
 
 void RecordingStartHandler(void *arg, calldata_t * /* data */)
