@@ -1914,30 +1914,31 @@ uint64_t obs_encoder_get_pause_offset(const obs_encoder_t *encoder)
 	return encoder ? encoder->pause.ts_offset : 0;
 }
 
-bool obs_encoder_group_multi_track_encoders(obs_encoder_t *encoder,
-					    obs_encoder_t *bonded_encoder)
+bool obs_encoder_group_keyframe_aligned_encoders(obs_encoder_t *encoder,
+						 obs_encoder_t *grouped_encoder)
 {
 	if (!obs_encoder_valid(encoder,
-			       "obs_encoder_group_multi_track_encoders") ||
-	    !obs_encoder_valid(bonded_encoder,
-			       "obs_encoder_group_multi_track_encoders"))
+			       "obs_encoder_group_keyframe_aligned_encoders") ||
+	    !obs_encoder_valid(grouped_encoder,
+			       "obs_encoder_group_keyframe_aligned_encoders"))
 		return false;
 
-	if (obs_encoder_active(encoder) || obs_encoder_active(bonded_encoder)) {
+	if (obs_encoder_active(encoder) ||
+	    obs_encoder_active(grouped_encoder)) {
 		obs_encoder_t *active =
-			obs_encoder_active(encoder) ? encoder : bonded_encoder;
-		obs_encoder_t *other = active == encoder ? bonded_encoder
+			obs_encoder_active(encoder) ? encoder : grouped_encoder;
+		obs_encoder_t *other = active == encoder ? grouped_encoder
 							 : encoder;
 		blog(LOG_ERROR,
-		     "obs_encoder_group_multi_track_encoders: encoder '%s' is already active, could not group with '%s'",
+		     "obs_encoder_group_keyframe_aligned_encoders: encoder '%s' is already active, could not group with '%s'",
 		     obs_encoder_get_name(active), obs_encoder_get_name(other));
 		return false;
 	}
 
-	if (bonded_encoder->encoder_group) {
+	if (grouped_encoder->encoder_group) {
 		blog(LOG_ERROR,
-		     "encoder '%s' is already part of a multi track group while trying to group with encoder '%s'",
-		     obs_encoder_get_name(bonded_encoder),
+		     "encoder '%s' is already part of a multitrack group while trying to group with encoder '%s'",
+		     obs_encoder_get_name(grouped_encoder),
 		     obs_encoder_get_name(encoder));
 		return false;
 	}
@@ -1951,7 +1952,7 @@ bool obs_encoder_group_multi_track_encoders(obs_encoder_t *encoder,
 		encoder->encoder_group->encoders_added = 1;
 	}
 
-	bonded_encoder->encoder_group = encoder->encoder_group;
+	grouped_encoder->encoder_group = encoder->encoder_group;
 	encoder->encoder_group->encoders_added += 1;
 
 	return true;

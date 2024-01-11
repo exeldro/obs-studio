@@ -2567,8 +2567,8 @@ EXPORT void obs_encoder_set_last_error(obs_encoder_t *encoder,
 EXPORT uint64_t obs_encoder_get_pause_offset(const obs_encoder_t *encoder);
 
 EXPORT bool
-obs_encoder_group_multi_track_encoders(obs_encoder_t *encoder,
-				       obs_encoder_t *bonded_encoder);
+obs_encoder_group_keyframe_aligned_encoders(obs_encoder_t *encoder,
+					    obs_encoder_t *grouped_encoder);
 
 /* ------------------------------------------------------------------------- */
 /* Stream Services */
