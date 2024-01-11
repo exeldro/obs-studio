@@ -12,7 +12,7 @@
 #include "goliveapi-postdata.hpp"
 #include "goliveapi-network.hpp"
 #include "immutable-date-time.hpp"
-#include "simulcast-error.hpp"
+#include "multitrack-video-error.hpp"
 
 #include "ui_AutoConfigStartPage.h"
 #include "ui_AutoConfigVideoPage.h"
@@ -265,7 +265,7 @@ AutoConfigStreamPage::AutoConfigStreamPage(QWidget *parent)
 	ui->bitrate->setVisible(false);
 	ui->connectAccount2->setVisible(false);
 	ui->disconnectAccount->setVisible(false);
-	ui->useSimulcast->setVisible(false);
+	ui->useMultitrackVideo->setVisible(false);
 
 	ui->connectedAccountLabel->setVisible(false);
 	ui->connectedAccountText->setVisible(false);
@@ -417,7 +417,7 @@ bool AutoConfigStreamPage::validatePage()
 	}
 
 	if (wiz->service == AutoConfig::Service::Twitch) {
-		wiz->testSimulcast = ui->useSimulcast->isChecked();
+		wiz->testMultitrackVideo = ui->useMultitrackVideo->isChecked();
 
 		auto postData =
 			constructGoLivePost(ImmutableDateTime::CurrentTimeUtc(),
@@ -426,7 +426,7 @@ bool AutoConfigStreamPage::validatePage()
 
 		try {
 			auto config = DownloadGoLiveConfig(
-				this, SimulcastAutoConfigURL(service),
+				this, MultitrackVideoAutoConfigURL(service),
 				postData);
 
 			OBSDataArrayAutoRelease ingest_endpoints =
@@ -455,14 +455,14 @@ bool AutoConfigStreamPage::validatePage()
 			OBSDataArrayAutoRelease encoder_configurations =
 				obs_data_get_array(config,
 						   "encoder_configurations");
-			int simulcastBitrate = 0;
+			int multitrackVideoBitrate = 0;
 			for (size_t i = 0, numConfigs = obs_data_array_count(
 						   encoder_configurations);
 			     i < numConfigs; i++) {
 				OBSDataAutoRelease encoder_configuration =
 					obs_data_array_item(
 						encoder_configurations, i);
-				simulcastBitrate += obs_data_get_int(
+				multitrackVideoBitrate += obs_data_get_int(
 					encoder_configuration, "bitrate");
 			}
 
@@ -482,13 +482,14 @@ bool AutoConfigStreamPage::validatePage()
 				}
 			}
 
-			if (simulcastBitrate > 0) {
-				wiz->startingBitrate = simulcastBitrate;
-				wiz->idealBitrate = simulcastBitrate;
-				wiz->simulcast.targetBitrate = simulcastBitrate;
-				wiz->simulcast.testSuccessful = true;
+			if (multitrackVideoBitrate > 0) {
+				wiz->startingBitrate = multitrackVideoBitrate;
+				wiz->idealBitrate = multitrackVideoBitrate;
+				wiz->multitrackVideo.targetBitrate =
+					multitrackVideoBitrate;
+				wiz->multitrackVideo.testSuccessful = true;
 			}
-		} catch (const SimulcastError & /*err*/) {
+		} catch (const MultitrackVideoError & /*err*/) {
 			// FIXME: do something sensible
 		}
 	}
@@ -647,17 +648,17 @@ void AutoConfigStreamPage::on_useStreamKey_clicked()
 void AutoConfigStreamPage::on_preferHardware_clicked()
 {
 	auto *main = OBSBasic::Get();
-	bool simulcastEnabled = config_has_user_value(main->Config(), "Stream1",
-						      "EnableSimulcast")
-					? config_get_bool(main->Config(),
-							  "Stream1",
-							  "EnableSimulcast")
-					: true;
+	bool multitrackVideoEnabled =
+		config_has_user_value(main->Config(), "Stream1",
+				      "EnableMultitrackVideo")
+			? config_get_bool(main->Config(), "Stream1",
+					  "EnableMultitrackVideo")
+			: true;
 
-	ui->useSimulcast->setEnabled(ui->preferHardware->isChecked());
-	ui->simulcastInfo->setEnabled(ui->preferHardware->isChecked());
-	ui->useSimulcast->setChecked(ui->preferHardware->isChecked() &&
-				     simulcastEnabled);
+	ui->useMultitrackVideo->setEnabled(ui->preferHardware->isChecked());
+	ui->multitrackVideoInfo->setEnabled(ui->preferHardware->isChecked());
+	ui->useMultitrackVideo->setChecked(ui->preferHardware->isChecked() &&
+					   multitrackVideoEnabled);
 }
 
 static inline bool is_auth_service(const std::string &service)
@@ -726,12 +727,12 @@ void AutoConfigStreamPage::ServiceChanged()
 	bool testBandwidth = ui->doBandwidthTest->isChecked();
 	bool custom = IsCustomService();
 
-	ui->simulcastInfo->setVisible(service == "Twitch");
-	ui->simulcastInfo->setText(
-		QTStr("Simulcast.InfoTest").arg(service.c_str()));
-	ui->useSimulcast->setVisible(service == "Twitch");
-	ui->simulcastInfo->setEnabled(wiz->hardwareEncodingAvailable);
-	ui->useSimulcast->setEnabled(wiz->hardwareEncodingAvailable);
+	ui->multitrackVideoInfo->setVisible(service == "Twitch");
+	ui->multitrackVideoInfo->setText(
+		QTStr("MultitrackVideo.InfoTest").arg(service.c_str()));
+	ui->useMultitrackVideo->setVisible(service == "Twitch");
+	ui->multitrackVideoInfo->setEnabled(wiz->hardwareEncodingAvailable);
+	ui->useMultitrackVideo->setEnabled(wiz->hardwareEncodingAvailable);
 
 	reset_service_ui_fields(service);
 
@@ -1087,15 +1088,15 @@ AutoConfig::AutoConfig(QWidget *parent) : QWizard(parent)
 
 	int bitrate =
 		config_get_int(main->Config(), "SimpleOutput", "VBitrate");
-	bool simulcastEnabled = config_has_user_value(main->Config(), "Stream1",
-						      "EnableSimulcast")
-					? config_get_bool(main->Config(),
-							  "Stream1",
-							  "EnableSimulcast")
-					: true;
+	bool multitrackVideoEnabled =
+		config_has_user_value(main->Config(), "Stream1",
+				      "EnableMultitrackVideo")
+			? config_get_bool(main->Config(), "Stream1",
+					  "EnableMultitrackVideo")
+			: true;
 	streamPage->ui->bitrate->setValue(bitrate);
-	streamPage->ui->useSimulcast->setChecked(hardwareEncodingAvailable &&
-						 simulcastEnabled);
+	streamPage->ui->useMultitrackVideo->setChecked(
+		hardwareEncodingAvailable && multitrackVideoEnabled);
 	streamPage->ServiceChanged();
 
 	if (!hardwareEncodingAvailable) {
@@ -1258,29 +1259,31 @@ void AutoConfig::SaveStreamSettings()
 			  GetEncoderId(streamingEncoder));
 	config_remove_value(main->Config(), "SimpleOutput", "UseAdvanced");
 
-	config_set_bool(main->Config(), "Stream1", "EnableSimulcast",
-			simulcast.testSuccessful);
+	config_set_bool(main->Config(), "Stream1", "EnableMultitrackVideo",
+			multitrackVideo.testSuccessful);
 
-	if (simulcast.targetBitrate.has_value())
+	if (multitrackVideo.targetBitrate.has_value())
 		config_set_int(main->Config(), "Stream1",
-			       "SimulcastTargetBitrate",
-			       *simulcast.targetBitrate);
+			       "MultitrackVideoTargetBitrate",
+			       *multitrackVideo.targetBitrate);
 	else
 		config_remove_value(main->Config(), "Stream1",
-				    "SimulcastTargetBitrate");
+				    "MultitrackVideoTargetBitrate");
 
-	if (simulcast.bitrate.has_value() &&
-	    simulcast.targetBitrate.has_value() &&
-	    (static_cast<double>(*simulcast.bitrate) /
-	     *simulcast.targetBitrate) >= 0.90) {
+	if (multitrackVideo.bitrate.has_value() &&
+	    multitrackVideo.targetBitrate.has_value() &&
+	    (static_cast<double>(*multitrackVideo.bitrate) /
+	     *multitrackVideo.targetBitrate) >= 0.90) {
 		config_set_bool(main->Config(), "Stream1",
-				"SimulcastMaximumAggregateBitrateAuto", true);
-	} else if (simulcast.bitrate.has_value()) {
+				"MultitrackVideoMaximumAggregateBitrateAuto",
+				true);
+	} else if (multitrackVideo.bitrate.has_value()) {
 		config_set_bool(main->Config(), "Stream1",
-				"SimulcastMaximumAggregateBitrateAuto", false);
+				"MultitrackVideoMaximumAggregateBitrateAuto",
+				false);
 		config_set_int(main->Config(), "Stream1",
-			       "SimulcastMaximumAggregateBitrate",
-			       *simulcast.bitrate);
+			       "MultitrackVideoMaximumAggregateBitrate",
+			       *multitrackVideo.bitrate);
 	}
 }
 

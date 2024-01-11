@@ -419,13 +419,13 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	HookWidget(ui->authUsername,         EDIT_CHANGED,   STREAM1_CHANGED);
 	HookWidget(ui->authPw,               EDIT_CHANGED,   STREAM1_CHANGED);
 	HookWidget(ui->ignoreRecommended,    CHECK_CHANGED,  STREAM1_CHANGED);
-	HookWidget(ui->enableSimulcast,      CHECK_CHANGED,  STREAM1_CHANGED);
-	HookWidget(ui->simulcastMaximumAggregateBitrateAuto, CHECK_CHANGED,  STREAM1_CHANGED);
-	HookWidget(ui->simulcastMaximumAggregateBitrate,     SCROLL_CHANGED, STREAM1_CHANGED);
-	HookWidget(ui->simulcastReservedEncoderSessionsAuto, CHECK_CHANGED,  STREAM1_CHANGED);
-	HookWidget(ui->simulcastReservedEncoderSessions,     SCROLL_CHANGED, STREAM1_CHANGED);
-	HookWidget(ui->simulcastConfigOverrideEnable,        CHECK_CHANGED,  STREAM1_CHANGED);
-	HookWidget(ui->simulcastConfigOverride,              TEXT_CHANGED,   STREAM1_CHANGED);
+	HookWidget(ui->enableMultitrackVideo,      CHECK_CHANGED,  STREAM1_CHANGED);
+	HookWidget(ui->multitrackVideoMaximumAggregateBitrateAuto, CHECK_CHANGED,  STREAM1_CHANGED);
+	HookWidget(ui->multitrackVideoMaximumAggregateBitrate,     SCROLL_CHANGED, STREAM1_CHANGED);
+	HookWidget(ui->multitrackVideoReservedEncoderSessionsAuto, CHECK_CHANGED,  STREAM1_CHANGED);
+	HookWidget(ui->multitrackVideoReservedEncoderSessions,     SCROLL_CHANGED, STREAM1_CHANGED);
+	HookWidget(ui->multitrackVideoConfigOverrideEnable,        CHECK_CHANGED,  STREAM1_CHANGED);
+	HookWidget(ui->multitrackVideoConfigOverride,              TEXT_CHANGED,   STREAM1_CHANGED);
 	HookWidget(ui->outputMode,           COMBO_CHANGED,  OUTPUTS_CHANGED);
 	HookWidget(ui->simpleOutputPath,     EDIT_CHANGED,   OUTPUTS_CHANGED);
 	HookWidget(ui->simpleNoSpace,        CHECK_CHANGED,  OUTPUTS_CHANGED);
@@ -6205,11 +6205,11 @@ void OBSBasicSettings::UpdateAdvNetworkGroup()
 #endif
 }
 
-extern bool SimulcastDeveloperModeEnabled();
+extern bool MultitrackVideoDeveloperModeEnabled();
 
-void OBSBasicSettings::UpdateSimulcasting()
+void OBSBasicSettings::UpdateMultitrackVideoing()
 {
-	// technically it should currently be safe to toggle simulcasting
+	// technically it should currently be safe to toggle multitrackVideo
 	// while not streaming (recording should be irrelevant), but practically
 	// output settings aren't currently being tracked with that degree of
 	// flexibility, so just disable everything while outputs are active
@@ -6218,54 +6218,54 @@ void OBSBasicSettings::UpdateSimulcasting()
 	// FIXME: protocol is not updated properly for WHIP; what do?
 	auto available = protocol.startsWith("RTMP");
 
-	ui->simulcastInfo->setVisible(available);
-	ui->enableSimulcast->setVisible(available);
+	ui->multitrackVideoInfo->setVisible(available);
+	ui->enableMultitrackVideo->setVisible(available);
 
-	ui->enableSimulcast->setEnabled(toggle_available);
+	ui->enableMultitrackVideo->setEnabled(toggle_available);
 
-	ui->simulcastMaximumAggregateBitrateLabel->setVisible(available);
-	ui->simulcastMaximumAggregateBitrateAuto->setVisible(available);
-	ui->simulcastMaximumAggregateBitrate->setVisible(available);
+	ui->multitrackVideoMaximumAggregateBitrateLabel->setVisible(available);
+	ui->multitrackVideoMaximumAggregateBitrateAuto->setVisible(available);
+	ui->multitrackVideoMaximumAggregateBitrate->setVisible(available);
 
-	ui->simulcastMaximumAggregateBitrateLabel->setEnabled(
-		toggle_available && ui->enableSimulcast->isChecked());
-	ui->simulcastMaximumAggregateBitrateAuto->setEnabled(
-		toggle_available && ui->enableSimulcast->isChecked());
-	ui->simulcastMaximumAggregateBitrate->setEnabled(
-		toggle_available && ui->enableSimulcast->isChecked() &&
-		!ui->simulcastMaximumAggregateBitrateAuto->isChecked());
+	ui->multitrackVideoMaximumAggregateBitrateLabel->setEnabled(
+		toggle_available && ui->enableMultitrackVideo->isChecked());
+	ui->multitrackVideoMaximumAggregateBitrateAuto->setEnabled(
+		toggle_available && ui->enableMultitrackVideo->isChecked());
+	ui->multitrackVideoMaximumAggregateBitrate->setEnabled(
+		toggle_available && ui->enableMultitrackVideo->isChecked() &&
+		!ui->multitrackVideoMaximumAggregateBitrateAuto->isChecked());
 
-	ui->simulcastReservedEncoderSessionsLabel->setVisible(available);
-	ui->simulcastReservedEncoderSessionsAuto->setVisible(available);
-	ui->simulcastReservedEncoderSessions->setVisible(available);
+	ui->multitrackVideoReservedEncoderSessionsLabel->setVisible(available);
+	ui->multitrackVideoReservedEncoderSessionsAuto->setVisible(available);
+	ui->multitrackVideoReservedEncoderSessions->setVisible(available);
 
-	ui->simulcastReservedEncoderSessionsLabel->setEnabled(
-		toggle_available && ui->enableSimulcast->isChecked());
-	ui->simulcastReservedEncoderSessionsAuto->setEnabled(
-		toggle_available && ui->enableSimulcast->isChecked());
-	ui->simulcastReservedEncoderSessions->setEnabled(
-		toggle_available && ui->enableSimulcast->isChecked() &&
-		!ui->simulcastReservedEncoderSessionsAuto->isChecked());
+	ui->multitrackVideoReservedEncoderSessionsLabel->setEnabled(
+		toggle_available && ui->enableMultitrackVideo->isChecked());
+	ui->multitrackVideoReservedEncoderSessionsAuto->setEnabled(
+		toggle_available && ui->enableMultitrackVideo->isChecked());
+	ui->multitrackVideoReservedEncoderSessions->setEnabled(
+		toggle_available && ui->enableMultitrackVideo->isChecked() &&
+		!ui->multitrackVideoReservedEncoderSessionsAuto->isChecked());
 
-	ui->simulcastConfigOverrideEnable->setVisible(
-		available && SimulcastDeveloperModeEnabled());
-	ui->simulcastConfigOverrideLabel->setVisible(
-		available && SimulcastDeveloperModeEnabled());
-	ui->simulcastConfigOverride->setVisible(
-		available && SimulcastDeveloperModeEnabled());
+	ui->multitrackVideoConfigOverrideEnable->setVisible(
+		available && MultitrackVideoDeveloperModeEnabled());
+	ui->multitrackVideoConfigOverrideLabel->setVisible(
+		available && MultitrackVideoDeveloperModeEnabled());
+	ui->multitrackVideoConfigOverride->setVisible(
+		available && MultitrackVideoDeveloperModeEnabled());
 
-	ui->simulcastConfigOverrideEnable->setEnabled(
-		toggle_available && ui->enableSimulcast->isChecked());
-	ui->simulcastConfigOverrideLabel->setEnabled(
-		toggle_available && ui->enableSimulcast->isChecked() &&
-		ui->simulcastConfigOverrideEnable->isChecked());
-	ui->simulcastConfigOverride->setEnabled(
-		toggle_available && ui->enableSimulcast->isChecked() &&
-		ui->simulcastConfigOverrideEnable->isChecked());
+	ui->multitrackVideoConfigOverrideEnable->setEnabled(
+		toggle_available && ui->enableMultitrackVideo->isChecked());
+	ui->multitrackVideoConfigOverrideLabel->setEnabled(
+		toggle_available && ui->enableMultitrackVideo->isChecked() &&
+		ui->multitrackVideoConfigOverrideEnable->isChecked());
+	ui->multitrackVideoConfigOverride->setEnabled(
+		toggle_available && ui->enableMultitrackVideo->isChecked() &&
+		ui->multitrackVideoConfigOverrideEnable->isChecked());
 
 	if (available) {
-		ui->simulcastInfo->setText(
-			QTStr("Simulcast.InfoTest")
+		ui->multitrackVideoInfo->setText(
+			QTStr("MultitrackVideo.InfoTest")
 				.arg(ui->service->currentText()));
 	}
 }

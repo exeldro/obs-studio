@@ -6,7 +6,7 @@
 #include <QFuture>
 
 #include "qt-helpers.hpp"
-#include "simulcast-output.hpp"
+#include "multitrack-video-output.hpp"
 
 class OBSBasic;
 
@@ -22,13 +22,13 @@ struct BasicOutputHandler {
 	bool virtualCamActive = false;
 	OBSBasic *main;
 
-	std::unique_ptr<SimulcastOutput> simulcast;
-	bool simulcastActive = false;
+	std::unique_ptr<MultitrackVideoOutput> multitrackVideo;
+	bool multitrackVideoActive = false;
 
 	obs_output_t *StreamingOutput() const
 	{
-		return (simulcast && simulcastActive)
-			       ? simulcast->StreamingOutput()
+		return (multitrackVideo && multitrackVideoActive)
+			       ? multitrackVideo->StreamingOutput()
 			       : static_cast<obs_output_t *>(streamOutput);
 	}
 
@@ -87,7 +87,7 @@ struct BasicOutputHandler {
 	{
 		return streamingActive || recordingActive || delayActive ||
 		       replayBufferActive || virtualCamActive ||
-		       simulcastActive;
+		       multitrackVideoActive;
 	}
 
 protected:
@@ -98,8 +98,8 @@ protected:
 					 bool ffmpeg);
 
 	FutureHolder<std::optional<bool>>
-	SetupSimulcast(obs_service_t *service, std::string audio_encoder_id,
-		       int audio_bitrate);
+	SetupMultitrackVideo(obs_service_t *service,
+			     std::string audio_encoder_id, int audio_bitrate);
 };
 
 BasicOutputHandler *CreateSimpleOutputHandler(OBSBasic *main);

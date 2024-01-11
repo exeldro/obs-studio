@@ -1587,12 +1587,14 @@ bool OBSBasic::InitBasicConfigDefaults()
 
 	config_set_default_bool(basicConfig, "Stream1", "IgnoreRecommended",
 				false);
-	config_set_default_bool(basicConfig, "Stream1", "EnableSimulcast",
+	config_set_default_bool(basicConfig, "Stream1", "EnableMultitrackVideo",
 				true);
 	config_set_default_bool(basicConfig, "Stream1",
-				"SimulcastMaximumAggregateBitrateAuto", true);
+				"MultitrackVideoMaximumAggregateBitrateAuto",
+				true);
 	config_set_default_bool(basicConfig, "Stream1",
-				"SimulcastReservedEncoderSessionsAuto", true);
+				"MultitrackVideoReservedEncoderSessionsAuto",
+				true);
 
 	config_set_default_string(basicConfig, "SimpleOutput", "FilePath",
 				  GetDefaultVideoSavePath().c_str());

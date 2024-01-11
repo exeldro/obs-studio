@@ -4,7 +4,7 @@
 #include <obs.hpp>
 #include <obs-app.hpp>
 #include <remote-text.hpp>
-#include "simulcast-error.hpp"
+#include "multitrack-video-error.hpp"
 
 #include <qstring.h>
 #include <string>
@@ -35,7 +35,7 @@ void HandleGoLiveApiErrors(QWidget *parent, obs_data_t *config_data)
 			obs_data_get_array(config_data,
 					   "encoder_configurations");
 		if (obs_data_array_count(encoder_configurations) == 0)
-			throw SimulcastError::warning(html_en_us);
+			throw MultitrackVideoError::warning(html_en_us);
 		else {
 			bool ret = false;
 			QMetaObject::invokeMethod(
@@ -57,10 +57,10 @@ void HandleGoLiveApiErrors(QWidget *parent, obs_data_t *config_data)
 				},
 				BlockingConnectionTypeFor(parent), &ret);
 			if (ret)
-				throw SimulcastError::cancel();
+				throw MultitrackVideoError::cancel();
 		}
 	} else if (strncmp(result, "error", 6) == 0) {
-		throw SimulcastError::critical(html_en_us);
+		throw MultitrackVideoError::critical(html_en_us);
 	}
 }
 
@@ -71,7 +71,7 @@ OBSDataAutoRelease DownloadGoLiveConfig(QWidget *parent, QString url,
 	     censoredJson(postData_).toUtf8().constData());
 
 	if (url.isEmpty())
-		throw SimulcastError::critical(
+		throw MultitrackVideoError::critical(
 			QTStr("FailedToStartStream.MissingConfigURL"));
 
 	// andrew download code start
@@ -92,7 +92,7 @@ OBSDataAutoRelease DownloadGoLiveConfig(QWidget *parent, QString url,
 		5);      // timeout in seconds
 
 	if (!encodeConfigDownloadedOk)
-		throw SimulcastError::warning(
+		throw MultitrackVideoError::warning(
 			QTStr("FailedToStartStream.ConfigRequestFailed")
 				.arg(url, libraryError.c_str()));
 
@@ -118,7 +118,7 @@ OBSDataAutoRelease DownloadGoLiveConfig(QWidget *parent, QString url,
 	return OBSData{encodeConfigObsData};
 }
 
-QString SimulcastAutoConfigURL(obs_service_t *service)
+QString MultitrackVideoAutoConfigURL(obs_service_t *service)
 {
 	static const QString url = [service]() -> QString {
 		auto args = qApp->arguments();

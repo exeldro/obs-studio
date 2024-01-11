@@ -5,7 +5,7 @@
 #include <QString>
 
 /** Returns either GO_LIVE_API_PRODUCTION_URL or a command line override. */
-QString SimulcastAutoConfigURL(obs_service_t *service);
+QString MultitrackVideoAutoConfigURL(obs_service_t *service);
 
 class QWidget;
 

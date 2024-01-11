@@ -5,7 +5,7 @@
 #include <QPromise>
 #include "qt-wrappers.hpp"
 #include "audio-encoders.hpp"
-#include "simulcast-error.hpp"
+#include "multitrack-video-error.hpp"
 #include "window-basic-main.hpp"
 #include "window-basic-main-outputs.hpp"
 #include "window-basic-vcam-config.hpp"
@@ -68,7 +68,7 @@ static void OBSStopStreaming(void *data, calldata_t *params)
 
 	output->streamingActive = false;
 	output->delayActive = false;
-	output->simulcastActive = false;
+	output->multitrackVideoActive = false;
 	os_atomic_set_bool(&streaming_active, false);
 	QMetaObject::invokeMethod(output->main, "StreamingStop",
 				  Q_ARG(int, code),
@@ -304,8 +304,8 @@ inline BasicOutputHandler::BasicOutputHandler(OBSBasic *main_) : main(main_)
 					     OBSDeactivateVirtualCam, this);
 	}
 
-	if (config_get_bool(main->Config(), "Stream1", "EnableSimulcast"))
-		simulcast = make_unique<SimulcastOutput>();
+	if (config_get_bool(main->Config(), "Stream1", "EnableMultitrackVideo"))
+		multitrackVideo = make_unique<MultitrackVideoOutput>();
 }
 
 extern void log_vcam_changed(const VCamConfig &config, bool starting);
@@ -1118,13 +1118,13 @@ FutureHolder<bool> SimpleOutput::SetupStreaming(obs_service_t *service)
 		return {[] {}, CreateFuture().then([] { return false; })};
 
 	auto audio_bitrate = GetAudioBitrate();
-	auto holder = SetupSimulcast(
+	auto holder = SetupMultitrackVideo(
 		service, GetSimpleAACEncoderForBitrate(audio_bitrate),
 		audio_bitrate);
 	auto future = holder.future.then(main, [&](std::optional<bool>
-							   simulcastResult) {
-		if (simulcastResult.has_value())
-			return simulcastResult.value();
+							   multitrackVideoResult) {
+		if (multitrackVideoResult.has_value())
+			return multitrackVideoResult.value();
 
 		/* XXX: this is messy and disgusting and should be refactored */
 		if (outputType != type) {
@@ -1260,17 +1260,17 @@ bool SimpleOutput::StartStreaming(obs_service_t *service)
 
 	obs_output_set_reconnect_settings(streamOutput, maxRetries, retryDelay);
 
-	if (!simulcast || !simulcastActive)
+	if (!multitrackVideo || !multitrackVideoActive)
 		SetupVodTrack(service);
 
 	if (obs_output_start(streamOutput)) {
-		if (simulcast && simulcastActive)
-			simulcast->StartedStreaming(main, true);
+		if (multitrackVideo && multitrackVideoActive)
+			multitrackVideo->StartedStreaming(main, true);
 		return true;
 	}
 
-	if (simulcast && simulcastActive)
-		simulcast->StartedStreaming(main, false);
+	if (multitrackVideo && multitrackVideoActive)
+		multitrackVideo->StartedStreaming(main, false);
 
 	const char *error = obs_output_get_last_error(streamOutput);
 	bool hasLastError = error && *error;
@@ -1462,10 +1462,10 @@ void SimpleOutput::StopStreaming(bool force)
 {
 	auto output = StreamingOutput();
 	if (force && output)
-		/* FIXME: this will probably not work with simulcast since the strong ref is released immediately when trying to stop */
+		/* FIXME: this will probably not work with multitrackVideo since the strong ref is released immediately when trying to stop */
 		obs_output_force_stop(output);
-	else if (simulcast && simulcastActive)
-		simulcast->StopStreaming();
+	else if (multitrackVideo && multitrackVideoActive)
+		multitrackVideo->StopStreaming();
 	else
 		obs_output_stop(output);
 }
@@ -2149,12 +2149,13 @@ FutureHolder<bool> AdvancedOutput::SetupStreaming(obs_service_t *service)
 	const char *audio_encoder_id =
 		config_get_string(main->Config(), "AdvOut", "AudioEncoder");
 
-	auto holder = SetupSimulcast(service, audio_encoder_id,
+	auto holder =
+		SetupMultitrackVideo(service, audio_encoder_id,
 				     GetAudioBitrate(0, audio_encoder_id));
 	auto future = holder.future.then(main, [&](std::optional<bool>
-							   simulcastResult) {
-		if (simulcastResult.has_value())
-			return simulcastResult.value();
+							   multitrackVideoResult) {
+		if (multitrackVideoResult.has_value())
+			return multitrackVideoResult.value();
 
 		/* XXX: this is messy and disgusting and should be refactored */
 		if (outputType != type) {
@@ -2250,13 +2251,13 @@ bool AdvancedOutput::StartStreaming(obs_service_t *service)
 	SetupVodTrack(service);
 
 	if (obs_output_start(streamOutput)) {
-		if (simulcast && simulcastActive)
-			simulcast->StartedStreaming(main, true);
+		if (multitrackVideo && multitrackVideoActive)
+			multitrackVideo->StartedStreaming(main, true);
 		return true;
 	}
 
-	if (simulcast && simulcastActive)
-		simulcast->StartedStreaming(main, false);
+	if (multitrackVideo && multitrackVideoActive)
+		multitrackVideo->StartedStreaming(main, false);
 
 	const char *error = obs_output_get_last_error(streamOutput);
 	bool hasLastError = error && *error;
@@ -2452,10 +2453,10 @@ void AdvancedOutput::StopStreaming(bool force)
 {
 	auto output = StreamingOutput();
 	if (force && output)
-		/* FIXME: this will probably not work with simulcast since the strong ref is released immediately when trying to stop */
+		/* FIXME: this will probably not work with multitrackVideo since the strong ref is released immediately when trying to stop */
 		obs_output_force_stop(output);
-	else if (simulcast && simulcastActive)
-		simulcast->StopStreaming();
+	else if (multitrackVideo && multitrackVideoActive)
+		multitrackVideo->StopStreaming();
 	else
 		obs_output_stop(output);
 }
@@ -2515,15 +2516,15 @@ std::string BasicOutputHandler::GetRecordingFilename(
 
 extern std::string DeserializeConfigText(const char *text);
 
-FutureHolder<std::optional<bool>> BasicOutputHandler::SetupSimulcast(
+FutureHolder<std::optional<bool>> BasicOutputHandler::SetupMultitrackVideo(
 	obs_service_t *service, std::string audio_encoder_id, int audio_bitrate)
 {
-	if (!simulcast)
+	if (!multitrackVideo)
 		return {[] {}, CreateFuture().then([] {
 				return std::optional<bool>{std::nullopt};
 			})};
 
-	simulcastActive = false;
+	multitrackVideoActive = false;
 
 	streamDelayStarting.Disconnect();
 	streamStopping.Disconnect();
@@ -2535,9 +2536,10 @@ FutureHolder<std::optional<bool>> BasicOutputHandler::SetupSimulcast(
 
 	std::optional<std::string> custom_config = std::nullopt;
 	if (config_get_bool(main->Config(), "Stream1",
-			    "SimulcastConfigOverrideEnabled"))
-		custom_config = DeserializeConfigText(config_get_string(
-			main->Config(), "Stream1", "SimulcastConfigOverride"));
+			    "MultitrackVideoConfigOverrideEnabled"))
+		custom_config = DeserializeConfigText(
+			config_get_string(main->Config(), "Stream1",
+					  "MultitrackVideoConfigOverride"));
 
 	OBSDataAutoRelease settings = obs_service_get_settings(service);
 	QString key = obs_data_get_string(settings, "key");
@@ -2582,35 +2584,35 @@ FutureHolder<std::optional<bool>> BasicOutputHandler::SetupSimulcast(
 
 	auto maximum_aggregate_bitrate =
 		config_get_bool(main->Config(), "Stream1",
-				"SimulcastMaximumAggregateBitrateAuto")
+				"MultitrackVideoMaximumAggregateBitrateAuto")
 			? std::nullopt
 			: std::make_optional<uint32_t>(config_get_int(
 				  main->Config(), "Stream1",
-				  "SimulcastMaximumAggregateBitrate"));
+				  "MultitrackVideoMaximumAggregateBitrate"));
 
 	auto reserved_encoder_sessions =
 		config_get_bool(main->Config(), "Stream1",
-				"SimulcastReservedEncoderSessionsAuto")
+				"MultitrackVideoReservedEncoderSessionsAuto")
 			? std::nullopt
 			: std::make_optional<uint32_t>(config_get_int(
 				  main->Config(), "Stream1",
-				  "SimulcastReservedEncoderSessions"));
+				  "MultitrackVideoReservedEncoderSessions"));
 
 	auto firstFuture = CreateFuture().then(
 		QThreadPool::globalInstance(),
-		[=, simulcast = simulcast.get(),
+		[=, multitrackVideo = multitrackVideo.get(),
 		 service_name = std::string{service_name},
 		 service = OBSService{
-			 service}]() -> std::optional<SimulcastError> {
+			 service}]() -> std::optional<MultitrackVideoError> {
 			try {
-				simulcast->PrepareStreaming(
+				multitrackVideo->PrepareStreaming(
 					main, service_name.c_str(), service,
 					custom_rtmp_url, key,
 					audio_encoder_id.c_str(), audio_bitrate,
 					true, maximum_aggregate_bitrate,
 					reserved_encoder_sessions,
 					custom_config);
-			} catch (const SimulcastError &error) {
+			} catch (const MultitrackVideoError &error) {
 				return error;
 			}
 			return std::nullopt;
@@ -2618,18 +2620,19 @@ FutureHolder<std::optional<bool>> BasicOutputHandler::SetupSimulcast(
 
 	auto secondFuture = firstFuture.then(
 		main,
-		[&](std::optional<SimulcastError> error) -> std::optional<bool> {
+		[&](std::optional<MultitrackVideoError> error)
+			-> std::optional<bool> {
 			if (error) {
-				simulcastActive = false;
+				multitrackVideoActive = false;
 				if (!error->ShowDialog(main))
 					return false;
 				return std::nullopt;
 			}
 
-			simulcastActive = true;
+			multitrackVideoActive = true;
 
 			auto signal_handler =
-				simulcast->StreamingSignalHandler();
+				multitrackVideo->StreamingSignalHandler();
 
 			streamDelayStarting.Connect(signal_handler, "starting",
 						    OBSStreamStarting, this);
