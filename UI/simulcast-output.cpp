@@ -77,8 +77,11 @@ static const QString &obs_session_id()
 static void submit_event(BerryessaSubmitter *berryessa, const char *event_name,
 			 obs_data_t *data)
 {
-	if (!berryessa)
+	if (!berryessa) {
+		blog(LOG_WARNING, "SimulcastOutput: not submitting event %s",
+		     event_name);
 		return;
+	}
 
 	berryessa->submit(event_name, data);
 }
