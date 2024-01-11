@@ -2935,6 +2935,9 @@ OBSBasic::~OBSBasic()
 	delete advAudioWindow;
 	delete about;
 	delete remux;
+	// explicitly "delete" the status bar since it can hold libobs references
+	// which may be freed before the status bar is deleted otherwise
+	setStatusBar(nullptr);
 
 	obs_display_remove_draw_callback(ui->preview->GetDisplay(),
 					 OBSBasic::RenderMain, this);
