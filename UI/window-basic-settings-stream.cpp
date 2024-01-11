@@ -168,36 +168,40 @@ void OBSBasicSettings::LoadStream1Settings()
 		ui->twitchAddonDropdown->setCurrentIndex(idx);
 	}
 
-	ui->enableSimulcast->setChecked(
-		config_get_bool(main->Config(), "Stream1", "EnableSimulcast"));
+	ui->enableMultitrackVideo->setChecked(config_get_bool(
+		main->Config(), "Stream1", "EnableMultitrackVideo"));
 
-	ui->simulcastMaximumAggregateBitrateAuto->setChecked(
+	ui->multitrackVideoMaximumAggregateBitrateAuto->setChecked(
 		config_get_bool(main->Config(), "Stream1",
-				"SimulcastMaximumAggregateBitrateAuto"));
+				"MultitrackVideoMaximumAggregateBitrateAuto"));
 	if (config_has_user_value(main->Config(), "Stream1",
-				  "SimulcastMaximumAggregateBitrate")) {
-		ui->simulcastMaximumAggregateBitrate->setValue(
-			config_get_int(main->Config(), "Stream1",
-				       "SimulcastMaximumAggregateBitrate"));
+				  "MultitrackVideoMaximumAggregateBitrate")) {
+		ui->multitrackVideoMaximumAggregateBitrate->setValue(
+			config_get_int(
+				main->Config(), "Stream1",
+				"MultitrackVideoMaximumAggregateBitrate"));
 	}
 
-	ui->simulcastReservedEncoderSessionsAuto->setChecked(
+	ui->multitrackVideoReservedEncoderSessionsAuto->setChecked(
 		config_get_bool(main->Config(), "Stream1",
-				"SimulcastReservedEncoderSessionsAuto"));
+				"MultitrackVideoReservedEncoderSessionsAuto"));
 	if (config_has_user_value(main->Config(), "Stream1",
-				  "SimulcastReservedEncoderSessions"))
-		ui->simulcastReservedEncoderSessions->setValue(
-			config_get_int(main->Config(), "Stream1",
-				       "SimulcastReservedEncoderSessions"));
+				  "MultitrackVideoReservedEncoderSessions"))
+		ui->multitrackVideoReservedEncoderSessions->setValue(
+			config_get_int(
+				main->Config(), "Stream1",
+				"MultitrackVideoReservedEncoderSessions"));
 
-	ui->simulcastConfigOverrideEnable->setChecked(config_get_bool(
-		main->Config(), "Stream1", "SimulcastConfigOverrideEnabled"));
+	ui->multitrackVideoConfigOverrideEnable->setChecked(
+		config_get_bool(main->Config(), "Stream1",
+				"MultitrackVideoConfigOverrideEnabled"));
 	if (config_has_user_value(main->Config(), "Stream1",
-				  "SimulcastConfigOverride"))
-		ui->simulcastConfigOverride->setPlainText(
+				  "MultitrackVideoConfigOverride"))
+		ui->multitrackVideoConfigOverride->setPlainText(
 			DeserializeConfigText(
-				config_get_string(main->Config(), "Stream1",
-						  "SimulcastConfigOverride"))
+				config_get_string(
+					main->Config(), "Stream1",
+					"MultitrackVideoConfigOverride"))
 				.c_str());
 
 	UpdateServerList();
@@ -235,7 +239,7 @@ void OBSBasicSettings::LoadStream1Settings()
 	UpdateMoreInfoLink();
 	UpdateVodTrackSetting();
 	UpdateServiceRecommendations();
-	UpdateSimulcasting();
+	UpdateMultitrackVideoing();
 
 	bool streamActive = obs_frontend_streaming_active();
 	ui->streamPage->setEnabled(!streamActive);
@@ -347,24 +351,25 @@ void OBSBasicSettings::SaveStream1Settings()
 
 	SaveCheckBox(ui->ignoreRecommended, "Stream1", "IgnoreRecommended");
 
-	auto oldSimulcastSetting =
-		config_get_bool(main->Config(), "Stream1", "EnableSimulcast");
+	auto oldMultitrackVideoSetting = config_get_bool(
+		main->Config(), "Stream1", "EnableMultitrackVideo");
 
-	SaveCheckBox(ui->enableSimulcast, "Stream1", "EnableSimulcast");
-	SaveCheckBox(ui->simulcastMaximumAggregateBitrateAuto, "Stream1",
-		     "SimulcastMaximumAggregateBitrateAuto");
-	SaveSpinBox(ui->simulcastMaximumAggregateBitrate, "Stream1",
-		    "SimulcastMaximumAggregateBitrate");
-	SaveCheckBox(ui->simulcastReservedEncoderSessionsAuto, "Stream1",
-		     "SimulcastReservedEncoderSessionsAuto");
-	SaveSpinBox(ui->simulcastReservedEncoderSessions, "Stream1",
-		    "SimulcastReservedEncoderSessions");
-	SaveCheckBox(ui->simulcastConfigOverrideEnable, "Stream1",
-		     "SimulcastConfigOverrideEnabled");
-	SaveText(ui->simulcastConfigOverride, "Stream1",
-		 "SimulcastConfigOverride");
+	SaveCheckBox(ui->enableMultitrackVideo, "Stream1",
+		     "EnableMultitrackVideo");
+	SaveCheckBox(ui->multitrackVideoMaximumAggregateBitrateAuto, "Stream1",
+		     "MultitrackVideoMaximumAggregateBitrateAuto");
+	SaveSpinBox(ui->multitrackVideoMaximumAggregateBitrate, "Stream1",
+		    "MultitrackVideoMaximumAggregateBitrate");
+	SaveCheckBox(ui->multitrackVideoReservedEncoderSessionsAuto, "Stream1",
+		     "MultitrackVideoReservedEncoderSessionsAuto");
+	SaveSpinBox(ui->multitrackVideoReservedEncoderSessions, "Stream1",
+		    "MultitrackVideoReservedEncoderSessions");
+	SaveCheckBox(ui->multitrackVideoConfigOverrideEnable, "Stream1",
+		     "MultitrackVideoConfigOverrideEnabled");
+	SaveText(ui->multitrackVideoConfigOverride, "Stream1",
+		 "MultitrackVideoConfigOverride");
 
-	if (oldSimulcastSetting != ui->enableSimulcast->isChecked())
+	if (oldMultitrackVideoSetting != ui->enableMultitrackVideo->isChecked())
 		main->ResetOutputs();
 }
 
@@ -607,7 +612,7 @@ void OBSBasicSettings::on_service_currentIndexChanged(int idx)
 
 	protocol = FindProtocol();
 	UpdateAdvNetworkGroup();
-	UpdateSimulcasting();
+	UpdateMultitrackVideoing();
 
 	if (ServiceSupportsCodecCheck() && UpdateResFPSLimits()) {
 		lastServiceIdx = idx;
@@ -622,32 +627,33 @@ void OBSBasicSettings::on_customServer_textChanged(const QString &)
 
 	protocol = FindProtocol();
 	UpdateAdvNetworkGroup();
-	UpdateSimulcasting();
+	UpdateMultitrackVideoing();
 
 	if (ServiceSupportsCodecCheck())
 		lastCustomServer = ui->customServer->text();
 }
 
-void OBSBasicSettings::on_enableSimulcast_toggled(bool /*enabled*/)
+void OBSBasicSettings::on_enableMultitrackVideo_toggled(bool /*enabled*/)
 {
-	UpdateSimulcasting();
+	UpdateMultitrackVideoing();
 }
 
-void OBSBasicSettings::on_simulcastMaximumAggregateBitrateAuto_toggled(
+void OBSBasicSettings::on_multitrackVideoMaximumAggregateBitrateAuto_toggled(
 	bool /*enabled*/)
 {
-	UpdateSimulcasting();
+	UpdateMultitrackVideoing();
 }
 
-void OBSBasicSettings::on_simulcastReservedEncoderSessionsAuto_toggled(
+void OBSBasicSettings::on_multitrackVideoReservedEncoderSessionsAuto_toggled(
 	bool /*enabled*/)
 {
-	UpdateSimulcasting();
+	UpdateMultitrackVideoing();
 }
 
-void OBSBasicSettings::on_simulcastConfigOverrideEnable_toggled(bool /*enabled*/)
+void OBSBasicSettings::on_multitrackVideoConfigOverrideEnable_toggled(
+	bool /*enabled*/)
 {
-	UpdateSimulcasting();
+	UpdateMultitrackVideoing();
 }
 
 void OBSBasicSettings::ServiceChanged(bool resetFields)

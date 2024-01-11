@@ -25,9 +25,9 @@ void StreamStopHandler(void *arg, calldata_t *data);
 void RecordingStartHandler(void *arg, calldata_t *data);
 void RecordingStopHandler(void *arg, calldata_t *data);
 
-bool SimulcastDeveloperModeEnabled();
+bool MultitrackVideoDeveloperModeEnabled();
 
-struct SimulcastOutput {
+struct MultitrackVideoOutput {
 
 public:
 	void PrepareStreaming(QWidget *parent, const char *service_name,
@@ -76,7 +76,7 @@ private:
 	OBSWeakOutputAutoRelease weak_output_;
 	std::vector<OBSEncoderAutoRelease> video_encoders_;
 	OBSEncoderAutoRelease audio_encoder_;
-	OBSServiceAutoRelease simulcast_service_;
+	OBSServiceAutoRelease multitrack_video_service_;
 
 	OBSOutputAutoRelease recording_output_;
 	OBSWeakOutputAutoRelease weak_recording_output_;

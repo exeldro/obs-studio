@@ -3,10 +3,10 @@
 
 class QWidget;
 
-struct SimulcastError {
-	static SimulcastError critical(QString error);
-	static SimulcastError warning(QString error);
-	static SimulcastError cancel();
+struct MultitrackVideoError {
+	static MultitrackVideoError critical(QString error);
+	static MultitrackVideoError warning(QString error);
+	static MultitrackVideoError cancel();
 
 	bool ShowDialog(QWidget *parent) const;
 

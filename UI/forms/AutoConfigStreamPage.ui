@@ -380,9 +380,9 @@
         </widget>
        </item>
        <item row="5" column="1">
-        <widget class="QLabel" name="simulcastInfo">
+        <widget class="QLabel" name="multitrackVideoInfo">
          <property name="text">
-          <string>Simulcast.InfoTest</string>
+          <string>MultitrackVideo.InfoTest</string>
          </property>
          <property name="textFormat">
           <enum>Qt::RichText</enum>
@@ -399,9 +399,9 @@
         </widget>
        </item>
        <item row="6" column="1">
-        <widget class="QCheckBox" name="useSimulcast">
+        <widget class="QCheckBox" name="useMultitrackVideo">
          <property name="text">
-          <string>Basic.AutoConfig.StreamPage.UseSimulcast</string>
+          <string>Basic.AutoConfig.StreamPage.UseMultitrackVideo</string>
          </property>
          <property name="checked">
           <bool>true</bool>

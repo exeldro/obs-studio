@@ -315,7 +315,7 @@ void AutoConfigTestPage::TestBandwidthThread()
 	obs_service_apply_encoder_settings(service, vencoder_settings,
 					   aencoder_settings);
 
-	if (wiz->simulcast.testSuccessful) {
+	if (wiz->multitrackVideo.testSuccessful) {
 		obs_data_set_int(vencoder_settings, "bitrate",
 				 wiz->startingBitrate);
 	}
@@ -856,9 +856,9 @@ bool AutoConfigTestPage::TestSoftwareEncoding()
 		upperBitrate /= 100;
 	}
 
-	if (wiz->testSimulcast && wiz->simulcast.testSuccessful &&
-	    !wiz->simulcast.bitrate.has_value())
-		wiz->simulcast.bitrate = wiz->idealBitrate;
+	if (wiz->testMultitrackVideo && wiz->multitrackVideo.testSuccessful &&
+	    !wiz->multitrackVideo.bitrate.has_value())
+		wiz->multitrackVideo.bitrate = wiz->idealBitrate;
 
 	if (wiz->idealBitrate > upperBitrate)
 		wiz->idealBitrate = upperBitrate;
@@ -1117,9 +1117,10 @@ void AutoConfigTestPage::FinalizeResults()
 		OBSDataAutoRelease service_settings = obs_data_create();
 		OBSDataAutoRelease vencoder_settings = obs_data_create();
 
-		if (wiz->testSimulcast && wiz->simulcast.testSuccessful &&
-		    !wiz->simulcast.bitrate.has_value())
-			wiz->simulcast.bitrate = wiz->idealBitrate;
+		if (wiz->testMultitrackVideo &&
+		    wiz->multitrackVideo.testSuccessful &&
+		    !wiz->multitrackVideo.bitrate.has_value())
+			wiz->multitrackVideo.bitrate = wiz->idealBitrate;
 
 		obs_data_set_int(vencoder_settings, "bitrate",
 				 wiz->idealBitrate);
@@ -1162,11 +1163,12 @@ void AutoConfigTestPage::FinalizeResults()
 		form->addRow(newLabel("Basic.AutoConfig.StreamPage.Server"),
 			     new QLabel(wiz->serverName.c_str(),
 					ui->finishPage));
-		form->addRow(newLabel("Basic.Settings.Stream.SimulcastLabel"),
-			     newLabel(wiz->simulcast.testSuccessful ? "Yes"
-								    : "No"));
+		form->addRow(
+			newLabel("Basic.Settings.Stream.MultitrackVideoLabel"),
+			newLabel(wiz->multitrackVideo.testSuccessful ? "Yes"
+								     : "No"));
 
-		if (wiz->simulcast.testSuccessful) {
+		if (wiz->multitrackVideo.testSuccessful) {
 			form->addRow(
 				newLabel("Basic.Settings.Output.VideoBitrate"),
 				newLabel("Automatic"));

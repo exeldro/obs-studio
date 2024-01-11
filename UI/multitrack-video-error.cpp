@@ -1,24 +1,24 @@
-#include "simulcast-error.hpp"
+#include "multitrack-video-error.hpp"
 
 #include <QMessageBox>
 #include "obs-app.hpp"
 
-SimulcastError SimulcastError::critical(QString error)
+MultitrackVideoError MultitrackVideoError::critical(QString error)
 {
 	return {Type::Critical, error};
 }
 
-SimulcastError SimulcastError::warning(QString error)
+MultitrackVideoError MultitrackVideoError::warning(QString error)
 {
 	return {Type::Warning, error};
 }
 
-SimulcastError SimulcastError::cancel()
+MultitrackVideoError MultitrackVideoError::cancel()
 {
 	return {Type::Cancel, {}};
 }
 
-bool SimulcastError::ShowDialog(QWidget *parent) const
+bool MultitrackVideoError::ShowDialog(QWidget *parent) const
 {
 	QMessageBox mb(parent);
 	mb.setTextFormat(Qt::RichText);
@@ -27,7 +27,7 @@ bool SimulcastError::ShowDialog(QWidget *parent) const
 	if (type == Type::Warning) {
 		mb.setText(
 			error +
-			QTStr("FailedToStartStream.WarningRetryNonSimulcast"));
+			QTStr("FailedToStartStream.WarningRetryNonMultitrackVideo"));
 		mb.setIcon(QMessageBox::Warning);
 		mb.setStandardButtons(QMessageBox::StandardButton::Yes |
 				      QMessageBox::StandardButton::No);

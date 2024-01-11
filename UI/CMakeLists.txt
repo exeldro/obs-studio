@@ -102,16 +102,16 @@ target_sources(
           immutable-date-time.hpp
           ivs-events.cpp
           ivs-events.hpp
+          multitrack-video-error.cpp
+          multitrack-video-error.hpp
+          multitrack-video-output.cpp
+          multitrack-video-output.hpp
           presentmon-csv-capture.cpp
           presentmon-csv-capture.hpp
           presentmon-csv-parser.cpp
           presentmon-csv-parser.hpp
           qt-helpers.cpp
           qt-helpers.hpp
-          simulcast-error.cpp
-          simulcast-error.hpp
-          simulcast-output.cpp
-          simulcast-output.hpp
           system-info.hpp)
 
 if(OS_WINDOWS)

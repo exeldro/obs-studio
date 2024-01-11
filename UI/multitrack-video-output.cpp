@@ -1,4 +1,4 @@
-#include "simulcast-output.hpp"
+#include "multitrack-video-output.hpp"
 
 #include <util/dstr.hpp>
 #include <util/platform.h>
@@ -27,7 +27,7 @@
 #include "goliveapi-postdata.hpp"
 #include "goliveapi-network.hpp"
 #include "ivs-events.hpp"
-#include "simulcast-error.hpp"
+#include "multitrack-video-error.hpp"
 #include "qt-helpers.hpp"
 
 Qt::ConnectionType BlockingConnectionTypeFor(QObject *object)
@@ -37,12 +37,12 @@ Qt::ConnectionType BlockingConnectionTypeFor(QObject *object)
 		       : Qt::BlockingQueuedConnection;
 }
 
-bool SimulcastDeveloperModeEnabled()
+bool MultitrackVideoDeveloperModeEnabled()
 {
 	static bool developer_mode = [] {
 		auto args = qApp->arguments();
 		for (const auto &arg : args) {
-			if (arg == "--enable-simulcast-dev") {
+			if (arg == "--enable-multitrack-video-dev") {
 				return true;
 			}
 		}
@@ -78,7 +78,8 @@ static void submit_event(BerryessaSubmitter *berryessa, const char *event_name,
 			 obs_data_t *data)
 {
 	if (!berryessa) {
-		blog(LOG_WARNING, "SimulcastOutput: not submitting event %s",
+		blog(LOG_WARNING,
+		     "MultitrackVideoOutput: not submitting event %s",
 		     event_name);
 		return;
 	}
@@ -117,7 +118,7 @@ create_service(const QString &device_id, const QString &obs_session_id,
 
 		// Despite being set by user, it was set to a ""
 		if (rtmp_url->empty()) {
-			throw SimulcastError::warning(QTStr(
+			throw MultitrackVideoError::warning(QTStr(
 				"FailedToStartStream.NoCustomRTMPURLInSettings"));
 		}
 		blog(LOG_INFO, "Using custom rtmp URL: '%s'", url);
@@ -146,7 +147,7 @@ create_service(const QString &device_id, const QString &obs_session_id,
 
 		if (!url) {
 			blog(LOG_ERROR, "No RTMP URL in go live config");
-			throw SimulcastError::warning(
+			throw MultitrackVideoError::warning(
 				QTStr("FailedToStartStream.NoRTMPURLInConfig"));
 		}
 	}
@@ -188,13 +189,13 @@ create_service(const QString &device_id, const QString &obs_session_id,
 	obs_data_set_string(settings, "key",
 			    key_with_param.toUtf8().constData());
 
-	auto service = obs_service_create("rtmp_custom", "simulcast service",
-					  settings, nullptr);
+	auto service = obs_service_create(
+		"rtmp_custom", "multitrack video service", settings, nullptr);
 
 	if (!service) {
-		blog(LOG_WARNING, "Failed to create simulcast service");
-		throw SimulcastError::warning(QTStr(
-			"FailedToStartStream.FailedToCreateSimulcastService"));
+		blog(LOG_WARNING, "Failed to create multitrack video service");
+		throw MultitrackVideoError::warning(QTStr(
+			"FailedToStartStream.FailedToCreateMultitrackVideoService"));
 	}
 
 	return service;
@@ -234,12 +235,13 @@ static OBSOutputAutoRelease create_output(bool use_ertmp_multitrack)
 	obs_data_set_bool(settings, "ertmp_multitrack", use_ertmp_multitrack);
 
 	OBSOutputAutoRelease output = obs_output_create(
-		"rtmp_output", "rtmp simulcast", settings, nullptr);
+		"rtmp_output", "rtmp multitrack video", settings, nullptr);
 
 	if (!output) {
-		blog(LOG_ERROR, "failed to create simulcast rtmp output");
-		throw SimulcastError::warning(QTStr(
-			"FailedToStartStream.FailedToCreateSimulcastOutput"));
+		blog(LOG_ERROR,
+		     "failed to create multitrack video rtmp output");
+		throw MultitrackVideoError::warning(QTStr(
+			"FailedToStartStream.FailedToCreateMultitrackVideoOutput"));
 	}
 
 	return output;
@@ -257,12 +259,12 @@ static OBSOutputAutoRelease create_recording_output(bool use_ertmp_multitrack)
 	obs_data_set_bool(settings, "ertmp_multitrack", use_ertmp_multitrack);
 
 	OBSOutputAutoRelease output = obs_output_create(
-		"flv_output", "flv simulcast", settings, nullptr);
+		"flv_output", "flv multitrack video", settings, nullptr);
 
 	if (!output) {
-		blog(LOG_ERROR, "failed to create simulcast flv output");
-		throw SimulcastError::warning(
-			"Failed to create simulcast flv output");
+		blog(LOG_ERROR, "failed to create multitrack video flv output");
+		throw MultitrackVideoError::warning(
+			"Failed to create multitrack video flv output");
 	}
 
 	return output;
@@ -419,12 +421,13 @@ static OBSEncoderAutoRelease create_video_encoder(DStr &name_buffer,
 	if (!encoder_available(encoder_type)) {
 		blog(LOG_ERROR, "Encoder type '%s' not available",
 		     encoder_type);
-		throw SimulcastError::warning(
+		throw MultitrackVideoError::warning(
 			QTStr("FailedToStartStream.EncoderNotAvailable")
 				.arg(encoder_type));
 	}
 
-	dstr_printf(name_buffer, "simulcast video encoder %zu", encoder_index);
+	dstr_printf(name_buffer, "multitrack video video encoder %zu",
+		    encoder_index);
 
 	if (obs_data_has_user_value(encoder_config, "keyInt_sec") &&
 	    !obs_data_has_user_value(encoder_config, "keyint_sec")) {
@@ -443,7 +446,7 @@ static OBSEncoderAutoRelease create_video_encoder(DStr &name_buffer,
 	if (!video_encoder) {
 		blog(LOG_ERROR, "failed to create video encoder '%s'",
 		     name_buffer->array);
-		throw SimulcastError::warning(
+		throw MultitrackVideoError::warning(
 			QTStr("FailedToStartStream.FailedToCreateVideoEncoder")
 				.arg(name_buffer->array, encoder_type));
 	}
@@ -454,7 +457,7 @@ static OBSEncoderAutoRelease create_video_encoder(DStr &name_buffer,
 		blog(LOG_WARNING,
 		     "Failed to get obs video info while creating encoder %zu",
 		     encoder_index);
-		throw SimulcastError::warning(
+		throw MultitrackVideoError::warning(
 			QTStr("FailedToStartStream.FailedToGetOBSVideoInfo")
 				.arg(name_buffer->array, encoder_type));
 	}
@@ -478,10 +481,10 @@ create_audio_encoder(const char *audio_encoder_id,
 	}
 
 	OBSEncoderAutoRelease audio_encoder = obs_audio_encoder_create(
-		audio_encoder_id, "simulcast aac", settings, 0, nullptr);
+		audio_encoder_id, "multitrack video aac", settings, 0, nullptr);
 	if (!audio_encoder) {
 		blog(LOG_ERROR, "failed to create audio encoder");
-		throw SimulcastError::warning(QTStr(
+		throw MultitrackVideoError::warning(QTStr(
 			"FailedToStartStream.FailedToCreateAudioEncoder"));
 	}
 	obs_encoder_set_audio(audio_encoder, obs_get_audio());
@@ -494,17 +497,17 @@ SetupOBSOutput(bool recording, obs_data_t *go_live_config,
 	       OBSEncoderAutoRelease &audio_encoder,
 	       const char *audio_encoder_id, std::optional<int> audio_bitrate,
 	       bool use_ertmp_multitrack);
-static void SetupSignalHandlers(bool recording, SimulcastOutput *self,
+static void SetupSignalHandlers(bool recording, MultitrackVideoOutput *self,
 				obs_output_t *output);
 
 struct OutputObjects {
 	OBSOutputAutoRelease output;
 	std::vector<OBSEncoderAutoRelease> video_encoders;
 	OBSEncoderAutoRelease audio_encoder;
-	OBSServiceAutoRelease simulcast_service;
+	OBSServiceAutoRelease multitrack_video_service;
 };
 
-void SimulcastOutput::PrepareStreaming(
+void MultitrackVideoOutput::PrepareStreaming(
 	QWidget *parent, const char *service_name, obs_service_t *service,
 	const std::optional<std::string> &rtmp_url, const QString &stream_key,
 	const char *audio_encoder_id, int audio_bitrate,
@@ -545,7 +548,7 @@ void SimulcastOutput::PrepareStreaming(
 	OBSDataAutoRelease go_live_config;
 	quint64 download_time_elapsed = 0;
 	bool is_custom_config = custom_config.has_value();
-	auto auto_config_url = SimulcastAutoConfigURL(service);
+	auto auto_config_url = MultitrackVideoAutoConfigURL(service);
 
 	auto auto_config_url_data = auto_config_url.toUtf8();
 
@@ -582,7 +585,7 @@ void SimulcastOutput::PrepareStreaming(
 		go_live_config = DownloadGoLiveConfig(parent, auto_config_url,
 						      go_live_post);
 		if (!go_live_config)
-			throw SimulcastError::warning(
+			throw MultitrackVideoError::warning(
 				QTStr("FailedToStartStream.FallbackToDefault"));
 
 		download_time_elapsed = attempt_start_time.MSecsElapsed();
@@ -591,7 +594,7 @@ void SimulcastOutput::PrepareStreaming(
 			OBSDataAutoRelease custom = obs_data_create_from_json(
 				custom_config->c_str());
 			if (!custom)
-				throw SimulcastError::critical(QTStr(
+				throw MultitrackVideoError::critical(QTStr(
 					"FailedToStartStream.InvalidCustomConfig"));
 
 			// copy unique ID from go live request
@@ -656,17 +659,17 @@ void SimulcastOutput::PrepareStreaming(
 					     audio_encoder_id, audio_bitrate,
 					     use_ertmp_multitrack);
 		if (!output)
-			throw SimulcastError::warning(
+			throw MultitrackVideoError::warning(
 				QTStr("FailedToStartStream.FallbackToDefault"));
 
-		auto simulcast_service =
+		auto multitrack_video_service =
 			create_service(device_id(), obs_session_id(),
 				       go_live_config, rtmp_url, stream_key);
-		if (!simulcast_service)
-			throw SimulcastError::warning(
+		if (!multitrack_video_service)
+			throw MultitrackVideoError::warning(
 				QTStr("FailedToStartStream.FallbackToDefault"));
 
-		obs_output_set_service(output, simulcast_service);
+		obs_output_set_service(output, multitrack_video_service);
 
 		SetupSignalHandlers(false, this, output);
 
@@ -674,7 +677,7 @@ void SimulcastOutput::PrepareStreaming(
 		weak_output_ = obs_output_get_weak_output(output_);
 		video_encoders_ = std::move(video_encoders);
 		audio_encoder_ = std::move(audio_encoder);
-		simulcast_service_ = std::move(simulcast_service);
+		multitrack_video_service_ = std::move(multitrack_video_service);
 
 		if (berryessa_) {
 			send_start_event = [berryessa = berryessa_.get(),
@@ -740,12 +743,12 @@ void SimulcastOutput::PrepareStreaming(
 	}
 }
 
-signal_handler_t *SimulcastOutput::StreamingSignalHandler()
+signal_handler_t *MultitrackVideoOutput::StreamingSignalHandler()
 {
 	return obs_output_get_signal_handler(output_);
 }
 
-void SimulcastOutput::StartedStreaming(QWidget *parent, bool success)
+void MultitrackVideoOutput::StartedStreaming(QWidget *parent, bool success)
 {
 	if (!success) {
 		if (send_start_event)
@@ -779,7 +782,7 @@ void SimulcastOutput::StartedStreaming(QWidget *parent, bool success)
 	}
 }
 
-void SimulcastOutput::StopStreaming()
+void MultitrackVideoOutput::StopStreaming()
 {
 	if (output_)
 		obs_output_stop(output_);
@@ -792,12 +795,12 @@ void SimulcastOutput::StopStreaming()
 	streaming_ = false;
 }
 
-bool SimulcastOutput::IsStreaming() const
+bool MultitrackVideoOutput::IsStreaming() const
 {
 	return streaming_;
 }
 
-std::optional<int> SimulcastOutput::ConnectTimeMs() const
+std::optional<int> MultitrackVideoOutput::ConnectTimeMs() const
 {
 	if (!output_)
 		return std::nullopt;
@@ -805,8 +808,8 @@ std::optional<int> SimulcastOutput::ConnectTimeMs() const
 	return obs_output_get_connect_time_ms(output_);
 }
 
-bool SimulcastOutput::StartRecording(obs_data_t *go_live_config,
-				     bool use_ertmp_multitrack)
+bool MultitrackVideoOutput::StartRecording(obs_data_t *go_live_config,
+					   bool use_ertmp_multitrack)
 {
 	if (streaming_)
 		return false;
@@ -835,7 +838,7 @@ bool SimulcastOutput::StartRecording(obs_data_t *go_live_config,
 	return true;
 }
 
-void SimulcastOutput::StopRecording()
+void MultitrackVideoOutput::StopRecording()
 {
 	if (!recording_)
 		return;
@@ -850,7 +853,8 @@ void SimulcastOutput::StopRecording()
 	recording_ = false;
 }
 
-const std::vector<OBSEncoderAutoRelease> &SimulcastOutput::VideoEncoders() const
+const std::vector<OBSEncoderAutoRelease> &
+MultitrackVideoOutput::VideoEncoders() const
 {
 	return video_encoders_;
 }
@@ -874,7 +878,7 @@ SetupOBSOutput(bool recording, obs_data_t *go_live_config,
 	const size_t num_encoder_configs =
 		obs_data_array_count(encoder_configs);
 	if (num_encoder_configs < 1)
-		throw SimulcastError::warning(
+		throw MultitrackVideoError::warning(
 			QTStr("FailedToStartStream.MissingEncoderConfigs"));
 
 	for (size_t i = 0; i < num_encoder_configs; i++) {
@@ -901,7 +905,7 @@ SetupOBSOutput(bool recording, obs_data_t *go_live_config,
 	return output;
 }
 
-void SetupSignalHandlers(bool recording, SimulcastOutput *self,
+void SetupSignalHandlers(bool recording, MultitrackVideoOutput *self,
 			 obs_output_t *output)
 {
 	auto handler = obs_output_get_signal_handler(output);
@@ -917,7 +921,7 @@ void SetupSignalHandlers(bool recording, SimulcastOutput *self,
 
 void StreamStartHandler(void *arg, calldata_t * /* data */)
 {
-	auto self = static_cast<SimulcastOutput *>(arg);
+	auto self = static_cast<MultitrackVideoOutput *>(arg);
 	self->streaming_ = true;
 
 	if (!self->stream_attempt_start_time_.has_value() || !self->berryessa_)
@@ -930,7 +934,7 @@ void StreamStartHandler(void *arg, calldata_t * /* data */)
 
 void StreamStopHandler(void *arg, calldata_t *params)
 {
-	auto self = static_cast<SimulcastOutput *>(arg);
+	auto self = static_cast<MultitrackVideoOutput *>(arg);
 	self->streaming_ = false;
 	self->weak_output_ = nullptr;
 	self->video_encoders_.clear();
@@ -965,18 +969,18 @@ void StreamStopHandler(void *arg, calldata_t *params)
 
 void RecordingStartHandler(void *arg, calldata_t * /* data */)
 {
-	auto self = static_cast<SimulcastOutput *>(arg);
+	auto self = static_cast<MultitrackVideoOutput *>(arg);
 	self->recording_ = true;
 }
 
 void RecordingStopHandler(void *arg, calldata_t * /* data */)
 {
-	auto self = static_cast<SimulcastOutput *>(arg);
+	auto self = static_cast<MultitrackVideoOutput *>(arg);
 	self->recording_ = false;
 	self->weak_recording_output_ = nullptr;
 }
 
-const ImmutableDateTime &SimulcastOutput::GenerateStreamAttemptStartTime()
+const ImmutableDateTime &MultitrackVideoOutput::GenerateStreamAttemptStartTime()
 {
 	stream_attempt_start_time_.emplace(ImmutableDateTime::CurrentTimeUtc());
 	return *stream_attempt_start_time_;

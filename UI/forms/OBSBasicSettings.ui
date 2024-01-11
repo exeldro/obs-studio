@@ -1433,9 +1433,9 @@
               </widget>
              </item>
              <item row="14" column="1">
-              <widget class="QLabel" name="simulcastInfo">
+              <widget class="QLabel" name="multitrackVideoInfo">
                <property name="text">
-                <string>Simulcast.Info</string>
+                <string>MultitrackVideo.Info</string>
                </property>
                <property name="textFormat">
                 <enum>Qt::RichText</enum>
@@ -1449,25 +1449,25 @@
               </widget>
              </item>
              <item row="15" column="1">
-              <widget class="QCheckBox" name="enableSimulcast">
+              <widget class="QCheckBox" name="enableMultitrackVideo">
                <property name="text">
-                <string>Basic.Settings.Stream.EnableSimulcast</string>
+                <string>Basic.Settings.Stream.EnableMultitrackVideo</string>
                </property>
               </widget>
              </item>
              <item row="16" column="0">
-              <widget class="QLabel" name="simulcastMaximumAggregateBitrateLabel">
+              <widget class="QLabel" name="multitrackVideoMaximumAggregateBitrateLabel">
                <property name="text">
-                <string>Basic.Settings.Stream.SimulcastMaximumAggregateBitrate</string>
+                <string>Basic.Settings.Stream.MultitrackVideoMaximumAggregateBitrate</string>
                </property>
               </widget>
              </item>
              <item row="16" column="1">
               <layout class="QHBoxLayout">
                <item>
-                <widget class="QCheckBox" name="simulcastMaximumAggregateBitrateAuto">
+                <widget class="QCheckBox" name="multitrackVideoMaximumAggregateBitrateAuto">
                  <property name="text">
-                  <string>Basic.Settings.Stream.SimulcastMaximumAggregateBitrateAuto</string>
+                  <string>Basic.Settings.Stream.MultitrackVideoMaximumAggregateBitrateAuto</string>
                  </property>
                  <property name="sizePolicy">
                   <enum>QSizePolicy::Minimum, QSizePolicy::Minimum</enum>
@@ -1475,7 +1475,7 @@
                 </widget>
                </item>
                <item>
-                <widget class="QSpinBox" name="simulcastMaximumAggregateBitrate">
+                <widget class="QSpinBox" name="multitrackVideoMaximumAggregateBitrate">
                  <property name="sizePolicy">
                   <enum>QSizePolicy::MinimumExpanding, QSizePolicy::Minimum</enum>
                  </property>
@@ -1493,18 +1493,18 @@
               </layout>
              </item>
              <item row="17" column="0">
-              <widget class="QLabel" name="simulcastReservedEncoderSessionsLabel">
+              <widget class="QLabel" name="multitrackVideoReservedEncoderSessionsLabel">
                <property name="text">
-                <string>Basic.Settings.Stream.SimulcastReservedEncoderSessions</string>
+                <string>Basic.Settings.Stream.MultitrackVideoReservedEncoderSessions</string>
                </property>
               </widget>
              </item>
              <item row="17" column="1">
               <layout class="QHBoxLayout">
                <item>
-                <widget class="QCheckBox" name="simulcastReservedEncoderSessionsAuto">
+                <widget class="QCheckBox" name="multitrackVideoReservedEncoderSessionsAuto">
                  <property name="text">
-                  <string>Basic.Settings.Stream.SimulcastReservedEncoderSessionsAuto</string>
+                  <string>Basic.Settings.Stream.MultitrackVideoReservedEncoderSessionsAuto</string>
                  </property>
                  <property name="sizePolicy">
                   <enum>QSizePolicy::Minimum, QSizePolicy::Minimum</enum>
@@ -1512,7 +1512,7 @@
                 </widget>
                </item>
                <item>
-                <widget class="QSpinBox" name="simulcastReservedEncoderSessions">
+                <widget class="QSpinBox" name="multitrackVideoReservedEncoderSessions">
                  <property name="sizePolicy">
                   <enum>QSizePolicy::MinimumExpanding, QSizePolicy::Minimum</enum>
                  </property>
@@ -1530,21 +1530,21 @@
               </layout>
              </item>
              <item row="18" column="1">
-              <widget class="QCheckBox" name="simulcastConfigOverrideEnable">
+              <widget class="QCheckBox" name="multitrackVideoConfigOverrideEnable">
                 <property name="text">
-                <string>Basic.Settings.Stream.SimulcastConfigOverrideEnable</string>
+                <string>Basic.Settings.Stream.MultitrackVideoConfigOverrideEnable</string>
                 </property>
               </widget>
              </item>
              <item row="19" column="0">
-              <widget class="QLabel" name="simulcastConfigOverrideLabel">
+              <widget class="QLabel" name="multitrackVideoConfigOverrideLabel">
                <property name="text">
-                <string>Basic.Settings.Stream.SimulcastConfigOverride</string>
+                <string>Basic.Settings.Stream.MultitrackVideoConfigOverride</string>
                </property>
               </widget>
              </item>
              <item row="19" column="1">
-              <widget class="QPlainTextEdit" name="simulcastConfigOverride">
+              <widget class="QPlainTextEdit" name="multitrackVideoConfigOverride">
                 <property name="sizePolicy">
                 <enum>QSizePolicy::Preferred, QSizePolicy::MinimumExpanding</enum>
                 </property>

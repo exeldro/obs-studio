@@ -85,7 +85,7 @@ class AutoConfig : public QWizard {
 		std::optional<int> targetBitrate;
 		std::optional<int> bitrate;
 		bool testSuccessful = false;
-	} simulcast;
+	} multitrackVideo;
 	int baseResolutionCX = 1920;
 	int baseResolutionCY = 1080;
 	int idealResolutionCX = 1280;
@@ -107,7 +107,7 @@ class AutoConfig : public QWizard {
 	int startingBitrate = 2500;
 	bool customServer = false;
 	bool bandwidthTest = false;
-	bool testSimulcast = false;
+	bool testMultitrackVideo = false;
 	bool testRegions = true;
 	bool twitchAuto = false;
 	bool regionUS = true;

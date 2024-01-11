@@ -14,7 +14,8 @@
 #define DISCARD_SAMPLES_BEYOND \
 	144 * 60 * 2 // 144fps, one minute, times two for safety
 
-#define PRESENTMON_SESSION_NAME "PresentMon_OBS_IVS_Simulcast_Tech_Preview"
+#define PRESENTMON_SESSION_NAME \
+	"PresentMon_OBS_IVS_MultitrackVideo_Tech_Preview"
 
 void PresentMonCapture_accumulator::frame(const ParsedCsvRow &row)
 {
