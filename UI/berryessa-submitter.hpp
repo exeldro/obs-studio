@@ -24,6 +24,8 @@ public:
 			Qt::QueuedConnection);
 	}
 
+	~SubmissionWorker();
+
 public slots:
 	void QueueEvent(OBSData event);
 

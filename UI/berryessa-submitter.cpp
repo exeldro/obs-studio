@@ -5,6 +5,8 @@
 
 #include <QTimer>
 
+#include <util/dstr.hpp>
+
 #define THROTTLE_DURATION std::chrono::seconds(5)
 
 void SubmissionWorker::QueueEvent(OBSData event)
@@ -122,6 +124,23 @@ void SubmissionWorker::AttemptSubmission()
 		     postEncoded.size(), obs_data_get_json(status));
 		emit SubmissionError(OBSData{status});
 	}
+}
+
+SubmissionWorker::~SubmissionWorker()
+{
+	DStr events;
+	for (const auto &event : pending_events_) {
+		dstr_catf(events, "\n    %s",
+			  obs_data_get_string(event, "event"));
+	}
+
+	if (!events->len) {
+		blog(LOG_INFO, "BerryessaSubmitter: event queue empty on exit");
+		return;
+	}
+
+	blog(LOG_WARNING, "BerryessaSubmitter: %zu events remaining on exit:%s",
+	     pending_events_.size(), events->array);
 }
 
 void BerryessaSubmitter::setAlwaysBool(QString propertyKey, bool propertyValue)
