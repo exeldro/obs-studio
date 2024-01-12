@@ -2655,7 +2655,7 @@ FutureHolder<std::optional<bool>> BasicOutputHandler::SetupMultitrackVideo(
 OBSDataAutoRelease BasicOutputHandler::GenerateMultitrackVideoStreamDumpConfig()
 {
 	auto stream_dump_enabled = config_get_bool(
-		main->Config(), "Stream1", "EnableMultitrackVideoStreamDump");
+		main->Config(), "Stream1", "MultitrackVideoStreamDumpEnabled");
 
 	if (!stream_dump_enabled)
 		return nullptr;

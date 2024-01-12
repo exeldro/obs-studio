@@ -424,6 +424,7 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	HookWidget(ui->multitrackVideoMaximumAggregateBitrate,     SCROLL_CHANGED, STREAM1_CHANGED);
 	HookWidget(ui->multitrackVideoReservedEncoderSessionsAuto, CHECK_CHANGED,  STREAM1_CHANGED);
 	HookWidget(ui->multitrackVideoReservedEncoderSessions,     SCROLL_CHANGED, STREAM1_CHANGED);
+	HookWidget(ui->multitrackVideoStreamDumpEnable,            CHECK_CHANGED,  STREAM1_CHANGED);
 	HookWidget(ui->multitrackVideoConfigOverrideEnable,        CHECK_CHANGED,  STREAM1_CHANGED);
 	HookWidget(ui->multitrackVideoConfigOverride,              TEXT_CHANGED,   STREAM1_CHANGED);
 	HookWidget(ui->outputMode,           COMBO_CHANGED,  OUTPUTS_CHANGED);
@@ -6247,6 +6248,8 @@ void OBSBasicSettings::UpdateMultitrackVideoing()
 		toggle_available && ui->enableMultitrackVideo->isChecked() &&
 		!ui->multitrackVideoReservedEncoderSessionsAuto->isChecked());
 
+	ui->multitrackVideoStreamDumpEnable->setVisible(
+		available && MultitrackVideoDeveloperModeEnabled());
 	ui->multitrackVideoConfigOverrideEnable->setVisible(
 		available && MultitrackVideoDeveloperModeEnabled());
 	ui->multitrackVideoConfigOverrideLabel->setVisible(
@@ -6254,6 +6257,8 @@ void OBSBasicSettings::UpdateMultitrackVideoing()
 	ui->multitrackVideoConfigOverride->setVisible(
 		available && MultitrackVideoDeveloperModeEnabled());
 
+	ui->multitrackVideoStreamDumpEnable->setEnabled(
+		toggle_available && ui->enableMultitrackVideo->isChecked());
 	ui->multitrackVideoConfigOverrideEnable->setEnabled(
 		toggle_available && ui->enableMultitrackVideo->isChecked());
 	ui->multitrackVideoConfigOverrideLabel->setEnabled(
