@@ -100,6 +100,7 @@ protected:
 	FutureHolder<std::optional<bool>>
 	SetupMultitrackVideo(obs_service_t *service,
 			     std::string audio_encoder_id, int audio_bitrate);
+	OBSDataAutoRelease GenerateMultitrackVideoStreamDumpConfig();
 };
 
 BasicOutputHandler *CreateSimpleOutputHandler(OBSBasic *main);

@@ -2598,12 +2598,15 @@ FutureHolder<std::optional<bool>> BasicOutputHandler::SetupMultitrackVideo(
 				  main->Config(), "Stream1",
 				  "MultitrackVideoReservedEncoderSessions"));
 
+	auto stream_dump_config = GenerateMultitrackVideoStreamDumpConfig();
+
 	auto firstFuture = CreateFuture().then(
 		QThreadPool::globalInstance(),
 		[=, multitrackVideo = multitrackVideo.get(),
 		 service_name = std::string{service_name},
-		 service = OBSService{
-			 service}]() -> std::optional<MultitrackVideoError> {
+		 service = OBSService{service},
+		 stream_dump_config = std::move(stream_dump_config)]()
+			-> std::optional<MultitrackVideoError> {
 			try {
 				multitrackVideo->PrepareStreaming(
 					main, service_name.c_str(), service,
@@ -2611,7 +2614,7 @@ FutureHolder<std::optional<bool>> BasicOutputHandler::SetupMultitrackVideo(
 					audio_encoder_id.c_str(), audio_bitrate,
 					maximum_aggregate_bitrate,
 					reserved_encoder_sessions,
-					custom_config);
+					custom_config, stream_dump_config);
 			} catch (const MultitrackVideoError &error) {
 				return error;
 			}
@@ -2647,6 +2650,35 @@ FutureHolder<std::optional<bool>> BasicOutputHandler::SetupMultitrackVideo(
 		});
 
 	return {[=]() mutable { firstFuture.cancel(); }, secondFuture};
+}
+
+OBSDataAutoRelease BasicOutputHandler::GenerateMultitrackVideoStreamDumpConfig()
+{
+	auto stream_dump_enabled = config_get_bool(
+		main->Config(), "Stream1", "EnableMultitrackVideoStreamDump");
+
+	if (!stream_dump_enabled)
+		return nullptr;
+
+	const char *path =
+		config_get_string(main->Config(), "SimpleOutput", "FilePath");
+	bool noSpace = config_get_bool(main->Config(), "SimpleOutput",
+				       "FileNameWithoutSpace");
+	const char *filenameFormat = config_get_string(main->Config(), "Output",
+						       "FilenameFormatting");
+	bool overwriteIfExists =
+		config_get_bool(main->Config(), "Output", "OverwriteIfExists");
+
+	string f;
+
+	OBSDataAutoRelease settings = obs_data_create();
+	f = GetFormatString(filenameFormat, nullptr, nullptr);
+	string strPath = GetRecordingFilename(path, "flv", noSpace,
+					      overwriteIfExists, f.c_str(),
+					      // never remux stream dump
+					      false);
+	obs_data_set_string(settings, "path", strPath.c_str());
+	return settings;
 }
 
 BasicOutputHandler *CreateSimpleOutputHandler(OBSBasic *main)
