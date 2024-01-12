@@ -427,9 +427,10 @@ static void write_headers(struct flv_output *stream)
 	for (size_t i = 1; write_audio_header(stream, i); i++)
 		;
 	for (size_t i = 1;
-	     write_video_header(stream, i) && write_video_metadata(stream, i);
-	     i++)
-		;
+	     obs_output_get_video_encoder2(stream->output, i) != NULL; i++) {
+		write_video_header(stream, i);
+		write_video_metadata(stream, i);
+	}
 }
 
 static bool write_video_footer(struct flv_output *stream, size_t idx)
