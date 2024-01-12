@@ -229,13 +229,10 @@ std::string GetOutputFilename(const std::string &path, const char *format)
 	return strPath;
 }
 
-static OBSOutputAutoRelease create_output(bool use_ertmp_multitrack)
+static OBSOutputAutoRelease create_output()
 {
-	OBSDataAutoRelease settings = obs_data_create();
-	obs_data_set_bool(settings, "ertmp_multitrack", use_ertmp_multitrack);
-
 	OBSOutputAutoRelease output = obs_output_create(
-		"rtmp_output", "rtmp multitrack video", settings, nullptr);
+		"rtmp_output", "rtmp multitrack video", nullptr, nullptr);
 
 	if (!output) {
 		blog(LOG_ERROR,
@@ -247,25 +244,13 @@ static OBSOutputAutoRelease create_output(bool use_ertmp_multitrack)
 	return output;
 }
 
-static OBSOutputAutoRelease create_recording_output(bool use_ertmp_multitrack)
+static OBSOutputAutoRelease create_recording_output(obs_data_t *settings)
 {
-	OBSDataAutoRelease settings = obs_data_create();
-#if 0
-	obs_data_set_string(settings, "path",
-			    GetOutputFilename(system_video_save_path(),
-					      "%CCYY-%MM-%DD_%hh-%mm-%ss")
-				    .c_str());
-#endif
-	obs_data_set_bool(settings, "ertmp_multitrack", use_ertmp_multitrack);
-
 	OBSOutputAutoRelease output = obs_output_create(
 		"flv_output", "flv multitrack video", settings, nullptr);
 
-	if (!output) {
+	if (!output)
 		blog(LOG_ERROR, "failed to create multitrack video flv output");
-		throw MultitrackVideoError::warning(
-			"Failed to create multitrack video flv output");
-	}
 
 	return output;
 }
@@ -491,12 +476,16 @@ create_audio_encoder(const char *audio_encoder_id,
 	return audio_encoder;
 }
 
-static OBSOutputAutoRelease
-SetupOBSOutput(bool recording, obs_data_t *go_live_config,
+struct OBSOutputs {
+	OBSOutputAutoRelease output, recording_output;
+};
+
+static OBSOutputs
+SetupOBSOutput(obs_data_t *dump_stream_to_file_config,
+	       obs_data_t *go_live_config,
 	       std::vector<OBSEncoderAutoRelease> &video_encoders,
 	       OBSEncoderAutoRelease &audio_encoder,
-	       const char *audio_encoder_id, std::optional<int> audio_bitrate,
-	       bool use_ertmp_multitrack);
+	       const char *audio_encoder_id, std::optional<int> audio_bitrate);
 static void SetupSignalHandlers(bool recording, MultitrackVideoOutput *self,
 				obs_output_t *output);
 
@@ -511,10 +500,10 @@ void MultitrackVideoOutput::PrepareStreaming(
 	QWidget *parent, const char *service_name, obs_service_t *service,
 	const std::optional<std::string> &rtmp_url, const QString &stream_key,
 	const char *audio_encoder_id, int audio_bitrate,
-	bool use_ertmp_multitrack,
 	std::optional<uint32_t> maximum_aggregate_bitrate,
 	std::optional<uint32_t> reserved_encoder_sessions,
-	std::optional<std::string> custom_config)
+	std::optional<std::string> custom_config,
+	obs_data_t *dump_stream_to_file_config)
 {
 	if (!berryessa_) {
 		QMetaObject::invokeMethod(
@@ -654,10 +643,12 @@ void MultitrackVideoOutput::PrepareStreaming(
 		video_encoders_.clear();
 		auto video_encoders = std::move(video_encoders_);
 		OBSEncoderAutoRelease audio_encoder = nullptr;
-		auto output = SetupOBSOutput(false, go_live_config,
-					     video_encoders, audio_encoder,
-					     audio_encoder_id, audio_bitrate,
-					     use_ertmp_multitrack);
+		auto outputs = SetupOBSOutput(dump_stream_to_file_config,
+					      go_live_config, video_encoders,
+					      audio_encoder, audio_encoder_id,
+					      audio_bitrate);
+		auto output = std::move(outputs.output);
+		auto recording_output = std::move(outputs.recording_output);
 		if (!output)
 			throw MultitrackVideoError::warning(
 				QTStr("FailedToStartStream.FallbackToDefault"));
@@ -672,12 +663,17 @@ void MultitrackVideoOutput::PrepareStreaming(
 		obs_output_set_service(output, multitrack_video_service);
 
 		SetupSignalHandlers(false, this, output);
+		if (dump_stream_to_file_config && recording_output)
+			SetupSignalHandlers(true, this, recording_output);
 
 		output_ = std::move(output);
 		weak_output_ = obs_output_get_weak_output(output_);
 		video_encoders_ = std::move(video_encoders);
 		audio_encoder_ = std::move(audio_encoder);
 		multitrack_video_service_ = std::move(multitrack_video_service);
+		recording_output_ = std::move(recording_output);
+		weak_recording_output_ =
+			obs_output_get_weak_output(recording_output_);
 
 		if (berryessa_) {
 			send_start_event = [berryessa = berryessa_.get(),
@@ -757,6 +753,12 @@ void MultitrackVideoOutput::StartedStreaming(QWidget *parent, bool success)
 		return;
 	}
 
+	if (recording_output_) {
+		auto result = obs_output_start(recording_output_);
+		blog(LOG_INFO, "MultitrackVideoOutput: starting recording%s",
+		     result ? "" : " failed");
+	}
+
 	if (send_start_event)
 		send_start_event(true, ConnectTimeMs());
 
@@ -787,10 +789,14 @@ void MultitrackVideoOutput::StopStreaming()
 	if (output_)
 		obs_output_stop(output_);
 
+	if (recording_output_)
+		obs_output_stop(recording_output_);
+
 	submit_event(berryessa_.get(), "ivs_obs_stream_stop",
 		     MakeEvent_ivs_obs_stream_stop());
 
 	output_ = nullptr;
+	recording_output_ = nullptr;
 
 	streaming_ = false;
 }
@@ -808,68 +814,25 @@ std::optional<int> MultitrackVideoOutput::ConnectTimeMs() const
 	return obs_output_get_connect_time_ms(output_);
 }
 
-bool MultitrackVideoOutput::StartRecording(obs_data_t *go_live_config,
-					   bool use_ertmp_multitrack)
-{
-	if (streaming_)
-		return false;
-
-	if (!go_live_config)
-		return false;
-
-	video_encoders_.clear();
-	recording_output_ = SetupOBSOutput(true, go_live_config,
-					   video_encoders_, audio_encoder_,
-					   "ffmpeg_aac", std::nullopt,
-					   use_ertmp_multitrack);
-	if (!recording_output_)
-		return false;
-
-	SetupSignalHandlers(true, this, recording_output_);
-
-	weak_recording_output_ = obs_output_get_weak_output(recording_output_);
-	if (!obs_output_start(recording_output_)) {
-		blog(LOG_WARNING, "Failed to start recording");
-		throw QString::asprintf(
-			"Failed to start recording (obs_output_start returned false)");
-	}
-
-	blog(LOG_INFO, "starting recording");
-	return true;
-}
-
-void MultitrackVideoOutput::StopRecording()
-{
-	if (!recording_)
-		return;
-
-	if (recording_output_)
-		obs_output_stop(recording_output_);
-
-	recording_output_ = nullptr;
-	video_encoders_.clear();
-	audio_encoder_ = nullptr;
-
-	recording_ = false;
-}
-
 const std::vector<OBSEncoderAutoRelease> &
 MultitrackVideoOutput::VideoEncoders() const
 {
 	return video_encoders_;
 }
 
-static OBSOutputAutoRelease
-SetupOBSOutput(bool recording, obs_data_t *go_live_config,
+static OBSOutputs
+SetupOBSOutput(obs_data_t *dump_stream_to_file_config,
+	       obs_data_t *go_live_config,
 	       std::vector<OBSEncoderAutoRelease> &video_encoders,
 	       OBSEncoderAutoRelease &audio_encoder,
-	       const char *audio_encoder_id, std::optional<int> audio_bitrate,
-	       bool use_ermtp_multitrack)
+	       const char *audio_encoder_id, std::optional<int> audio_bitrate)
 {
 
-	auto output = !recording
-			      ? create_output(use_ermtp_multitrack)
-			      : create_recording_output(use_ermtp_multitrack);
+	auto output = create_output();
+	OBSOutputAutoRelease recording_output;
+	if (dump_stream_to_file_config)
+		recording_output =
+			create_recording_output(dump_stream_to_file_config);
 
 	OBSDataArrayAutoRelease encoder_configs =
 		obs_data_get_array(go_live_config, "encoder_configurations");
@@ -887,7 +850,7 @@ SetupOBSOutput(bool recording, obs_data_t *go_live_config,
 		auto encoder = create_video_encoder(video_encoder_name_buffer,
 						    i, encoder_config);
 		if (!encoder)
-			return nullptr;
+			return {nullptr, nullptr};
 
 		if (!first_encoder)
 			first_encoder = encoder;
@@ -896,13 +859,19 @@ SetupOBSOutput(bool recording, obs_data_t *go_live_config,
 				first_encoder, encoder);
 
 		obs_output_set_video_encoder2(output, encoder, i);
+		if (recording_output)
+			obs_output_set_video_encoder2(recording_output, encoder,
+						      i);
 		video_encoders.emplace_back(std::move(encoder));
 	}
 
 	audio_encoder = create_audio_encoder(audio_encoder_id, audio_bitrate);
 	obs_output_set_audio_encoder(output, audio_encoder, 0);
+	if (recording_output)
+		obs_output_set_audio_encoder(recording_output, audio_encoder,
+					     0);
 
-	return output;
+	return {std::move(output), std::move(recording_output)};
 }
 
 void SetupSignalHandlers(bool recording, MultitrackVideoOutput *self,
@@ -940,6 +909,11 @@ void StreamStopHandler(void *arg, calldata_t *params)
 	self->video_encoders_.clear();
 	self->audio_encoder_ = nullptr;
 
+	if (self->recording_output_) {
+		obs_output_stop(self->recording_output_);
+		self->recording_output_ = nullptr;
+	}
+
 	auto code = calldata_int(params, "code");
 	auto last_error = calldata_string(params, "last_error");
 
@@ -967,17 +941,17 @@ void StreamStopHandler(void *arg, calldata_t *params)
 			std::nullopt);
 }
 
-void RecordingStartHandler(void *arg, calldata_t * /* data */)
+void RecordingStartHandler(void * /* arg */, calldata_t * /* data */)
 {
-	auto self = static_cast<MultitrackVideoOutput *>(arg);
-	self->recording_ = true;
+	blog(LOG_INFO, "MultitrackVideoOutput: recording started");
 }
 
 void RecordingStopHandler(void *arg, calldata_t * /* data */)
 {
 	auto self = static_cast<MultitrackVideoOutput *>(arg);
-	self->recording_ = false;
 	self->weak_recording_output_ = nullptr;
+
+	blog(LOG_INFO, "MultitrackVideoOutput: recording stopped");
 }
 
 const ImmutableDateTime &MultitrackVideoOutput::GenerateStreamAttemptStartTime()

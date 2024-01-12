@@ -192,6 +192,9 @@ void OBSBasicSettings::LoadStream1Settings()
 				main->Config(), "Stream1",
 				"MultitrackVideoReservedEncoderSessions"));
 
+	ui->multitrackVideoStreamDumpEnable->setChecked(config_get_bool(
+		main->Config(), "Stream1", "MultitrackVideoStreamDumpEnabled"));
+
 	ui->multitrackVideoConfigOverrideEnable->setChecked(
 		config_get_bool(main->Config(), "Stream1",
 				"MultitrackVideoConfigOverrideEnabled"));
@@ -364,6 +367,8 @@ void OBSBasicSettings::SaveStream1Settings()
 		     "MultitrackVideoReservedEncoderSessionsAuto");
 	SaveSpinBox(ui->multitrackVideoReservedEncoderSessions, "Stream1",
 		    "MultitrackVideoReservedEncoderSessions");
+	SaveCheckBox(ui->multitrackVideoStreamDumpEnable, "Stream1",
+		     "MultitrackVideoStreamDumpEnabled");
 	SaveCheckBox(ui->multitrackVideoConfigOverrideEnable, "Stream1",
 		     "MultitrackVideoConfigOverrideEnabled");
 	SaveText(ui->multitrackVideoConfigOverride, "Stream1",
