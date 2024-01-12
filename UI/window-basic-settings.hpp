@@ -273,7 +273,7 @@ private:
 	void UpdateServiceRecommendations();
 	void UpdateMoreInfoLink();
 	void UpdateAdvNetworkGroup();
-	void UpdateMultitrackVideoing();
+	void UpdateMultitrackVideo();
 
 	bool IsCustomTwitchServer();
 
