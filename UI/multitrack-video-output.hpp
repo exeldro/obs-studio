@@ -35,7 +35,6 @@ public:
 			      const std::optional<std::string> &rtmp_url,
 			      const QString &stream_key,
 			      const char *audio_encoder_id, int audio_bitrate,
-			      bool use_ertmp_multitrack,
 			      std::optional<uint32_t> maximum_aggregate_bitrate,
 			      std::optional<uint32_t> reserved_encoder_sessions,
 			      std::optional<std::string> custom_config);
@@ -45,8 +44,7 @@ public:
 	bool IsStreaming() const;
 	std::optional<int> ConnectTimeMs() const;
 
-	bool StartRecording(obs_data_t *go_live_config,
-			    bool use_ertmp_multitrack);
+	bool StartRecording(obs_data_t *go_live_config);
 	void StopRecording();
 	bool IsRecording() const { return recording_; }
 

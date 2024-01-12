@@ -229,13 +229,10 @@ std::string GetOutputFilename(const std::string &path, const char *format)
 	return strPath;
 }
 
-static OBSOutputAutoRelease create_output(bool use_ertmp_multitrack)
+static OBSOutputAutoRelease create_output()
 {
-	OBSDataAutoRelease settings = obs_data_create();
-	obs_data_set_bool(settings, "ertmp_multitrack", use_ertmp_multitrack);
-
 	OBSOutputAutoRelease output = obs_output_create(
-		"rtmp_output", "rtmp multitrack video", settings, nullptr);
+		"rtmp_output", "rtmp multitrack video", nullptr, nullptr);
 
 	if (!output) {
 		blog(LOG_ERROR,
@@ -247,7 +244,7 @@ static OBSOutputAutoRelease create_output(bool use_ertmp_multitrack)
 	return output;
 }
 
-static OBSOutputAutoRelease create_recording_output(bool use_ertmp_multitrack)
+static OBSOutputAutoRelease create_recording_output()
 {
 	OBSDataAutoRelease settings = obs_data_create();
 #if 0
@@ -256,7 +253,6 @@ static OBSOutputAutoRelease create_recording_output(bool use_ertmp_multitrack)
 					      "%CCYY-%MM-%DD_%hh-%mm-%ss")
 				    .c_str());
 #endif
-	obs_data_set_bool(settings, "ertmp_multitrack", use_ertmp_multitrack);
 
 	OBSOutputAutoRelease output = obs_output_create(
 		"flv_output", "flv multitrack video", settings, nullptr);
@@ -495,8 +491,7 @@ static OBSOutputAutoRelease
 SetupOBSOutput(bool recording, obs_data_t *go_live_config,
 	       std::vector<OBSEncoderAutoRelease> &video_encoders,
 	       OBSEncoderAutoRelease &audio_encoder,
-	       const char *audio_encoder_id, std::optional<int> audio_bitrate,
-	       bool use_ertmp_multitrack);
+	       const char *audio_encoder_id, std::optional<int> audio_bitrate);
 static void SetupSignalHandlers(bool recording, MultitrackVideoOutput *self,
 				obs_output_t *output);
 
@@ -511,7 +506,6 @@ void MultitrackVideoOutput::PrepareStreaming(
 	QWidget *parent, const char *service_name, obs_service_t *service,
 	const std::optional<std::string> &rtmp_url, const QString &stream_key,
 	const char *audio_encoder_id, int audio_bitrate,
-	bool use_ertmp_multitrack,
 	std::optional<uint32_t> maximum_aggregate_bitrate,
 	std::optional<uint32_t> reserved_encoder_sessions,
 	std::optional<std::string> custom_config)
@@ -656,8 +650,7 @@ void MultitrackVideoOutput::PrepareStreaming(
 		OBSEncoderAutoRelease audio_encoder = nullptr;
 		auto output = SetupOBSOutput(false, go_live_config,
 					     video_encoders, audio_encoder,
-					     audio_encoder_id, audio_bitrate,
-					     use_ertmp_multitrack);
+					     audio_encoder_id, audio_bitrate);
 		if (!output)
 			throw MultitrackVideoError::warning(
 				QTStr("FailedToStartStream.FallbackToDefault"));
@@ -808,8 +801,7 @@ std::optional<int> MultitrackVideoOutput::ConnectTimeMs() const
 	return obs_output_get_connect_time_ms(output_);
 }
 
-bool MultitrackVideoOutput::StartRecording(obs_data_t *go_live_config,
-					   bool use_ertmp_multitrack)
+bool MultitrackVideoOutput::StartRecording(obs_data_t *go_live_config)
 {
 	if (streaming_)
 		return false;
@@ -820,8 +812,7 @@ bool MultitrackVideoOutput::StartRecording(obs_data_t *go_live_config,
 	video_encoders_.clear();
 	recording_output_ = SetupOBSOutput(true, go_live_config,
 					   video_encoders_, audio_encoder_,
-					   "ffmpeg_aac", std::nullopt,
-					   use_ertmp_multitrack);
+					   "ffmpeg_aac", std::nullopt);
 	if (!recording_output_)
 		return false;
 
@@ -863,13 +854,10 @@ static OBSOutputAutoRelease
 SetupOBSOutput(bool recording, obs_data_t *go_live_config,
 	       std::vector<OBSEncoderAutoRelease> &video_encoders,
 	       OBSEncoderAutoRelease &audio_encoder,
-	       const char *audio_encoder_id, std::optional<int> audio_bitrate,
-	       bool use_ermtp_multitrack)
+	       const char *audio_encoder_id, std::optional<int> audio_bitrate)
 {
 
-	auto output = !recording
-			      ? create_output(use_ermtp_multitrack)
-			      : create_recording_output(use_ermtp_multitrack);
+	auto output = !recording ? create_output() : create_recording_output();
 
 	OBSDataArrayAutoRelease encoder_configs =
 		obs_data_get_array(go_live_config, "encoder_configurations");

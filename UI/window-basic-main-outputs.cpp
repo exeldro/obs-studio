@@ -2609,7 +2609,7 @@ FutureHolder<std::optional<bool>> BasicOutputHandler::SetupMultitrackVideo(
 					main, service_name.c_str(), service,
 					custom_rtmp_url, key,
 					audio_encoder_id.c_str(), audio_bitrate,
-					true, maximum_aggregate_bitrate,
+					maximum_aggregate_bitrate,
 					reserved_encoder_sessions,
 					custom_config);
 			} catch (const MultitrackVideoError &error) {
