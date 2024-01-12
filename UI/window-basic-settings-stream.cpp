@@ -239,7 +239,7 @@ void OBSBasicSettings::LoadStream1Settings()
 	UpdateMoreInfoLink();
 	UpdateVodTrackSetting();
 	UpdateServiceRecommendations();
-	UpdateMultitrackVideoing();
+	UpdateMultitrackVideo();
 
 	bool streamActive = obs_frontend_streaming_active();
 	ui->streamPage->setEnabled(!streamActive);
@@ -612,7 +612,7 @@ void OBSBasicSettings::on_service_currentIndexChanged(int idx)
 
 	protocol = FindProtocol();
 	UpdateAdvNetworkGroup();
-	UpdateMultitrackVideoing();
+	UpdateMultitrackVideo();
 
 	if (ServiceSupportsCodecCheck() && UpdateResFPSLimits()) {
 		lastServiceIdx = idx;
@@ -627,7 +627,7 @@ void OBSBasicSettings::on_customServer_textChanged(const QString &)
 
 	protocol = FindProtocol();
 	UpdateAdvNetworkGroup();
-	UpdateMultitrackVideoing();
+	UpdateMultitrackVideo();
 
 	if (ServiceSupportsCodecCheck())
 		lastCustomServer = ui->customServer->text();
@@ -635,25 +635,25 @@ void OBSBasicSettings::on_customServer_textChanged(const QString &)
 
 void OBSBasicSettings::on_enableMultitrackVideo_toggled(bool /*enabled*/)
 {
-	UpdateMultitrackVideoing();
+	UpdateMultitrackVideo();
 }
 
 void OBSBasicSettings::on_multitrackVideoMaximumAggregateBitrateAuto_toggled(
 	bool /*enabled*/)
 {
-	UpdateMultitrackVideoing();
+	UpdateMultitrackVideo();
 }
 
 void OBSBasicSettings::on_multitrackVideoReservedEncoderSessionsAuto_toggled(
 	bool /*enabled*/)
 {
-	UpdateMultitrackVideoing();
+	UpdateMultitrackVideo();
 }
 
 void OBSBasicSettings::on_multitrackVideoConfigOverrideEnable_toggled(
 	bool /*enabled*/)
 {
-	UpdateMultitrackVideoing();
+	UpdateMultitrackVideo();
 }
 
 void OBSBasicSettings::ServiceChanged(bool resetFields)

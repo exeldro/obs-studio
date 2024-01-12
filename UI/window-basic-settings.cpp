@@ -6207,7 +6207,7 @@ void OBSBasicSettings::UpdateAdvNetworkGroup()
 
 extern bool MultitrackVideoDeveloperModeEnabled();
 
-void OBSBasicSettings::UpdateMultitrackVideoing()
+void OBSBasicSettings::UpdateMultitrackVideo()
 {
 	// technically it should currently be safe to toggle multitrackVideo
 	// while not streaming (recording should be irrelevant), but practically
