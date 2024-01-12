@@ -1531,9 +1531,9 @@
              </item>
              <item row="18" column="1">
               <widget class="QCheckBox" name="multitrackVideoConfigOverrideEnable">
-                <property name="text">
+               <property name="text">
                 <string>Basic.Settings.Stream.MultitrackVideoConfigOverrideEnable</string>
-                </property>
+               </property>
               </widget>
              </item>
              <item row="19" column="0">
@@ -1545,9 +1545,9 @@
              </item>
              <item row="19" column="1">
               <widget class="QPlainTextEdit" name="multitrackVideoConfigOverride">
-                <property name="sizePolicy">
+               <property name="sizePolicy">
                 <enum>QSizePolicy::Preferred, QSizePolicy::MinimumExpanding</enum>
-                </property>
+               </property>
               </widget>
              </item>
              <item row="6" column="1">
