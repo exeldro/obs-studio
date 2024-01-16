@@ -21,6 +21,16 @@
 #include "platform.h"
 #include "threading.h"
 
+#define BMEM_TRACE
+#ifdef BMEM_TRACE
+#ifdef _WIN32
+#include <Windows.h>
+#include <dbghelp.h>
+#else
+#include <execinfo.h>
+#endif
+#endif
+
 /*
  * NOTE: totally jacked the mem alignment trick from ffmpeg, credit to them:
  *   http://www.ffmpeg.org/
@@ -44,53 +54,291 @@
 #define ALIGNMENT_HACK 1
 #endif
 
+#ifdef BMEM_TRACE
+#define BMEM_TRACE_DEPTH 9
+
+struct bmem_trace {
+	struct bmem_trace *next;
+	struct bmem_trace **prev_next;
+	void *buffer[BMEM_TRACE_DEPTH];
+	int nptrs;
+	size_t size;
+};
+
+#define BMEM_TRACE_SIZE_BYTE \
+	((sizeof(struct bmem_trace) + ALIGNMENT - 1) / ALIGNMENT * ALIGNMENT)
+#define BMEM_OVERRUN_TEST_BYTE ALIGNMENT
+
+// TODO: Currently using constant value. Use `calc_crc32` to check contents of `struct bmem_trace`.
+#define BMEM_OVERRUN_TEST_CODE 0xB3
+
+static struct bmem_trace *trace_first = NULL;
+static pthread_mutex_t bmem_trace_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static void bmem_trace_dump_once(int log_level, struct bmem_trace *bt);
+
+#ifdef _WIN32
+
+static inline int backtrace(void **buffer, int size)
+{
+	return (int)CaptureStackBackTrace(1, size, buffer, NULL);
+}
+
+typedef BOOL(WINAPI *SYMINITIALIZE)(HANDLE process, PCTSTR user_search_path,
+				    BOOL invade_process);
+typedef BOOL(WINAPI *SYMFROMADDR)(HANDLE process, DWORD64 address,
+				  PDWORD64 displacement, PSYMBOL_INFOW symbol);
+
+typedef BOOL(WINAPI *SYMREFRESHMODULELIST)(HANDLE process);
+
+extern bool sym_initialize_called;
+
+char **backtrace_symbols(const void **stack, int size)
+{
+	int frame;
+	DWORD64 displacement = 0;
+	char buf[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
+	SYMBOL_INFOW *pSymbol = (SYMBOL_INFOW *)buf;
+	pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+	pSymbol->MaxNameLen = MAX_SYM_NAME;
+	IMAGEHLP_LINE64 line = {0};
+	line.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
+	HANDLE process = GetCurrentProcess();
+
+	HMODULE dbghelp = LoadLibraryW(L"DbgHelp");
+	if (!dbghelp)
+		return NULL;
+
+	SYMINITIALIZE sym_initialize =
+		(SYMINITIALIZE)GetProcAddress(dbghelp, "SymInitialize");
+	SYMREFRESHMODULELIST sym_refresh_module_list =
+		(SYMREFRESHMODULELIST)GetProcAddress(dbghelp,
+						     "SymRefreshModuleList");
+	SYMFROMADDR sym_from_addr =
+		(SYMFROMADDR)GetProcAddress(dbghelp, "SymFromAddrW");
+
+	if (!sym_initialize_called)
+		sym_initialize(process, NULL, TRUE);
+	else
+		sym_refresh_module_list(process);
+
+	char *buffer = malloc(sizeof(char *) * size +
+			      MAX_SYM_NAME * sizeof(TCHAR) * size);
+	if (!buffer)
+		return NULL;
+
+	for (frame = 0; frame < size; frame++) {
+		char *pos = buffer + sizeof(char *) * size +
+			    MAX_SYM_NAME * sizeof(TCHAR) * frame;
+		pos[0] = 0;
+		((char **)buffer)[frame] = pos;
+		DWORD64 address = (DWORD64)(stack[frame]);
+		if (!address)
+			continue;
+
+		//get symbol name for address
+		if (!sym_from_addr(process, address, (PDWORD64)&displacement,
+				   pSymbol))
+			continue;
+
+		os_wcs_to_utf8(pSymbol->Name, pSymbol->NameLen, pos,
+			       MAX_SYM_NAME * sizeof(TCHAR));
+	}
+	return (char **)buffer;
+}
+#endif
+
+static inline void register_trace(void *ptr, size_t size)
+{
+	struct bmem_trace *bt = ptr;
+	void *buffer[BMEM_TRACE_DEPTH + 2];
+	int nptrs = backtrace(buffer, BMEM_TRACE_DEPTH + 2);
+	if (nptrs > 2) {
+		bt->nptrs = nptrs - 2;
+		memcpy(bt->buffer, buffer + 2, (nptrs - 2) * sizeof(void *));
+	} else {
+		bt->nptrs = 0;
+	}
+	bt->size = size;
+
+	pthread_mutex_lock(&bmem_trace_mutex);
+	bt->prev_next = &trace_first;
+	bt->next = trace_first;
+	trace_first = bt;
+	if (bt->next)
+		bt->next->prev_next = &bt->next;
+	pthread_mutex_unlock(&bmem_trace_mutex);
+}
+
+static void unregister_trace(void *ptr)
+{
+	struct bmem_trace *bt = ptr;
+	pthread_mutex_lock(&bmem_trace_mutex);
+	if (*bt->prev_next != bt) {
+		blog(LOG_ERROR,
+		     "unregister_trace corrupted *prev_next=%p expected %p prev_next: %p next: %p",
+		     *bt->prev_next, bt, bt->prev_next, bt->next);
+		bmem_trace_dump_once(LOG_ERROR, bt);
+		if (bt->next)
+			bmem_trace_dump_once(LOG_ERROR, bt->next);
+		pthread_mutex_unlock(&bmem_trace_mutex);
+		return;
+	}
+	*bt->prev_next = bt->next;
+	if (bt->next)
+		bt->next->prev_next = bt->prev_next;
+	bt->prev_next = NULL;
+	bt->next = NULL;
+	pthread_mutex_unlock(&bmem_trace_mutex);
+}
+
+static void reregister_trace(void *ptr, size_t size)
+{
+	struct bmem_trace *bt = ptr;
+	bt->size = size;
+	if (bt->next)
+		bt->next->prev_next = &bt->next;
+	*bt->prev_next = bt;
+}
+
+static void bmem_trace_dump_once(int log_level, struct bmem_trace *bt)
+{
+	int nptrs = bt->nptrs;
+	if (nptrs <= 0 || nptrs > BMEM_TRACE_DEPTH) {
+		blog(LOG_ERROR, "backtrace buffer broken %p nptrs=%d", bt,
+		     bt->nptrs);
+		return;
+	}
+	char **strings = backtrace_symbols(bt->buffer, nptrs);
+	if (!strings) {
+		blog(LOG_ERROR, "backtrace_symbols for memory returns NULL");
+	} else {
+		for (int i = 0; i < nptrs; i++) {
+			blog(log_level, "memory leak trace[%d]: %s", i,
+			     strings[i]);
+		}
+		free(strings);
+	}
+}
+
+static void bmem_overrun_test_set(uint8_t *ptr)
+{
+	for (uint8_t i = 0; i < BMEM_OVERRUN_TEST_BYTE; i++)
+		ptr[i] = BMEM_OVERRUN_TEST_CODE + i;
+}
+
+static void bmem_overrun_test_check(uint8_t *ptr)
+{
+	bool pass = true;
+	for (size_t i = 0; i < BMEM_OVERRUN_TEST_BYTE; i++)
+		pass &= ptr[i] == BMEM_OVERRUN_TEST_CODE + i;
+	if (!pass) {
+		blog(LOG_ERROR, "bmem_overrun_test_check: failed at %p", ptr);
+	}
+}
+#endif // BMEM_TRACE
+
+void bmem_trace_dump(int log_level)
+{
+#ifdef BMEM_TRACE
+	pthread_mutex_lock(&bmem_trace_mutex);
+	int n = 0;
+	for (struct bmem_trace *bt = trace_first; bt; bt = bt->next) {
+		blog(log_level, "memory leak[%d] %p", n, bt);
+		bmem_trace_dump_once(log_level, bt);
+		n++;
+	}
+	pthread_mutex_unlock(&bmem_trace_mutex);
+#else
+	// Do nothing when compiled with BMEM_TRACE not defined
+#endif
+}
+
 static void *a_malloc(size_t size)
 {
-#ifdef ALIGNED_MALLOC
-	return _aligned_malloc(size, ALIGNMENT);
-#elif ALIGNMENT_HACK
-	void *ptr = NULL;
-	long diff;
+	size_t mem_size = size;
+#ifdef BMEM_TRACE
+	mem_size += BMEM_TRACE_SIZE_BYTE + BMEM_OVERRUN_TEST_BYTE;
+#endif
 
-	ptr = malloc(size + ALIGNMENT);
+#ifdef ALIGNED_MALLOC
+	void *ptr = _aligned_malloc(mem_size, ALIGNMENT);
+#elif ALIGNMENT_HACK
+	void *ptr = malloc(mem_size + ALIGNMENT);
 	if (ptr) {
-		diff = ((~(long)ptr) & (ALIGNMENT - 1)) + 1;
+		long diff = ((~(long)ptr) & (ALIGNMENT - 1)) + 1;
 		ptr = (char *)ptr + diff;
 		((char *)ptr)[-1] = (char)diff;
 	}
-
-	return ptr;
 #else
-	return malloc(size);
+	void *ptr = malloc(mem_size);
 #endif
+
+#ifdef BMEM_TRACE
+	if (ptr) {
+		register_trace(ptr, size);
+		ptr = (uint8_t *)ptr + BMEM_TRACE_SIZE_BYTE;
+		bmem_overrun_test_set((uint8_t *)ptr + size);
+	}
+#endif // BMEM_TRACE
+	return ptr;
 }
 
 static void *a_realloc(void *ptr, size_t size)
 {
-#ifdef ALIGNED_MALLOC
-	return _aligned_realloc(ptr, size, ALIGNMENT);
-#elif ALIGNMENT_HACK
-	long diff;
-
 	if (!ptr)
 		return a_malloc(size);
-	diff = ((char *)ptr)[-1];
-	ptr = realloc((char *)ptr - diff, size + diff);
-	if (ptr)
-		ptr = (char *)ptr + diff;
-	return ptr;
-#else
-	return realloc(ptr, size);
+
+	size_t mem_size = size;
+#ifdef BMEM_TRACE
+	struct bmem_trace *trace =
+		(struct bmem_trace *)((uint8_t *)ptr - BMEM_TRACE_SIZE_BYTE);
+	bmem_overrun_test_check((uint8_t *)ptr + trace->size);
+	ptr = (uint8_t *)ptr - BMEM_TRACE_SIZE_BYTE;
+	mem_size += BMEM_TRACE_SIZE_BYTE + BMEM_OVERRUN_TEST_BYTE;
+	pthread_mutex_lock(&bmem_trace_mutex);
 #endif
+
+#ifdef ALIGNED_MALLOC
+	ptr = _aligned_realloc(ptr, mem_size, ALIGNMENT);
+#elif ALIGNMENT_HACK
+	long diff = ((unsigned char *)ptr)[-1];
+	ptr = realloc((char *)ptr - diff, mem_size + diff);
+	ptr = (char *)ptr + diff;
+#else
+	ptr = realloc(ptr, mem_size);
+#endif
+
+#ifdef BMEM_TRACE
+	if (ptr) {
+		reregister_trace(ptr, size);
+		pthread_mutex_unlock(&bmem_trace_mutex);
+		ptr = (uint8_t *)ptr + BMEM_TRACE_SIZE_BYTE;
+		bmem_overrun_test_set((uint8_t *)ptr + size);
+	} else {
+		pthread_mutex_unlock(&bmem_trace_mutex);
+	}
+#endif // BMEM_TRACE
+	return ptr;
 }
 
 static void a_free(void *ptr)
 {
+	if (!ptr)
+		return;
+
+#ifdef BMEM_TRACE
+	struct bmem_trace *trace =
+		(struct bmem_trace *)((uint8_t *)ptr - BMEM_TRACE_SIZE_BYTE);
+	bmem_overrun_test_check((uint8_t *)ptr + trace->size);
+	ptr = (uint8_t *)ptr - BMEM_TRACE_SIZE_BYTE;
+	unregister_trace((uint8_t *)ptr);
+#endif // BMEM_TRACE
+
 #ifdef ALIGNED_MALLOC
 	_aligned_free(ptr);
 #elif ALIGNMENT_HACK
-	if (ptr)
-		free((char *)ptr - ((char *)ptr)[-1]);
+	free((char *)ptr - ((char *)ptr)[-1]);
 #else
 	free(ptr);
 #endif

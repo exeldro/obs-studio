@@ -3478,6 +3478,8 @@ int main(int argc, char *argv[])
 
 	delete_safe_mode_sentinel();
 	blog(LOG_INFO, "Number of memory leaks: %ld", bnum_allocs());
+	bmem_trace_dump(LOG_ERROR);
+
 	base_set_log_handler(nullptr, nullptr);
 
 	if (restart || restart_safe) {
