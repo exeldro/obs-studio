@@ -30,9 +30,10 @@ jobs:
 
   compatibility-validation:
     name: Validate Compatibility 🕵️
-    if: github.base_ref == 'master'
+    if: github.base_ref == 'master' || github.base_ref == 'plugin'
     runs-on: ubuntu-22.04
     permissions:
+      contents: read
       checks: write
     steps:
       - uses: actions/checkout@v3
@@ -52,9 +53,10 @@ jobs:
 
   services-validation:
     name: Validate Services 🕵️
-    if: github.base_ref == 'master'
+    if: github.base_ref == 'master' || github.base_ref == 'plugin'
     runs-on: ubuntu-22.04
     permissions:
+      contents: read
       checks: write
     steps:
       - uses: actions/checkout@v3
