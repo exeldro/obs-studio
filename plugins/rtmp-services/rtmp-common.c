@@ -16,6 +16,7 @@ struct rtmp_common {
 	char *protocol;
 	char *server;
 	char *key;
+	char *ertmp_config_url;
 
 	struct obs_service_resolution *supported_resolutions;
 	size_t supported_resolutions_count;
@@ -146,6 +147,7 @@ static void rtmp_common_update(void *data, obs_data_t *settings)
 	bfree(service->protocol);
 	bfree(service->server);
 	bfree(service->key);
+	bfree(service->ertmp_config_url);
 
 	service->service = bstrdup(obs_data_get_string(settings, "service"));
 	service->protocol = bstrdup(obs_data_get_string(settings, "protocol"));
@@ -176,6 +178,13 @@ static void rtmp_common_update(void *data, obs_data_t *settings)
 		}
 
 		if (serv) {
+			const char *ertmp_config_url =
+				get_string_val(serv, "ertmp_configuration_url");
+			if (ertmp_config_url) {
+				service->ertmp_config_url =
+					bstrdup(ertmp_config_url);
+			}
+
 			json_t *rec = json_object_get(serv, "recommended");
 			if (json_is_object(rec)) {
 				update_recommendations(service, rec);
@@ -202,6 +211,7 @@ static void rtmp_common_destroy(void *data)
 	bfree(service->protocol);
 	bfree(service->server);
 	bfree(service->key);
+	bfree(service->ertmp_config_url);
 	bfree(service);
 }
 
@@ -611,6 +621,10 @@ static bool service_selected(obs_properties_t *props, obs_property_t *p,
 	fill_servers(obs_properties_get(props, "server"), service, name);
 	fill_more_info_link(service, settings);
 	fill_stream_key_link(service, settings);
+	copy_string_from_json_if_available(service, settings,
+					   "ertmp_configuration_info_link");
+	copy_string_from_json_if_available(service, settings,
+					   "ertmp_multitrack_video_name");
 	update_protocol(service, settings);
 	return true;
 }
@@ -1073,6 +1087,8 @@ static const char *rtmp_common_get_protocol(void *data)
 
 static const char *rtmp_common_get_config_url(struct rtmp_common *service)
 {
+	if (service->ertmp_config_url)
+		return service->ertmp_config_url;
 	if (service->service && strcmp(service->service, "Twitch") == 0)
 		return "https://ingest.twitch.tv/api/v3/GetClientConfiguration";
 	return NULL;
