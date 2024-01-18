@@ -986,16 +986,14 @@ void OBSBasicSettings::on_useAuth_toggled()
 	ui->authPwWidget->setVisible(use_auth);
 }
 
-bool OBSBasicSettings::IsCustomTwitchServer()
+bool OBSBasicSettings::IsCustomServer()
 {
-	bool is_twitch = ui->service->currentText() == "Twitch";
-	return is_twitch &&
-	       ui->server->currentData() == QVariant{CustomServerUUID()};
+	return ui->server->currentData() == QVariant{CustomServerUUID()};
 }
 
 void OBSBasicSettings::on_server_currentIndexChanged(int /*index*/)
 {
-	auto server_is_custom = IsCustomTwitchServer();
+	auto server_is_custom = IsCustomServer();
 
 	ui->serviceCustomServerLabel->setVisible(server_is_custom);
 	ui->serviceCustomServer->setVisible(server_is_custom);
