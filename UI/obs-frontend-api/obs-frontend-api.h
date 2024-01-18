@@ -14,7 +14,6 @@ struct obs_data;
 typedef struct obs_data obs_data_t;
 
 enum obs_frontend_event {
-	OBS_FRONTEND_EVENT_STREAMING_PREPARING,
 	OBS_FRONTEND_EVENT_STREAMING_STARTING,
 	OBS_FRONTEND_EVENT_STREAMING_STARTED,
 	OBS_FRONTEND_EVENT_STREAMING_STOPPING,
@@ -63,6 +62,8 @@ enum obs_frontend_event {
 	OBS_FRONTEND_EVENT_SCENE_COLLECTION_RENAMED,
 	OBS_FRONTEND_EVENT_THEME_CHANGED,
 	OBS_FRONTEND_EVENT_SCREENSHOT_TAKEN,
+
+	OBS_FRONTEND_EVENT_STREAMING_PREPARING,
 };
 
 /* ------------------------------------------------------------------------- */
