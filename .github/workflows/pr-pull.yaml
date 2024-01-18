@@ -33,6 +33,7 @@ jobs:
     if: github.base_ref == 'master' || github.base_ref == 'plugin'
     runs-on: ubuntu-22.04
     permissions:
+      contents: read
       checks: write
     steps:
       - uses: actions/checkout@v3
@@ -55,6 +56,7 @@ jobs:
     if: github.base_ref == 'master' || github.base_ref == 'plugin'
     runs-on: ubuntu-22.04
     permissions:
+      contents: read
       checks: write
     steps:
       - uses: actions/checkout@v3
