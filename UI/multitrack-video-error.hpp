@@ -8,7 +8,8 @@ struct MultitrackVideoError {
 	static MultitrackVideoError warning(QString error);
 	static MultitrackVideoError cancel();
 
-	bool ShowDialog(QWidget *parent) const;
+	bool ShowDialog(QWidget *parent,
+			const QString &multitrack_video_name) const;
 
 	enum struct Type {
 		Critical,

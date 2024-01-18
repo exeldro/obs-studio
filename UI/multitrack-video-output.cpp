@@ -688,6 +688,15 @@ void MultitrackVideoOutput::PrepareStreaming(
 	bool is_custom_config = custom_config.has_value();
 	auto auto_config_url = MultitrackVideoAutoConfigURL(service);
 
+	OBSDataAutoRelease service_settings = obs_service_get_settings(service);
+	auto multitrack_video_name =
+		QTStr("Basic.Settings.Stream.MultitrackVideoLabel");
+	if (obs_data_has_user_value(service_settings,
+				    "ertmp_multitrack_video_name")) {
+		multitrack_video_name = obs_data_get_string(
+			service_settings, "ertmp_multitrack_video_name");
+	}
+
 	auto auto_config_url_data = auto_config_url.toUtf8();
 
 	blog(LOG_INFO,
@@ -724,7 +733,8 @@ void MultitrackVideoOutput::PrepareStreaming(
 						      go_live_post);
 		if (!go_live_config)
 			throw MultitrackVideoError::warning(
-				QTStr("FailedToStartStream.FallbackToDefault"));
+				QTStr("FailedToStartStream.FallbackToDefault")
+					.arg(multitrack_video_name));
 
 		download_time_elapsed = attempt_start_time.MSecsElapsed();
 
@@ -800,14 +810,16 @@ void MultitrackVideoOutput::PrepareStreaming(
 		auto recording_output = std::move(outputs.recording_output);
 		if (!output)
 			throw MultitrackVideoError::warning(
-				QTStr("FailedToStartStream.FallbackToDefault"));
+				QTStr("FailedToStartStream.FallbackToDefault")
+					.arg(multitrack_video_name));
 
 		auto multitrack_video_service =
 			create_service(device_id(), obs_session_id(),
 				       go_live_config, rtmp_url, stream_key);
 		if (!multitrack_video_service)
 			throw MultitrackVideoError::warning(
-				QTStr("FailedToStartStream.FallbackToDefault"));
+				QTStr("FailedToStartStream.FallbackToDefault")
+					.arg(multitrack_video_name));
 
 		obs_output_set_service(output, multitrack_video_service);
 

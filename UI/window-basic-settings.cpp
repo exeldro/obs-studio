@@ -6269,9 +6269,50 @@ void OBSBasicSettings::UpdateMultitrackVideo()
 		ui->multitrackVideoConfigOverrideEnable->isChecked());
 
 	if (available) {
+		OBSDataAutoRelease settings;
+		{
+			auto service_name = ui->service->currentText();
+			auto custom_server = ui->customServer->text().trimmed();
+
+			obs_properties_t *props =
+				obs_get_service_properties("rtmp_common");
+			obs_property_t *service =
+				obs_properties_get(props, "service");
+
+			settings = obs_data_create();
+
+			obs_data_set_string(settings, "service",
+					    QT_TO_UTF8(service_name));
+			obs_property_modified(service, settings);
+		}
+
+		auto multitrack_video_name =
+			QTStr("Basic.Settings.Stream.MultitrackVideoLabel");
+		if (obs_data_has_user_value(settings,
+					    "ertmp_multitrack_video_name"))
+			multitrack_video_name = obs_data_get_string(
+				settings, "ertmp_multitrack_video_name");
+
+		ui->enableMultitrackVideo->setText(
+			QTStr("Basic.Settings.Stream.EnableMultitrackVideo")
+				.arg(multitrack_video_name));
+
+		QString info_link_text;
+		if (obs_data_has_user_value(settings,
+					    "ertmp_configuration_info_link")) {
+
+			info_link_text =
+				QTStr("MultitrackVideo.InfoLink")
+					.arg(obs_data_get_string(
+						settings,
+						"ertmp_configuration_info_link"));
+		}
+
 		ui->multitrackVideoInfo->setText(
 			QTStr("MultitrackVideo.InfoTest")
-				.arg(ui->service->currentText()));
+				.arg(multitrack_video_name,
+				     ui->service->currentText(),
+				     info_link_text));
 	}
 }
 
