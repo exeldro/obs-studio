@@ -808,3 +808,30 @@ char *os_generate_formatted_filename(const char *extension, bool space,
 
 	return sf.array;
 }
+
+char *os_hash_file_sha256(const char *path)
+{
+	FILE *file = os_fopen(path, "rb");
+	if (!file)
+		return NULL;
+
+	fseek(file, 0, SEEK_END);
+	size_t size = os_ftelli64(file);
+	char *data = NULL;
+
+	if (size > 0) {
+		data = bmalloc(size);
+		fseek(file, 0, SEEK_SET);
+		size = fread(data, 1, size, file);
+		if (size == 0) {
+			bfree(data);
+			return NULL;
+		}
+	}
+
+	fclose(file);
+
+	char *hash = os_hash_sha256(data, size);
+	bfree(data);
+	return hash;
+}
