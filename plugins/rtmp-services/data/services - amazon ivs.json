@@ -1,0 +1,15 @@
+{
+    "$schema": "schema/service-schema-v5.json",
+    "format_version": 5,
+    "services": [
+        {
+            "name": "Amazon IVS",
+            "common": true,
+            "protocol": "RTMPS",
+            "servers": [],
+            "supported video codecs": [
+                "h264"
+            ]
+        }
+    ]
+}
