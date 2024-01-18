@@ -275,7 +275,7 @@ private:
 	void UpdateAdvNetworkGroup();
 	void UpdateMultitrackVideo();
 
-	bool IsCustomTwitchServer();
+	bool IsCustomServer();
 
 private slots:
 	void RecreateOutputResolutionWidget();

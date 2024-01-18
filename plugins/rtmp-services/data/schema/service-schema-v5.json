@@ -94,7 +94,7 @@
                                 "url": ""
                             }
                         ],
-                        "minItems": 1,
+                        "minItems": 0,
                         "additionalItems": true
                     },
                     "recommended": {
@@ -197,6 +197,18 @@
                     "more_info_link": {
                         "$ref": "#/definitions/saneUrl",
                         "description": "Link that provides additional info about the service, presented in the UI as a button next to the services dropdown."
+                    },
+                    "ertmp_configuration_url": {
+                        "$ref": "#/definitions/saneUrl",
+                        "description": "Accessed for multitrack video auto configuration"
+                    },
+                    "ertmp_configuration_info_link": {
+                        "$ref": "#/definitions/saneUrl",
+                        "description": "Link that provides additional info about using ertmp multitrack auto configuration"
+                    },
+                    "ertmp_configuration_name": {
+                        "type": "string",
+                        "description": "Marketing name for eRTMP multitrack video (e.g. Enhanced Broadcasting for Twitch)"
                     },
                     "alt_names": {
                         "type": "array",
