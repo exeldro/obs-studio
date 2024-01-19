@@ -134,6 +134,8 @@ static const char *get_protocol(json_t *service, obs_data_t *settings)
 	return "RTMP";
 }
 
+static void copy_info_to_settings(json_t *service, obs_data_t *settings);
+
 static void rtmp_common_update(void *data, obs_data_t *settings)
 {
 	struct rtmp_common *service = data;
@@ -184,6 +186,8 @@ static void rtmp_common_update(void *data, obs_data_t *settings)
 				service->ertmp_config_url =
 					bstrdup(ertmp_config_url);
 			}
+
+			copy_info_to_settings(serv, settings);
 
 			json_t *rec = json_object_get(serv, "recommended");
 			if (json_is_object(rec)) {
@@ -553,6 +557,26 @@ static void update_protocol(json_t *service, obs_data_t *settings)
 	obs_data_set_string(settings, "protocol", "RTMP");
 }
 
+static void copy_info_to_settings(json_t *service, obs_data_t *settings)
+{
+	const char *name = obs_data_get_string(settings, "service");
+
+	if (strncmp(name, "Twitch", 7) == 0) {
+		obs_data_set_string(
+			settings, "ertmp_configuration_info_link",
+			"https://help.twitch.tv/s/article/multiple-encodes");
+		obs_data_set_string(settings, "ertmp_multitrack_video_name",
+				    "Enhanced Broadcasting");
+	}
+	fill_more_info_link(service, settings);
+	fill_stream_key_link(service, settings);
+	copy_string_from_json_if_available(service, settings,
+					   "ertmp_configuration_info_link");
+	copy_string_from_json_if_available(service, settings,
+					   "ertmp_multitrack_video_name");
+	update_protocol(service, settings);
+}
+
 static inline json_t *find_service(json_t *root, const char *name,
 				   const char **p_new_name)
 {
@@ -619,13 +643,8 @@ static bool service_selected(obs_properties_t *props, obs_property_t *p,
 	}
 
 	fill_servers(obs_properties_get(props, "server"), service, name);
-	fill_more_info_link(service, settings);
-	fill_stream_key_link(service, settings);
-	copy_string_from_json_if_available(service, settings,
-					   "ertmp_configuration_info_link");
-	copy_string_from_json_if_available(service, settings,
-					   "ertmp_multitrack_video_name");
-	update_protocol(service, settings);
+	copy_info_to_settings(service, settings);
+
 	return true;
 }
 

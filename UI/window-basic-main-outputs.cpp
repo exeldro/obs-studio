@@ -2623,11 +2623,25 @@ FutureHolder<std::optional<bool>> BasicOutputHandler::SetupMultitrackVideo(
 
 	auto secondFuture = firstFuture.then(
 		main,
-		[&](std::optional<MultitrackVideoError> error)
+		[&, service = OBSService{service}](
+			std::optional<MultitrackVideoError> error)
 			-> std::optional<bool> {
 			if (error) {
+				OBSDataAutoRelease service_settings =
+					obs_service_get_settings(service);
+				auto multitrack_video_name = QTStr(
+					"Basic.Settings.Stream.MultitrackVideoLabel");
+				if (obs_data_has_user_value(
+					    service_settings,
+					    "ertmp_multitrack_video_name")) {
+					multitrack_video_name = obs_data_get_string(
+						service_settings,
+						"ertmp_multitrack_video_name");
+				}
+
 				multitrackVideoActive = false;
-				if (!error->ShowDialog(main))
+				if (!error->ShowDialog(main,
+						       multitrack_video_name))
 					return false;
 				return std::nullopt;
 			}

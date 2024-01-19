@@ -18,7 +18,8 @@ MultitrackVideoError MultitrackVideoError::cancel()
 	return {Type::Cancel, {}};
 }
 
-bool MultitrackVideoError::ShowDialog(QWidget *parent) const
+bool MultitrackVideoError::ShowDialog(
+	QWidget *parent, const QString &multitrack_video_name) const
 {
 	QMessageBox mb(parent);
 	mb.setTextFormat(Qt::RichText);
@@ -27,7 +28,8 @@ bool MultitrackVideoError::ShowDialog(QWidget *parent) const
 	if (type == Type::Warning) {
 		mb.setText(
 			error +
-			QTStr("FailedToStartStream.WarningRetryNonMultitrackVideo"));
+			QTStr("FailedToStartStream.WarningRetryNonMultitrackVideo")
+				.arg(multitrack_video_name));
 		mb.setIcon(QMessageBox::Warning);
 		mb.setStandardButtons(QMessageBox::StandardButton::Yes |
 				      QMessageBox::StandardButton::No);
