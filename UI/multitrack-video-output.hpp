@@ -1,6 +1,7 @@
 #pragma once
 
 #include <obs.hpp>
+#include <obs-frontend-api.h>
 
 #include <atomic>
 #include <optional>
@@ -27,6 +28,23 @@ void RecordingStopHandler(void *arg, calldata_t *data);
 
 bool MultitrackVideoDeveloperModeEnabled();
 
+struct MultitrackVideoViewInfo {
+	inline MultitrackVideoViewInfo(const char *name_,
+				       multitrack_video_start_cb start_video_,
+				       multitrack_video_stop_cb stop_video_,
+				       void *param_)
+		: start_video(start_video_),
+		  stop_video(stop_video_),
+		  param(param_),
+		  name(name_)
+	{
+	}
+	std::string name;
+	multitrack_video_start_cb start_video = nullptr;
+	multitrack_video_stop_cb stop_video = nullptr;
+	void *param = nullptr;
+};
+
 struct MultitrackVideoOutput {
 
 public:
@@ -44,6 +62,8 @@ public:
 	void StopStreaming();
 	bool IsStreaming() const;
 	std::optional<int> ConnectTimeMs() const;
+
+	void StopExtraViews();
 
 	const std::vector<OBSEncoderAutoRelease> &VideoEncoders() const;
 
@@ -71,6 +91,7 @@ private:
 	std::vector<OBSEncoderAutoRelease> video_encoders_;
 	OBSEncoderAutoRelease audio_encoder_;
 	OBSServiceAutoRelease multitrack_video_service_;
+	std::map<std::string, video_t *> extra_views_;
 
 	OBSOutputAutoRelease recording_output_;
 	OBSWeakOutputAutoRelease weak_recording_output_;
