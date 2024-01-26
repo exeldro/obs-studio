@@ -816,7 +816,7 @@ char *os_hash_file_sha256(const char *path)
 		return NULL;
 
 	fseek(file, 0, SEEK_END);
-	size_t size = os_ftelli64(file);
+	size_t size = (size_t)os_ftelli64(file);
 	char *data = NULL;
 
 	if (size > 0) {

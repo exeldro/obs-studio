@@ -112,7 +112,9 @@ target_sources(
           presentmon-csv-parser.hpp
           qt-helpers.cpp
           qt-helpers.hpp
-          system-info.hpp)
+          system-info.hpp
+          wmi-data-provider.cpp
+          wmi-data-provider.hpp)
 
 if(OS_WINDOWS)
   include(cmake/os-windows.cmake)
