@@ -56,6 +56,7 @@ static int load_module_exports(struct obs_module *mod, const char *path)
 	mod->description = os_dlsym(mod->module, "obs_module_description");
 	mod->author = os_dlsym(mod->module, "obs_module_author");
 	mod->get_string = os_dlsym(mod->module, "obs_module_get_string");
+	mod->version = os_dlsym(mod->module, "obs_module_version");
 	return MODULE_SUCCESS;
 }
 
@@ -168,8 +169,15 @@ void obs_log_loaded_modules(void)
 {
 	blog(LOG_INFO, "  Loaded Modules:");
 
-	for (obs_module_t *mod = obs->first_module; !!mod; mod = mod->next)
-		blog(LOG_INFO, "    %s", mod->file);
+	for (obs_module_t *mod = obs->first_module; !!mod; mod = mod->next) {
+		char *version = obs_get_module_version_string(mod);
+		if (version) {
+			blog(LOG_INFO, "    %s (%s)", mod->file, version);
+			bfree(version);
+		} else {
+			blog(LOG_INFO, "    %s", mod->file);
+		}
+	}
 }
 
 const char *obs_get_module_file_name(obs_module_t *module)
@@ -200,6 +208,40 @@ const char *obs_get_module_binary_path(obs_module_t *module)
 const char *obs_get_module_data_path(obs_module_t *module)
 {
 	return module ? module->data_path : NULL;
+}
+
+uint32_t obs_get_module_api_version(obs_module_t *module)
+{
+	return (module && module->ver) ? module->ver() : 0;
+}
+
+bool obs_get_module_version(obs_module_t *module, struct obs_version_info *ovi)
+{
+	if (!module || !module->version)
+		return false;
+
+	module->version(ovi);
+	return true;
+}
+
+char *obs_get_module_version_string(obs_module_t *module)
+{
+	if (!module || !module->version)
+		return NULL;
+
+	struct obs_version_info ovi = {0};
+	module->version(&ovi);
+	struct dstr output = {0};
+	if (ovi.build && ovi.pre_release) {
+		dstr_printf(&output, "%u.%u.%u-%s+%s", ovi.major, ovi.minor, ovi.patch, ovi.pre_release, ovi.build);
+	} else if (ovi.pre_release) {
+		dstr_printf(&output, "%u.%u.%u-%s", ovi.major, ovi.minor, ovi.patch, ovi.pre_release);
+	} else if (ovi.build) {
+		dstr_printf(&output, "%u.%u.%u+%s", ovi.major, ovi.minor, ovi.patch, ovi.build);
+	} else {
+		dstr_printf(&output, "%u.%u.%u", ovi.major, ovi.minor, ovi.patch);
+	}
+	return output.array;
 }
 
 obs_module_t *obs_get_module(const char *name)

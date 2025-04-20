@@ -94,6 +94,12 @@ to communicate with libobs and front-ends.
 
 ---------------------
 
+.. function:: void obs_module_version(struct obs_version_info *ovi)
+
+   (Optional) Called to get the semantic version of the module
+
+---------------------
+
 
 Module Externs
 --------------
@@ -228,6 +234,28 @@ plugin modules.
 .. function:: const char *obs_get_module_data_path(obs_module_t *module)
 
    :return: The module data path
+
+---------------------
+
+.. function:: uint32_t obs_get_module_api_version(obs_module_t *module)
+
+   :return: The module semantic API version ((major << 24) | (minor << 16) | patch)
+
+---------------------
+
+.. function:: bool obs_get_module_version(obs_module_t *module, struct obs_version_info *ovi)
+
+   Get the module semantic version
+
+   :return: *true* if the module version was loaded successfully
+
+---------------------
+
+.. function:: char *obs_get_module_version_string(obs_module_t *module)
+
+   Get the module semantic version string
+
+   :return: Version string, or NULL if not found.  Use bfree to free string
 
 ---------------------
 

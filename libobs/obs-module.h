@@ -179,3 +179,6 @@ MODULE_EXPORT const char *obs_module_name(void);
 
 /** Optional: Returns a description of the module */
 MODULE_EXPORT const char *obs_module_description(void);
+
+/** Optional: Returns a semantic version of the module */
+MODULE_EXPORT void obs_module_version(struct obs_version_info *ovi);

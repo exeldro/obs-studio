@@ -124,6 +124,7 @@ struct obs_module {
 	const char *(*name)(void);
 	const char *(*description)(void);
 	const char *(*author)(void);
+	void (*version)(struct obs_version_info *ovi);
 
 	struct obs_module *next;
 };

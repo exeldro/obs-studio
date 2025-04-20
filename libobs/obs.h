@@ -512,6 +512,23 @@ EXPORT const char *obs_get_module_binary_path(obs_module_t *module);
 /** Returns the module data path */
 EXPORT const char *obs_get_module_data_path(obs_module_t *module);
 
+/** Returns the module version of OBS API */
+EXPORT uint32_t obs_get_module_api_version(obs_module_t *module);
+
+struct obs_version_info {
+	uint32_t major;
+	uint32_t minor;
+	uint32_t patch;
+	const char *pre_release;
+	const char *build;
+};
+
+/** Returns the module version */
+EXPORT bool obs_get_module_version(obs_module_t *module, struct obs_version_info* ovi);
+
+/** Returns the module version string */
+EXPORT char* obs_get_module_version_string(obs_module_t *module);
+
 #ifndef SWIG
 /**
  * Adds a module search path to be used with obs_find_modules.  If the search
