@@ -15,19 +15,49 @@ if(NOT CMAKE_OSX_ARCHITECTURES)
 endif()
 set_property(CACHE CMAKE_OSX_ARCHITECTURES PROPERTY STRINGS arm64 x86_64)
 
-# Make sure the macOS SDK is recent enough for OBS
-set(OBS_MACOS_MINIMUM_SDK "13.1") # Keep in sync with Xcode
-set(OBS_MACOS_MINIMUM_XCODE "14.2") # Keep in sync with SDK
-message(DEBUG "macOS SDK Path: ${CMAKE_OSX_SYSROOT}")
-string(REGEX MATCH ".+/MacOSX.platform/Developer/SDKs/MacOSX([0-9]+\.[0-9])+\.sdk$" _ ${CMAKE_OSX_SYSROOT})
-set(OBS_MACOS_CURRENT_SDK ${CMAKE_MATCH_1})
-message(DEBUG "macOS SDK version: ${OBS_MACOS_CURRENT_SDK}")
-if(OBS_MACOS_CURRENT_SDK VERSION_LESS OBS_MACOS_MINIMUM_SDK)
-  message(
-    FATAL_ERROR
-      "Your macOS SDK version (${OBS_MACOS_CURRENT_SDK}) is too low. The macOS ${OBS_MACOS_MINIMUM_SDK} SDK (Xcode ${OBS_MACOS_MINIMUM_XCODE}) is required to build OBS."
+# Ensure recent enough Xcode and platform SDK
+function(check_sdk_requirements)
+  set(obs_macos_minimum_sdk 13.1) # Keep in sync with Xcode
+  set(obs_macos_minimum_xcode 14.2) # Keep in sync with SDK
+  execute_process(
+    COMMAND xcrun --sdk macosx --show-sdk-platform-version
+    OUTPUT_VARIABLE obs_macos_current_sdk
+    RESULT_VARIABLE result
+    OUTPUT_STRIP_TRAILING_WHITESPACE
   )
-endif()
+  if(NOT result EQUAL 0)
+    message(
+      FATAL_ERROR
+      "Failed to fetch macOS SDK version. "
+      "Ensure that the macOS SDK is installed and that xcode-select points at the Xcode developer directory."
+    )
+  endif()
+  message(DEBUG "macOS SDK version: ${obs_macos_current_sdk}")
+  if(obs_macos_current_sdk VERSION_LESS obs_macos_minimum_sdk)
+    message(
+      FATAL_ERROR
+      "Your macOS SDK version (${obs_macos_current_sdk}) is too low. "
+      "The macOS ${obs_macos_minimum_sdk} SDK (Xcode ${obs_macos_minimum_xcode}) is required to build OBS."
+    )
+  endif()
+  execute_process(COMMAND xcrun --find xcodebuild OUTPUT_VARIABLE obs_macos_xcodebuild RESULT_VARIABLE result)
+  if(NOT result EQUAL 0)
+    message(
+      FATAL_ERROR
+      "Xcode was not found. "
+      "Ensure you have installed Xcode and that xcode-select points at the Xcode developer directory."
+    )
+  endif()
+  message(DEBUG "Path to xcodebuild binary: ${obs_macos_xcodebuild}")
+  if(XCODE_VERSION VERSION_LESS obs_macos_minimum_xcode)
+    message(
+      FATAL_ERROR
+      "Your Xcode version (${XCODE_VERSION}) is too low. Xcode ${obs_macos_minimum_xcode} is required to build OBS."
+    )
+  endif()
+endfunction()
+
+check_sdk_requirements()
 
 if(XCODE)
   # Enable dSYM generator for release builds
